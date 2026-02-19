@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { useForm } from 'react-hook-form'
+import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ticketFormSchema, type TicketFormData } from '@/lib/utils/validation'
 import { phoneMask } from '@/lib/utils/format'
@@ -46,8 +46,12 @@ export default function HelpPage() {
     access_token: string
   } | null>(null)
 
-  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<TicketFormData>({
+  const { register, handleSubmit, setValue, watch, control, formState: { errors } } = useForm<TicketFormData>({
     resolver: zodResolver(ticketFormSchema),
+    defaultValues: {
+      product_id: '',
+      category_id: '',
+    },
   })
 
   const phoneValue = watch('phone')
@@ -60,7 +64,18 @@ export default function HelpPage() {
       ])
       const prodJson = await prodRes.json()
       const catJson = await catRes.json()
-      if (prodJson.success) setProducts(prodJson.data)
+      if (prodJson.success) {
+        const mainProducts = ['50 Scripts', 'Teste dos Arquétipos']
+        const sorted = [...(prodJson.data as Product[])].sort((a, b) => {
+          const aIdx = mainProducts.findIndex((name) => a.name.toLowerCase().includes(name.toLowerCase()))
+          const bIdx = mainProducts.findIndex((name) => b.name.toLowerCase().includes(name.toLowerCase()))
+          if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx
+          if (aIdx !== -1) return -1
+          if (bIdx !== -1) return 1
+          return a.name.localeCompare(b.name)
+        })
+        setProducts(sorted)
+      }
       if (catJson.success) setCategories(catJson.data)
     }
     loadData()
@@ -262,36 +277,48 @@ export default function HelpPage() {
                     <div className="grid gap-4 md:grid-cols-2">
                       <div className="space-y-2">
                         <Label>Produto *</Label>
-                        <Select onValueChange={(v) => setValue('product_id', v, { shouldValidate: true })}>
-                          <SelectTrigger className="bg-muted">
-                            <SelectValue placeholder="Selecione" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {products.map((p) => (
-                              <SelectItem key={p.id} value={p.id}>
-                                {p.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <Controller
+                          name="product_id"
+                          control={control}
+                          render={({ field }) => (
+                            <Select value={field.value} onValueChange={field.onChange}>
+                              <SelectTrigger className="bg-muted">
+                                <SelectValue placeholder="Selecione" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {products.map((p) => (
+                                  <SelectItem key={p.id} value={p.id}>
+                                    {p.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        />
                         {errors.product_id && (
                           <p className="text-sm text-destructive">{errors.product_id.message}</p>
                         )}
                       </div>
                       <div className="space-y-2">
                         <Label>Tipo de dificuldade *</Label>
-                        <Select onValueChange={(v) => setValue('category_id', v, { shouldValidate: true })}>
-                          <SelectTrigger className="bg-muted">
-                            <SelectValue placeholder="Selecione" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {categories.map((c) => (
-                              <SelectItem key={c.id} value={c.id}>
-                                {c.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <Controller
+                          name="category_id"
+                          control={control}
+                          render={({ field }) => (
+                            <Select value={field.value} onValueChange={field.onChange}>
+                              <SelectTrigger className="bg-muted">
+                                <SelectValue placeholder="Selecione" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {categories.map((c) => (
+                                  <SelectItem key={c.id} value={c.id}>
+                                    {c.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        />
                         {errors.category_id && (
                           <p className="text-sm text-destructive">{errors.category_id.message}</p>
                         )}
