@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { ArrowLeft, Send, Loader2, Bot, User, CheckCircle, XCircle, ThumbsUp, ThumbsDown } from 'lucide-react'
+import { ArrowLeft, Send, Loader2, Bot, User, CheckCircle, XCircle, ThumbsUp, ThumbsDown, AlertCircle } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import type { Product, Category } from '@/lib/supabase/types'
 import Link from 'next/link'
@@ -45,6 +45,7 @@ export default function HelpPage() {
     ticket_code: string
     access_token: string
   } | null>(null)
+  const [createError, setCreateError] = useState<string | null>(null)
 
   const { register, handleSubmit, setValue, watch, control, formState: { errors } } = useForm<TicketFormData>({
     resolver: zodResolver(ticketFormSchema),
@@ -160,6 +161,7 @@ export default function HelpPage() {
     if (!feedbackGiven) sendFeedback(false)
     setStep('creating')
     setIsCreating(true)
+    setCreateError(null)
 
     const formData = watch()
 
@@ -190,11 +192,20 @@ export default function HelpPage() {
         throw new Error(json.error)
       }
     } catch {
+      setCreateError('Nao foi possivel criar o ticket. Tente novamente.')
       setStep('ai')
     } finally {
       setIsCreating(false)
     }
   }
+
+  const stepLabels = [
+    { key: 'form', label: 'Dados' },
+    { key: 'ai', label: 'IA' },
+    { key: 'done', label: 'Conclusao' },
+  ]
+
+  const currentStepIndex = step === 'form' ? 0 : step === 'ai' ? 1 : 2
 
   return (
     <div className="min-h-screen bg-background">
@@ -211,9 +222,62 @@ export default function HelpPage() {
             <span className="text-lg font-bold">Bethel Suporte</span>
           </div>
         </div>
+        {/* Stepper */}
+        <div className="mx-auto max-w-2xl px-4 pb-3">
+          <div className="flex items-center justify-between">
+            {stepLabels.map((s, i) => (
+              <div key={s.key} className="flex items-center gap-2">
+                <div
+                  className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold transition-colors ${
+                    i < currentStepIndex
+                      ? 'bg-primary text-primary-foreground'
+                      : i === currentStepIndex
+                        ? 'bg-primary text-primary-foreground ring-2 ring-primary/30'
+                        : 'bg-muted text-muted-foreground'
+                  }`}
+                >
+                  {i < currentStepIndex ? (
+                    <CheckCircle className="h-3.5 w-3.5" />
+                  ) : (
+                    i + 1
+                  )}
+                </div>
+                <span
+                  className={`text-xs font-medium ${
+                    i <= currentStepIndex ? 'text-foreground' : 'text-muted-foreground'
+                  }`}
+                >
+                  {s.label}
+                </span>
+                {i < stepLabels.length - 1 && (
+                  <div
+                    className={`mx-2 h-px w-8 sm:w-16 ${
+                      i < currentStepIndex ? 'bg-primary' : 'bg-border'
+                    }`}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
       </header>
 
       <main className="mx-auto max-w-2xl px-4 py-8">
+        {/* Erro de criacao de ticket */}
+        <AnimatePresence>
+          {createError && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="mb-4 flex items-start gap-2 rounded-lg bg-destructive/10 p-3"
+            >
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+              <p className="text-sm text-destructive">{createError}</p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <AnimatePresence mode="wait">
           {step === 'form' && (
             <motion.div

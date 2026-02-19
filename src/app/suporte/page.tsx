@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -18,8 +18,9 @@ import {
   HelpCircle,
   ChevronDown,
   ChevronUp,
+  AlertCircle,
 } from 'lucide-react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 
 const quickTopics = [
   {
@@ -59,20 +60,35 @@ const faqItems = [
     question: 'Como acesso meu produto apos a compra?',
     answer:
       'Depende do produto:\n\n• Produtos Julia Ottoni: juliaacademy.com.br (senha: ottoni123)\n• Produtos Cleiton: cleitonquerobin1.com.br/area-de-membros (senha: performance123)\n• 50 Scripts: scriptgo.app/login (senha: Script@123)\n• Couply: usecouply.app/login (senha: 12345678)\n\nUse sempre o e-mail da compra como login.',
+    tags: ['acesso', 'login', 'senha', 'produto', 'compra', 'plataforma'],
   },
   {
     question: 'Quais sao as formas de pagamento?',
     answer: 'Aceitamos PIX (pagamento a vista) e cartao de credito (parcelamento em ate 12x). Os pagamentos sao processados pela Hotmart ou Pagtrust.',
+    tags: ['pagamento', 'pix', 'cartao', 'credito', 'parcelamento', 'hotmart'],
   },
   {
     question: 'Tem garantia? Como funciona o reembolso?',
     answer: 'Sim! Voce tem 7 dias de garantia a partir da data da compra. Para solicitar o reembolso, entre em contato pela propria plataforma de compra (Hotmart ou Pagtrust).',
+    tags: ['garantia', 'reembolso', '7 dias', 'devolucao', 'devolver'],
   },
   {
     question: 'Nao recebi o e-mail de confirmacao. E agora?',
     answer: 'Verifique sua caixa de spam ou lixo eletronico. O produto tambem e enviado por WhatsApp, porem esse nao e um canal de suporte. Se nao encontrar, abra um ticket aqui na plataforma informando seu nome, e-mail de compra e nome do produto.',
+    tags: ['email', 'confirmacao', 'spam', 'nao recebi', 'whatsapp'],
   },
 ]
+
+function isWithinSupportHours(): boolean {
+  const now = new Date()
+  const brTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }))
+  const day = brTime.getDay()
+  const hour = brTime.getHours()
+  const minutes = brTime.getMinutes()
+  const timeInMinutes = hour * 60 + minutes
+  // Seg-Sex (1-5), 8h30 (510min) às 20h (1200min)
+  return day >= 1 && day <= 5 && timeInMinutes >= 510 && timeInMinutes < 1200
+}
 
 export default function SupportPage() {
   const router = useRouter()
@@ -83,6 +99,20 @@ export default function SupportPage() {
   const [isSearching, setIsSearching] = useState(false)
   const [showTicketLookup, setShowTicketLookup] = useState(false)
   const [openFaq, setOpenFaq] = useState<number | null>(null)
+  const [faqSearch, setFaqSearch] = useState('')
+
+  const isOnline = isWithinSupportHours()
+
+  const filteredFaq = useMemo(() => {
+    if (!faqSearch.trim()) return faqItems
+    const search = faqSearch.toLowerCase().trim()
+    return faqItems.filter(
+      (item) =>
+        item.question.toLowerCase().includes(search) ||
+        item.answer.toLowerCase().includes(search) ||
+        item.tags.some((tag) => tag.includes(search))
+    )
+  }, [faqSearch])
 
   async function handleLookup() {
     if (lookupStep === 'code') {
@@ -103,10 +133,10 @@ export default function SupportPage() {
       if (json.success && json.data) {
         router.push(`/suporte/ticket/${json.data.access_token}`)
       } else {
-        setLookupError('Ticket nao encontrado ou e-mail nao confere')
+        setLookupError('Ticket nao encontrado ou e-mail nao confere. Verifique os dados e tente novamente.')
       }
     } catch {
-      setLookupError('Erro ao buscar ticket')
+      setLookupError('Erro de conexao. Verifique sua internet e tente novamente.')
     } finally {
       setIsSearching(false)
     }
@@ -123,13 +153,22 @@ export default function SupportPage() {
             </div>
             <span className="text-lg font-bold text-foreground">Bethel Suporte</span>
           </div>
-          <button
-            onClick={() => setShowTicketLookup(!showTicketLookup)}
-            className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            <Ticket className="h-4 w-4" />
-            Acompanhar ticket
-          </button>
+          <div className="flex items-center gap-3">
+            {/* Indicador de horario */}
+            <div className="hidden items-center gap-1.5 sm:flex">
+              <div className={`h-2 w-2 rounded-full ${isOnline ? 'bg-green-500 animate-pulse' : 'bg-muted-foreground/40'}`} />
+              <span className="text-xs text-muted-foreground">
+                {isOnline ? 'Atendimento ativo' : 'Fora do horario'}
+              </span>
+            </div>
+            <button
+              onClick={() => setShowTicketLookup(!showTicketLookup)}
+              className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <Ticket className="h-4 w-4" />
+              Acompanhar ticket
+            </button>
+          </div>
         </div>
       </header>
 
@@ -155,75 +194,94 @@ export default function SupportPage() {
             Iniciar atendimento
             <ArrowRight className="ml-2 h-5 w-5" />
           </Button>
+
+          {/* Horario de atendimento no mobile */}
+          <div className="mt-4 flex items-center justify-center gap-1.5 sm:hidden">
+            <div className={`h-2 w-2 rounded-full ${isOnline ? 'bg-green-500 animate-pulse' : 'bg-muted-foreground/40'}`} />
+            <span className="text-xs text-muted-foreground">
+              {isOnline ? 'Atendimento ativo agora' : 'Fora do horario — Seg a Sex, 8h30 as 20h'}
+            </span>
+          </div>
         </motion.section>
 
         {/* Ticket Lookup - Collapsible */}
-        {showTicketLookup && (
-          <motion.section
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            className="mb-8"
-          >
-            <Card className="mx-auto max-w-md border-border bg-card shadow-sm">
-              <CardContent className="p-5">
-                <h3 className="mb-3 text-center text-sm font-semibold text-foreground">
-                  Acompanhar meu ticket
-                </h3>
-                <div className="space-y-2.5">
-                  <Input
-                    placeholder="Codigo do ticket (ex: SUP-2026-0001)"
-                    value={ticketCode}
-                    onChange={(e) => {
-                      setTicketCode(e.target.value.toUpperCase())
-                      setLookupError(null)
-                      if (lookupStep === 'email') setLookupStep('code')
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') handleLookup()
-                    }}
-                    className="bg-muted text-center font-mono text-sm"
-                  />
-                  {lookupStep === 'email' && (
+        <AnimatePresence>
+          {showTicketLookup && (
+            <motion.section
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="mb-8 overflow-hidden"
+            >
+              <Card className="mx-auto max-w-md border-border bg-card shadow-sm">
+                <CardContent className="p-5">
+                  <h3 className="mb-3 text-center text-sm font-semibold text-foreground">
+                    Acompanhar meu ticket
+                  </h3>
+                  <div className="space-y-2.5">
                     <Input
-                      type="email"
-                      placeholder="Seu e-mail cadastrado"
-                      value={ticketEmail}
+                      placeholder="Codigo do ticket (ex: SUP-2026-0001)"
+                      value={ticketCode}
                       onChange={(e) => {
-                        setTicketEmail(e.target.value)
+                        setTicketCode(e.target.value.toUpperCase())
                         setLookupError(null)
+                        if (lookupStep === 'email') setLookupStep('code')
                       }}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') handleLookup()
                       }}
-                      className="bg-muted text-center text-sm"
-                      autoFocus
+                      className="bg-muted text-center font-mono text-sm"
                     />
-                  )}
-                  {lookupError && (
-                    <p className="text-center text-sm text-destructive">{lookupError}</p>
-                  )}
-                  <Button
-                    variant="outline"
-                    onClick={handleLookup}
-                    disabled={
-                      isSearching ||
-                      (lookupStep === 'code' && !ticketCode.trim()) ||
-                      (lookupStep === 'email' && !ticketEmail.trim())
-                    }
-                    className="w-full"
-                  >
-                    {isSearching ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <Search className="mr-2 h-4 w-4" />
+                    {lookupStep === 'email' && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                      >
+                        <Input
+                          type="email"
+                          placeholder="Seu e-mail cadastrado"
+                          value={ticketEmail}
+                          onChange={(e) => {
+                            setTicketEmail(e.target.value)
+                            setLookupError(null)
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleLookup()
+                          }}
+                          className="bg-muted text-center text-sm"
+                          autoFocus
+                        />
+                      </motion.div>
                     )}
-                    {lookupStep === 'code' ? 'Buscar ticket' : 'Verificar'}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.section>
-        )}
+                    {lookupError && (
+                      <div className="flex items-start gap-2 rounded-lg bg-destructive/10 p-3">
+                        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+                        <p className="text-sm text-destructive">{lookupError}</p>
+                      </div>
+                    )}
+                    <Button
+                      variant="outline"
+                      onClick={handleLookup}
+                      disabled={
+                        isSearching ||
+                        (lookupStep === 'code' && !ticketCode.trim()) ||
+                        (lookupStep === 'email' && !ticketEmail.trim())
+                      }
+                      className="w-full"
+                    >
+                      {isSearching ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Search className="mr-2 h-4 w-4" />
+                      )}
+                      {lookupStep === 'code' ? 'Buscar ticket' : 'Verificar'}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.section>
+          )}
+        </AnimatePresence>
 
         {/* Quick Topics */}
         <motion.section
@@ -255,7 +313,7 @@ export default function SupportPage() {
                       >
                         <Icon className="h-5 w-5" />
                       </div>
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <h3 className="text-sm font-semibold text-foreground">
                           {topic.title}
                         </h3>
@@ -263,6 +321,7 @@ export default function SupportPage() {
                           {topic.description}
                         </p>
                       </div>
+                      <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
                     </CardContent>
                   </Card>
                 </motion.div>
@@ -271,48 +330,85 @@ export default function SupportPage() {
           </div>
         </motion.section>
 
-        {/* FAQ Accordion */}
+        {/* FAQ Accordion with Search */}
         <motion.section
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
           className="mb-12"
         >
-          <h2 className="mb-6 text-center text-lg font-semibold text-foreground">
+          <h2 className="mb-4 text-center text-lg font-semibold text-foreground">
             Perguntas frequentes
           </h2>
-          <div className="mx-auto max-w-2xl space-y-2">
-            {faqItems.map((item, i) => (
-              <Card
-                key={i}
-                className="border-border bg-card shadow-sm overflow-hidden"
-              >
-                <button
-                  onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                  className="flex w-full items-center justify-between p-4 text-left transition-colors hover:bg-muted/50"
-                >
-                  <span className="pr-4 text-sm font-medium text-foreground">
-                    {item.question}
-                  </span>
-                  {openFaq === i ? (
-                    <ChevronUp className="h-4 w-4 shrink-0 text-muted-foreground" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
-                  )}
-                </button>
-                {openFaq === i && (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="border-t border-border px-4 pb-4 pt-3"
+          <div className="mx-auto max-w-2xl">
+            <div className="relative mb-4">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Buscar nas perguntas frequentes..."
+                value={faqSearch}
+                onChange={(e) => {
+                  setFaqSearch(e.target.value)
+                  setOpenFaq(null)
+                }}
+                className="bg-muted pl-10 text-sm"
+              />
+            </div>
+            <div className="space-y-2">
+              {filteredFaq.length > 0 ? (
+                filteredFaq.map((item, i) => {
+                  const originalIndex = faqItems.indexOf(item)
+                  return (
+                    <Card
+                      key={originalIndex}
+                      className="border-border bg-card shadow-sm overflow-hidden"
+                    >
+                      <button
+                        onClick={() => setOpenFaq(openFaq === originalIndex ? null : originalIndex)}
+                        className="flex w-full items-center justify-between p-4 text-left transition-colors hover:bg-muted/50"
+                      >
+                        <span className="pr-4 text-sm font-medium text-foreground">
+                          {item.question}
+                        </span>
+                        {openFaq === originalIndex ? (
+                          <ChevronUp className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        )}
+                      </button>
+                      <AnimatePresence>
+                        {openFaq === originalIndex && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="overflow-hidden"
+                          >
+                            <div className="border-t border-border px-4 pb-4 pt-3">
+                              <p className="whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
+                                {item.answer}
+                              </p>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </Card>
+                  )
+                })
+              ) : (
+                <div className="py-8 text-center">
+                  <p className="text-sm text-muted-foreground">
+                    Nenhuma pergunta encontrada para &quot;{faqSearch}&quot;
+                  </p>
+                  <Button
+                    variant="link"
+                    className="mt-2 text-sm"
+                    onClick={() => router.push('/suporte/ajuda')}
                   >
-                    <p className="whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
-                      {item.answer}
-                    </p>
-                  </motion.div>
-                )}
-              </Card>
-            ))}
+                    Abrir um chamado com nossa equipe
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
         </motion.section>
 
@@ -355,7 +451,8 @@ export default function SupportPage() {
                 Sistema de atendimento inteligente
               </p>
             </div>
-            <div className="text-xs text-muted-foreground">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Clock className="h-3.5 w-3.5" />
               <p>Atendimento: Seg a Sex, 8h30 as 20h</p>
             </div>
           </div>
