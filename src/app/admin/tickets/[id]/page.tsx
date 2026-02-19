@@ -39,6 +39,7 @@ import {
   Star,
   Wifi,
   WifiOff,
+  Sparkles,
 } from 'lucide-react'
 import { formatDate, formatRelativeTime, formatPhone } from '@/lib/utils/format'
 import { SENDER_TYPE_LABELS, TICKET_STATUS_LABELS, PRIORITY_LABELS } from '@/lib/utils/constants'
@@ -58,6 +59,7 @@ export default function TicketDetailPage() {
   const [isInternalNote, setIsInternalNote] = useState(false)
   const [isSending, setIsSending] = useState(false)
   const [attachments, setAttachments] = useState<Attachment[]>([])
+  const [isSuggesting, setIsSuggesting] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const loadTicket = useCallback(async () => {
@@ -155,6 +157,45 @@ export default function TicketDetailPage() {
       }
     } catch {
       toast.error('Erro ao atualizar ticket')
+    }
+  }
+
+  async function handleSuggest() {
+    if (isSuggesting) return
+    setIsSuggesting(true)
+    try {
+      // Find the last customer message
+      const customerMessages = messages.filter((m) => m.sender_type === 'customer')
+      const lastCustomerMsg = customerMessages[customerMessages.length - 1]
+
+      if (!lastCustomerMsg) {
+        toast.error('Nenhuma mensagem do cliente encontrada')
+        return
+      }
+
+      const res = await fetch('/api/admin/ai-suggest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ticket_description: ticket?.description || '',
+          messages: messages.slice(-8).map((m) => ({
+            sender_type: m.sender_type,
+            content: m.content,
+          })),
+          customer_question: lastCustomerMsg.content,
+        }),
+      })
+      const json = await res.json()
+      if (json.success && json.data.suggestion) {
+        setNewMessage(json.data.suggestion)
+        toast.success(`Sugestao gerada (${json.data.articles_count} artigos usados)`)
+      } else {
+        toast.error(json.data?.message || json.error || 'Sem sugestao disponivel')
+      }
+    } catch {
+      toast.error('Erro ao gerar sugestao')
+    } finally {
+      setIsSuggesting(false)
     }
   }
 
@@ -337,11 +378,27 @@ export default function TicketDetailPage() {
                 </div>
               )}
               <div className="flex gap-3">
-                <FileUploadButton
-                  ticketId={ticketId}
-                  onUpload={(att) => setAttachments((prev) => [...prev, att])}
-                  disabled={isSending}
-                />
+                <div className="flex flex-col gap-1">
+                  <FileUploadButton
+                    ticketId={ticketId}
+                    onUpload={(att) => setAttachments((prev) => [...prev, att])}
+                    disabled={isSending}
+                  />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleSuggest}
+                    disabled={isSuggesting || isInternalNote}
+                    title="Sugestao da IA"
+                    className="text-primary hover:text-primary"
+                  >
+                    {isSuggesting ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
                 <Textarea
                   placeholder={isInternalNote ? 'Escreva uma nota interna...' : 'Escreva uma resposta...'}
                   value={newMessage}
