@@ -1,0 +1,447 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { ticketFormSchema, type TicketFormData } from '@/lib/utils/validation'
+import { phoneMask } from '@/lib/utils/format'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { ArrowLeft, Send, Loader2, Bot, User, CheckCircle, XCircle } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import type { Product, Category } from '@/lib/supabase/types'
+import Link from 'next/link'
+
+type Step = 'form' | 'ai' | 'creating' | 'done'
+
+interface AiMessage {
+  role: 'user' | 'ai'
+  content: string
+}
+
+export default function HelpPage() {
+  const router = useRouter()
+  const [step, setStep] = useState<Step>('form')
+  const [products, setProducts] = useState<Product[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
+  const [aiMessages, setAiMessages] = useState<AiMessage[]>([])
+  const [isAiLoading, setIsAiLoading] = useState(false)
+  const [isCreating, setIsCreating] = useState(false)
+  const [ticketResult, setTicketResult] = useState<{
+    ticket_code: string
+    access_token: string
+  } | null>(null)
+
+  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<TicketFormData>({
+    resolver: zodResolver(ticketFormSchema),
+  })
+
+  const phoneValue = watch('phone')
+
+  useEffect(() => {
+    async function loadData() {
+      const [prodRes, catRes] = await Promise.all([
+        fetch('/api/products'),
+        fetch('/api/categories'),
+      ])
+      const prodJson = await prodRes.json()
+      const catJson = await catRes.json()
+      if (prodJson.success) setProducts(prodJson.data)
+      if (catJson.success) setCategories(catJson.data)
+    }
+    loadData()
+  }, [])
+
+  async function onFormSubmit(data: TicketFormData) {
+    setStep('ai')
+    setIsAiLoading(true)
+
+    setAiMessages([{ role: 'user', content: data.description }])
+
+    try {
+      const res = await fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question: data.description,
+          product_id: data.product_id,
+          category_id: data.category_id,
+        }),
+      })
+      const json = await res.json()
+
+      if (json.success && json.data?.answer) {
+        setAiMessages((prev) => [
+          ...prev,
+          { role: 'ai', content: json.data.answer },
+        ])
+      } else {
+        setAiMessages((prev) => [
+          ...prev,
+          {
+            role: 'ai',
+            content: 'Nao encontrei uma resposta na base de conhecimento. Vou abrir um ticket para voce!',
+          },
+        ])
+      }
+    } catch {
+      setAiMessages((prev) => [
+        ...prev,
+        {
+          role: 'ai',
+          content: 'Desculpe, tive um problema ao buscar a resposta. Vou abrir um ticket para voce!',
+        },
+      ])
+    } finally {
+      setIsAiLoading(false)
+    }
+  }
+
+  async function handleResolved() {
+    setStep('done')
+    setTicketResult(null)
+  }
+
+  async function handleNotResolved() {
+    setStep('creating')
+    setIsCreating(true)
+
+    const formData = watch()
+
+    try {
+      const res = await fetch('/api/tickets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          product_id: formData.product_id,
+          category_id: formData.category_id,
+          title: formData.description.slice(0, 100),
+          description: formData.description,
+          ai_messages: aiMessages,
+        }),
+      })
+      const json = await res.json()
+
+      if (json.success) {
+        setTicketResult({
+          ticket_code: json.data.ticket_code,
+          access_token: json.data.access_token,
+        })
+        setStep('done')
+      } else {
+        throw new Error(json.error)
+      }
+    } catch {
+      setStep('ai')
+    } finally {
+      setIsCreating(false)
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="border-b border-border bg-card/50 backdrop-blur-lg">
+        <div className="mx-auto flex h-16 max-w-2xl items-center gap-4 px-4">
+          <Link href="/suporte" className="text-muted-foreground hover:text-foreground">
+            <ArrowLeft className="h-5 w-5" />
+          </Link>
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
+              <span className="text-sm font-bold text-primary-foreground">B</span>
+            </div>
+            <span className="text-lg font-bold">Bethel Suporte</span>
+          </div>
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-2xl px-4 py-8">
+        <AnimatePresence mode="wait">
+          {step === 'form' && (
+            <motion.div
+              key="form"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+            >
+              <Card className="border-border bg-card">
+                <CardHeader>
+                  <CardTitle>Preciso de ajuda</CardTitle>
+                  <CardDescription>
+                    Preencha os dados abaixo e nossa IA vai tentar resolver seu problema
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-4">
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="name">Nome completo *</Label>
+                        <Input
+                          id="name"
+                          {...register('name')}
+                          className="bg-muted"
+                          placeholder="Seu nome"
+                        />
+                        {errors.name && (
+                          <p className="text-sm text-destructive">{errors.name.message}</p>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="email">Email *</Label>
+                        <Input
+                          id="email"
+                          type="email"
+                          {...register('email')}
+                          className="bg-muted"
+                          placeholder="seu@email.com"
+                        />
+                        {errors.email && (
+                          <p className="text-sm text-destructive">{errors.email.message}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="phone">Telefone *</Label>
+                      <Input
+                        id="phone"
+                        {...register('phone')}
+                        className="bg-muted"
+                        placeholder="(XX) XXXXX-XXXX"
+                        value={phoneValue || ''}
+                        onChange={(e) => setValue('phone', phoneMask(e.target.value))}
+                      />
+                      {errors.phone && (
+                        <p className="text-sm text-destructive">{errors.phone.message}</p>
+                      )}
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label>Produto *</Label>
+                        <Select onValueChange={(v) => setValue('product_id', v)}>
+                          <SelectTrigger className="bg-muted">
+                            <SelectValue placeholder="Selecione" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {products.map((p) => (
+                              <SelectItem key={p.id} value={p.id}>
+                                {p.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {errors.product_id && (
+                          <p className="text-sm text-destructive">{errors.product_id.message}</p>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Tipo de dificuldade *</Label>
+                        <Select onValueChange={(v) => setValue('category_id', v)}>
+                          <SelectTrigger className="bg-muted">
+                            <SelectValue placeholder="Selecione" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {categories.map((c) => (
+                              <SelectItem key={c.id} value={c.id}>
+                                {c.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {errors.category_id && (
+                          <p className="text-sm text-destructive">{errors.category_id.message}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="description">Descreva seu problema *</Label>
+                      <Textarea
+                        id="description"
+                        {...register('description')}
+                        className="min-h-[120px] bg-muted"
+                        placeholder="Descreva com detalhes o que esta acontecendo..."
+                      />
+                      {errors.description && (
+                        <p className="text-sm text-destructive">{errors.description.message}</p>
+                      )}
+                    </div>
+
+                    <Button type="submit" className="w-full">
+                      <Send className="mr-2 h-4 w-4" />
+                      Buscar solucao
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+
+          {step === 'ai' && (
+            <motion.div
+              key="ai"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="space-y-4"
+            >
+              <Card className="border-border bg-card">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Bot className="h-5 w-5 text-primary" />
+                    Assistente IA
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {aiMessages.map((msg, i) => (
+                    <div
+                      key={i}
+                      className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                    >
+                      {msg.role === 'ai' && (
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/20">
+                          <Bot className="h-4 w-4 text-primary" />
+                        </div>
+                      )}
+                      <div
+                        className={`max-w-[80%] rounded-2xl px-4 py-3 ${
+                          msg.role === 'user'
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-muted text-foreground'
+                        }`}
+                      >
+                        <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                      </div>
+                      {msg.role === 'user' && (
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted">
+                          <User className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+
+                  {isAiLoading && (
+                    <div className="flex gap-3">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/20">
+                        <Bot className="h-4 w-4 text-primary" />
+                      </div>
+                      <div className="rounded-2xl bg-muted px-4 py-3">
+                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {!isAiLoading && aiMessages.length > 1 && (
+                <Card className="border-border bg-card">
+                  <CardContent className="p-4">
+                    <p className="mb-3 text-center text-sm text-muted-foreground">
+                      Isso resolveu seu problema?
+                    </p>
+                    <div className="flex gap-3">
+                      <Button
+                        onClick={handleResolved}
+                        className="flex-1 bg-green-600 hover:bg-green-700"
+                      >
+                        <CheckCircle className="mr-2 h-4 w-4" />
+                        Sim, resolveu!
+                      </Button>
+                      <Button
+                        onClick={handleNotResolved}
+                        variant="outline"
+                        className="flex-1 border-destructive text-destructive hover:bg-destructive/10"
+                      >
+                        <XCircle className="mr-2 h-4 w-4" />
+                        Nao, preciso de ajuda
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </motion.div>
+          )}
+
+          {step === 'creating' && (
+            <motion.div
+              key="creating"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="flex flex-col items-center py-12"
+            >
+              <Loader2 className="mb-4 h-12 w-12 animate-spin text-primary" />
+              <p className="text-lg font-medium">Criando seu ticket...</p>
+              <p className="text-sm text-muted-foreground">Aguarde um momento</p>
+            </motion.div>
+          )}
+
+          {step === 'done' && (
+            <motion.div
+              key="done"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+            >
+              <Card className="border-border bg-card">
+                <CardContent className="flex flex-col items-center p-8 text-center">
+                  <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-500/20">
+                    <CheckCircle className="h-8 w-8 text-green-400" />
+                  </div>
+
+                  {ticketResult ? (
+                    <>
+                      <h2 className="mb-2 text-2xl font-bold">Ticket criado!</h2>
+                      <p className="mb-4 text-muted-foreground">
+                        Seu ticket foi criado com sucesso. Voce recebera um email com os detalhes.
+                      </p>
+                      <div className="mb-6 rounded-lg bg-muted p-4">
+                        <p className="text-sm text-muted-foreground">Codigo do ticket</p>
+                        <p className="text-2xl font-bold text-primary">
+                          {ticketResult.ticket_code}
+                        </p>
+                      </div>
+                      <Button
+                        onClick={() =>
+                          router.push(`/suporte/ticket/${ticketResult.access_token}`)
+                        }
+                        className="w-full"
+                      >
+                        Acompanhar meu ticket
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <h2 className="mb-2 text-2xl font-bold">Problema resolvido!</h2>
+                      <p className="mb-6 text-muted-foreground">
+                        Que bom que conseguimos ajudar. Se precisar de algo mais, estamos aqui!
+                      </p>
+                      <Button onClick={() => router.push('/suporte')} variant="outline">
+                        Voltar ao inicio
+                      </Button>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </main>
+    </div>
+  )
+}

@@ -1,0 +1,16 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/close-inactive",
+      "schedule": "0 */6 * * *"
+    },
+    {
+      "path": "/api/cron/sla-check",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/satisfaction-reminder",
+      "schedule": "0 10 * * *"
+    }
+  ]
+}
