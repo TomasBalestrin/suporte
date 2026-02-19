@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
     const product_id = searchParams.get('product_id')
     const category_id = searchParams.get('category_id')
     const assigned_agent_id = searchParams.get('assigned_agent_id')
+    const customer_id = searchParams.get('customer_id')
     const search = searchParams.get('search')
     const page = parseInt(searchParams.get('page') || '1', 10)
     const limit = parseInt(searchParams.get('limit') || '20', 10)
@@ -48,6 +49,7 @@ export async function GET(request: NextRequest) {
         query = query.eq('assigned_agent_id', assigned_agent_id)
       }
     }
+    if (customer_id) query = query.eq('customer_id', customer_id)
     if (search) {
       query = query.or(
         `ticket_code.ilike.%${search}%,title.ilike.%${search}%`

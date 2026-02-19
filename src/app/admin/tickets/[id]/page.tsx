@@ -40,11 +40,12 @@ import {
   Wifi,
   WifiOff,
   Sparkles,
+  History,
 } from 'lucide-react'
 import { formatDate, formatRelativeTime, formatPhone } from '@/lib/utils/format'
 import { SENDER_TYPE_LABELS, TICKET_STATUS_LABELS, PRIORITY_LABELS } from '@/lib/utils/constants'
 import { toast } from 'sonner'
-import type { Message, TicketWithRelations, User as UserType } from '@/lib/supabase/types'
+import type { Message, TicketWithRelations, User as UserType, QuickReply, Ticket } from '@/lib/supabase/types'
 
 export default function TicketDetailPage() {
   const params = useParams()
@@ -60,6 +61,10 @@ export default function TicketDetailPage() {
   const [isSending, setIsSending] = useState(false)
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const [isSuggesting, setIsSuggesting] = useState(false)
+  const [quickReplies, setQuickReplies] = useState<QuickReply[]>([])
+  const [showQuickReplies, setShowQuickReplies] = useState(false)
+  const [qrFilter, setQrFilter] = useState('')
+  const [customerHistory, setCustomerHistory] = useState<Ticket[]>([])
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const loadTicket = useCallback(async () => {
@@ -103,6 +108,17 @@ export default function TicketDetailPage() {
     async function init() {
       await Promise.all([loadTicket(), loadMessages()])
       setIsLoading(false)
+
+      // Load quick replies and agents in background
+      fetch('/api/admin/quick-replies')
+        .then((r) => r.json())
+        .then((j) => { if (j.success) setQuickReplies(j.data.filter((qr: QuickReply) => qr.is_active)) })
+        .catch(() => {})
+
+      fetch('/api/admin/users')
+        .then((r) => r.json())
+        .then((j) => { if (j.success) setAgents(j.data.filter((u: UserType) => u.is_active)) })
+        .catch(() => {})
     }
     init()
 
@@ -114,6 +130,17 @@ export default function TicketDetailPage() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  // Load customer history when ticket is loaded
+  useEffect(() => {
+    if (!ticket?.customer_id) return
+    fetch(`/api/admin/tickets?customer_id=${ticket.customer_id}&limit=5`)
+      .then((r) => r.json())
+      .then((j) => {
+        if (j.success) setCustomerHistory(j.data.filter((t: Ticket) => t.id !== ticketId))
+      })
+      .catch(() => {})
+  }, [ticket?.customer_id, ticketId])
 
   async function handleSend() {
     if ((!newMessage.trim() && attachments.length === 0) || isSending) return
@@ -399,19 +426,66 @@ export default function TicketDetailPage() {
                     )}
                   </Button>
                 </div>
-                <Textarea
-                  placeholder={isInternalNote ? 'Escreva uma nota interna...' : 'Escreva uma resposta...'}
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-                      e.preventDefault()
-                      handleSend()
-                    }
-                  }}
-                  className="min-h-[60px] max-h-[150px] resize-none bg-muted"
-                  rows={2}
-                />
+                <div className="relative flex-1">
+                  {showQuickReplies && (
+                    <div className="absolute bottom-full left-0 right-0 mb-1 max-h-48 overflow-y-auto rounded-lg border border-border bg-card shadow-lg z-10">
+                      {quickReplies
+                        .filter((qr) =>
+                          !qrFilter || qr.shortcut.includes(qrFilter) || qr.title.toLowerCase().includes(qrFilter.toLowerCase())
+                        )
+                        .slice(0, 8)
+                        .map((qr) => (
+                          <button
+                            key={qr.id}
+                            type="button"
+                            className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm hover:bg-muted transition-colors"
+                            onClick={() => {
+                              setNewMessage(qr.content)
+                              setShowQuickReplies(false)
+                              setQrFilter('')
+                            }}
+                          >
+                            <code className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-xs font-mono text-primary">
+                              /{qr.shortcut}
+                            </code>
+                            <span className="truncate text-muted-foreground">{qr.title}</span>
+                          </button>
+                        ))}
+                      {quickReplies.filter((qr) =>
+                        !qrFilter || qr.shortcut.includes(qrFilter) || qr.title.toLowerCase().includes(qrFilter.toLowerCase())
+                      ).length === 0 && (
+                        <p className="px-3 py-2 text-xs text-muted-foreground">Nenhuma resposta encontrada</p>
+                      )}
+                    </div>
+                  )}
+                  <Textarea
+                    placeholder={isInternalNote ? 'Escreva uma nota interna... (/ para atalhos)' : 'Escreva uma resposta... (/ para atalhos)'}
+                    value={newMessage}
+                    onChange={(e) => {
+                      const val = e.target.value
+                      setNewMessage(val)
+                      if (val.startsWith('/')) {
+                        setShowQuickReplies(true)
+                        setQrFilter(val.slice(1))
+                      } else {
+                        setShowQuickReplies(false)
+                        setQrFilter('')
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                        e.preventDefault()
+                        handleSend()
+                      }
+                      if (e.key === 'Escape') {
+                        setShowQuickReplies(false)
+                      }
+                    }}
+                    onBlur={() => setTimeout(() => setShowQuickReplies(false), 200)}
+                    className="min-h-[60px] max-h-[150px] resize-none bg-muted"
+                    rows={2}
+                  />
+                </div>
                 <Button
                   onClick={handleSend}
                   disabled={(!newMessage.trim() && attachments.length === 0) || isSending}
@@ -556,6 +630,59 @@ export default function TicketDetailPage() {
                   )}
                 </div>
               </div>
+
+              <Separator />
+
+              {/* Agent Assignment */}
+              <div>
+                <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                  Agente Responsavel
+                </h3>
+                <Select
+                  value={ticket.assigned_agent_id || '_none'}
+                  onValueChange={(v) => updateTicket('assigned_agent_id', v === '_none' ? '' : v)}
+                >
+                  <SelectTrigger className="bg-muted">
+                    <SelectValue placeholder="Nenhum agente" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_none">Nenhum agente</SelectItem>
+                    {agents.map((agent) => (
+                      <SelectItem key={agent.id} value={agent.id}>
+                        {agent.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Customer History */}
+              {customerHistory.length > 0 && (
+                <>
+                  <Separator />
+                  <div>
+                    <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                      <History className="h-4 w-4" />
+                      Historico do Cliente
+                    </h3>
+                    <div className="space-y-2">
+                      {customerHistory.map((t) => (
+                        <button
+                          key={t.id}
+                          onClick={() => router.push(`/admin/tickets/${t.id}`)}
+                          className="w-full rounded-lg border border-border p-2 text-left transition-colors hover:bg-muted/50"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-mono text-xs text-primary">{t.ticket_code}</span>
+                            <StatusBadge status={t.status} />
+                          </div>
+                          <p className="mt-1 truncate text-xs text-muted-foreground">{t.title}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </ScrollArea>
         </div>
