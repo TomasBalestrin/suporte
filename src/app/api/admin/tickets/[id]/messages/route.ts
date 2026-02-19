@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { sendEmail } from '@/lib/email/send'
+import { newMessageCustomer } from '@/lib/email/templates'
 
 export async function GET(
   _request: NextRequest,
@@ -88,6 +91,40 @@ export async function POST(
 
     if (Object.keys(ticketUpdate).length > 0) {
       await supabase.from('tickets').update(ticketUpdate).eq('id', id)
+    }
+
+    // Send email to customer for non-internal messages
+    if (!body.is_internal_note) {
+      const admin = createAdminClient()
+      const { data: ticketData } = await admin
+        .from('tickets')
+        .select('ticket_code, access_token, customer:customers(name, email)')
+        .eq('id', id)
+        .single()
+
+      if (ticketData?.customer) {
+        const customer = ticketData.customer as unknown as { name: string; email: string }
+        const { data: agentData } = await admin
+          .from('users')
+          .select('name')
+          .eq('id', user.id)
+          .single()
+
+        const emailData = newMessageCustomer({
+          customerName: customer.name,
+          ticketCode: ticketData.ticket_code,
+          accessToken: ticketData.access_token,
+          senderName: agentData?.name || 'Agente',
+          preview: body.content.trim().substring(0, 200),
+        })
+        sendEmail({
+          to: customer.email,
+          subject: emailData.subject,
+          html: emailData.html,
+          ticketId: id,
+          template: 'new_message',
+        }).catch(() => {})
+      }
     }
 
     return NextResponse.json({ success: true, data: message }, { status: 201 })

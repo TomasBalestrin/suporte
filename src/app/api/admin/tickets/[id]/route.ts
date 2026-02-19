@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { sendEmail } from '@/lib/email/send'
+import { ticketResolvedCustomer, newTicketAgent } from '@/lib/email/templates'
+import { PRIORITY_LABELS } from '@/lib/utils/constants'
 
 export async function GET(
   _request: NextRequest,
@@ -119,6 +123,61 @@ export async function PATCH(
         action: activity.action,
         details: activity.details,
       })
+    }
+
+    // Send email notifications (non-blocking)
+    const admin = createAdminClient()
+    const { data: fullTicket } = await admin
+      .from('tickets')
+      .select('ticket_code, access_token, title, priority, customer:customers(name, email)')
+      .eq('id', id)
+      .single()
+
+    if (fullTicket?.customer) {
+      const customer = fullTicket.customer as unknown as { name: string; email: string }
+
+      // Notify customer when ticket is resolved
+      if (body.status === 'resolved' || body.status === 'resolved_ia') {
+        const emailData = ticketResolvedCustomer({
+          customerName: customer.name,
+          ticketCode: fullTicket.ticket_code,
+          accessToken: fullTicket.access_token,
+        })
+        sendEmail({
+          to: customer.email,
+          subject: emailData.subject,
+          html: emailData.html,
+          ticketId: id,
+          template: 'ticket_resolved',
+        }).catch(() => {})
+      }
+
+      // Notify agent when ticket is assigned
+      if (body.assigned_agent_id && body.assigned_agent_id !== currentTicket?.assigned_agent_id) {
+        const { data: agent } = await admin
+          .from('users')
+          .select('name, email')
+          .eq('id', body.assigned_agent_id)
+          .single()
+
+        if (agent) {
+          const emailData = newTicketAgent({
+            agentName: agent.name,
+            ticketCode: fullTicket.ticket_code,
+            ticketId: id,
+            customerName: customer.name,
+            title: fullTicket.title,
+            priority: PRIORITY_LABELS[fullTicket.priority] || fullTicket.priority,
+          })
+          sendEmail({
+            to: agent.email,
+            subject: emailData.subject,
+            html: emailData.html,
+            ticketId: id,
+            template: 'ticket_assigned',
+          }).catch(() => {})
+        }
+      }
     }
 
     return NextResponse.json({ success: true, data: ticket })

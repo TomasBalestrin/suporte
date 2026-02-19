@@ -10,7 +10,7 @@ export async function POST(
     const { token } = await params
     const body = await request.json()
 
-    const { rating, comment } = body
+    const rating = Number(body.rating)
     if (!rating || rating < 1 || rating > 5) {
       return NextResponse.json(
         { success: false, error: 'Avaliacao deve ser entre 1 e 5' },
@@ -20,7 +20,7 @@ export async function POST(
 
     const { data: ticket } = await supabase
       .from('tickets')
-      .select('id')
+      .select('id, satisfaction_rating')
       .eq('access_token', token)
       .single()
 
@@ -31,16 +31,31 @@ export async function POST(
       )
     }
 
+    if (ticket.satisfaction_rating) {
+      return NextResponse.json(
+        { success: false, error: 'Ticket ja foi avaliado' },
+        { status: 400 }
+      )
+    }
+
     const { error } = await supabase
       .from('tickets')
       .update({
         satisfaction_rating: rating,
-        satisfaction_comment: comment || null,
+        satisfaction_comment: body.comment?.trim() || null,
         satisfaction_rated_at: new Date().toISOString(),
       })
       .eq('id', ticket.id)
 
     if (error) throw error
+
+    // Log activity
+    await supabase.from('activity_log').insert({
+      ticket_id: ticket.id,
+      actor_type: 'customer',
+      action: 'ticket_rated',
+      details: { rating, comment: body.comment?.trim() || null },
+    })
 
     return NextResponse.json({ success: true })
   } catch (error) {

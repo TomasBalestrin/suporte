@@ -6,12 +6,12 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { ScrollArea } from '@/components/ui/scroll-area'
+import { Card, CardContent } from '@/components/ui/card'
 import { StatusBadge } from '@/components/common/StatusBadge'
-import { PriorityBadge } from '@/components/common/PriorityBadge'
 import { LoadingState } from '@/components/common/LoadingState'
+import { FileUploadButton, AttachmentPreview, MessageAttachments } from '@/components/chat/FileUploadButton'
+import type { Attachment } from '@/components/chat/FileUploadButton'
+import { useRealtimeMessages } from '@/hooks/useRealtimeMessages'
 import {
   ArrowLeft,
   Send,
@@ -21,8 +21,10 @@ import {
   Star,
   Loader2,
   Clock,
+  Wifi,
+  WifiOff,
 } from 'lucide-react'
-import { formatDate, formatRelativeTime } from '@/lib/utils/format'
+import { formatRelativeTime } from '@/lib/utils/format'
 import { SENDER_TYPE_LABELS } from '@/lib/utils/constants'
 import type { Message, TicketWithRelations } from '@/lib/supabase/types'
 import { motion } from 'framer-motion'
@@ -40,6 +42,7 @@ export default function TicketTrackingPage() {
   const [rating, setRating] = useState(0)
   const [ratingComment, setRatingComment] = useState('')
   const [isRating, setIsRating] = useState(false)
+  const [attachments, setAttachments] = useState<Attachment[]>([])
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const loadTicket = useCallback(async () => {
@@ -70,6 +73,26 @@ export default function TicketTrackingPage() {
     }
   }, [token])
 
+  // Realtime subscription for new messages
+  const handleNewMessage = useCallback(
+    (message: Message) => {
+      // Only show non-internal messages in customer view
+      if (message.is_internal_note) return
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === message.id)) return prev
+        return [...prev, message]
+      })
+      // Reload ticket data if status might have changed
+      loadTicket()
+    },
+    [loadTicket]
+  )
+
+  const { isConnected } = useRealtimeMessages({
+    ticketId: ticket?.id || null,
+    onNewMessage: handleNewMessage,
+  })
+
   useEffect(() => {
     async function init() {
       await Promise.all([loadTicket(), loadMessages()])
@@ -77,8 +100,8 @@ export default function TicketTrackingPage() {
     }
     init()
 
-    // Poll for new messages every 5 seconds
-    const interval = setInterval(loadMessages, 5000)
+    // Fallback polling every 30s (in case Realtime disconnects)
+    const interval = setInterval(loadMessages, 30000)
     return () => clearInterval(interval)
   }, [loadTicket, loadMessages])
 
@@ -87,19 +110,23 @@ export default function TicketTrackingPage() {
   }, [messages])
 
   async function handleSend() {
-    if (!newMessage.trim() || isSending) return
+    if ((!newMessage.trim() && attachments.length === 0) || isSending) return
     setIsSending(true)
 
     try {
       const res = await fetch(`/api/tickets/${token}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: newMessage.trim() }),
+        body: JSON.stringify({
+          content: newMessage.trim() || '[Arquivo anexado]',
+          attachments,
+        }),
       })
       const json = await res.json()
       if (json.success) {
         setNewMessage('')
-        loadMessages()
+        setAttachments([])
+        if (!isConnected) loadMessages()
         loadTicket()
       }
     } catch {
@@ -185,6 +212,13 @@ export default function TicketTrackingPage() {
               {ticket.product?.name} &middot; {ticket.category?.name}
             </p>
           </div>
+          <div title={isConnected ? 'Conectado em tempo real' : 'Reconectando...'}>
+            {isConnected ? (
+              <Wifi className="h-4 w-4 text-green-400" />
+            ) : (
+              <WifiOff className="h-4 w-4 text-muted-foreground" />
+            )}
+          </div>
         </div>
       </header>
 
@@ -258,6 +292,7 @@ export default function TicketTrackingPage() {
               }
 
               const isCustomer = msg.sender_type === 'customer'
+              const msgAttachments = (msg.attachments as unknown as Attachment[]) || []
 
               return (
                 <div
@@ -282,6 +317,7 @@ export default function TicketTrackingPage() {
                       </p>
                     )}
                     <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                    <MessageAttachments attachments={msgAttachments} />
                     <p
                       className={`mt-1 text-right text-xs ${
                         isCustomer ? 'text-primary-foreground/70' : 'text-muted-foreground'
@@ -306,31 +342,50 @@ export default function TicketTrackingPage() {
       {/* Input area */}
       {ticket.status !== 'closed' && (
         <div className="border-t border-border bg-card/50 backdrop-blur-lg">
-          <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-3">
-            <Textarea
-              placeholder="Digite sua mensagem..."
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault()
-                  handleSend()
-                }
-              }}
-              className="min-h-[44px] max-h-[120px] resize-none bg-muted"
-              rows={1}
-            />
-            <Button
-              onClick={handleSend}
-              disabled={!newMessage.trim() || isSending}
-              size="icon"
-            >
-              {isSending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Send className="h-4 w-4" />
-              )}
-            </Button>
+          <div className="mx-auto max-w-3xl px-4 py-3">
+            {/* Attachment previews */}
+            {attachments.length > 0 && (
+              <div className="mb-2 flex flex-wrap gap-2">
+                {attachments.map((att, i) => (
+                  <AttachmentPreview
+                    key={i}
+                    attachment={att}
+                    onRemove={() => setAttachments((prev) => prev.filter((_, idx) => idx !== i))}
+                  />
+                ))}
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              <FileUploadButton
+                ticketId={ticket.id}
+                onUpload={(att) => setAttachments((prev) => [...prev, att])}
+                disabled={isSending}
+              />
+              <Textarea
+                placeholder="Digite sua mensagem..."
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault()
+                    handleSend()
+                  }
+                }}
+                className="min-h-[44px] max-h-[120px] resize-none bg-muted"
+                rows={1}
+              />
+              <Button
+                onClick={handleSend}
+                disabled={(!newMessage.trim() && attachments.length === 0) || isSending}
+                size="icon"
+              >
+                {isSending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
           </div>
         </div>
       )}

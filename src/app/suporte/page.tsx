@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
-import { HelpCircle, Ticket, Search, ArrowRight, MessageCircle } from 'lucide-react'
+import { Ticket, Search, ArrowRight, MessageCircle, Loader2 } from 'lucide-react'
 import { motion } from 'framer-motion'
 
 export default function SupportPage() {
@@ -120,11 +120,14 @@ export default function SupportPage() {
                     placeholder="SUP-2026-0001"
                     value={ticketCode}
                     onChange={(e) => {
-                      setTicketCode(e.target.value)
+                      setTicketCode(e.target.value.toUpperCase())
                       setLookupError(null)
                       if (lookupStep === 'email') setLookupStep('code')
                     }}
-                    className="bg-muted text-center"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleLookup()
+                    }}
+                    className="bg-muted text-center font-mono"
                   />
                   {lookupStep === 'email' && (
                     <Input
@@ -135,7 +138,11 @@ export default function SupportPage() {
                         setTicketEmail(e.target.value)
                         setLookupError(null)
                       }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleLookup()
+                      }}
                       className="bg-muted text-center"
+                      autoFocus
                     />
                   )}
                   {lookupError && (
@@ -144,10 +151,14 @@ export default function SupportPage() {
                   <Button
                     variant="outline"
                     onClick={handleLookup}
-                    disabled={isSearching}
+                    disabled={isSearching || (lookupStep === 'code' && !ticketCode.trim()) || (lookupStep === 'email' && !ticketEmail.trim())}
                     className="w-full"
                   >
-                    <Search className="mr-2 h-4 w-4" />
+                    {isSearching ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Search className="mr-2 h-4 w-4" />
+                    )}
                     {lookupStep === 'code' ? 'Buscar ticket' : 'Verificar'}
                   </Button>
                 </div>

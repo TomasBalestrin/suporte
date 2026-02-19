@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { Header } from '@/components/layout/Header'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -21,6 +21,9 @@ import { Label } from '@/components/ui/label'
 import { StatusBadge } from '@/components/common/StatusBadge'
 import { PriorityBadge } from '@/components/common/PriorityBadge'
 import { LoadingState } from '@/components/common/LoadingState'
+import { FileUploadButton, AttachmentPreview, MessageAttachments } from '@/components/chat/FileUploadButton'
+import type { Attachment } from '@/components/chat/FileUploadButton'
+import { useRealtimeMessages } from '@/hooks/useRealtimeMessages'
 import {
   Send,
   Bot,
@@ -34,6 +37,8 @@ import {
   Lock,
   AlertTriangle,
   Star,
+  Wifi,
+  WifiOff,
 } from 'lucide-react'
 import { formatDate, formatRelativeTime, formatPhone } from '@/lib/utils/format'
 import { SENDER_TYPE_LABELS, TICKET_STATUS_LABELS, PRIORITY_LABELS } from '@/lib/utils/constants'
@@ -52,6 +57,7 @@ export default function TicketDetailPage() {
   const [newMessage, setNewMessage] = useState('')
   const [isInternalNote, setIsInternalNote] = useState(false)
   const [isSending, setIsSending] = useState(false)
+  const [attachments, setAttachments] = useState<Attachment[]>([])
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const loadTicket = useCallback(async () => {
@@ -74,6 +80,23 @@ export default function TicketDetailPage() {
     }
   }, [ticketId])
 
+  // Realtime subscription
+  const handleNewMessage = useCallback(
+    (message: Message) => {
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === message.id)) return prev
+        return [...prev, message]
+      })
+      loadTicket()
+    },
+    [loadTicket]
+  )
+
+  const { isConnected } = useRealtimeMessages({
+    ticketId,
+    onNewMessage: handleNewMessage,
+  })
+
   useEffect(() => {
     async function init() {
       await Promise.all([loadTicket(), loadMessages()])
@@ -81,7 +104,8 @@ export default function TicketDetailPage() {
     }
     init()
 
-    const interval = setInterval(loadMessages, 5000)
+    // Fallback polling every 30s
+    const interval = setInterval(loadMessages, 30000)
     return () => clearInterval(interval)
   }, [loadTicket, loadMessages])
 
@@ -90,7 +114,7 @@ export default function TicketDetailPage() {
   }, [messages])
 
   async function handleSend() {
-    if (!newMessage.trim() || isSending) return
+    if ((!newMessage.trim() && attachments.length === 0) || isSending) return
     setIsSending(true)
 
     try {
@@ -98,14 +122,16 @@ export default function TicketDetailPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          content: newMessage.trim(),
+          content: newMessage.trim() || '[Arquivo anexado]',
           is_internal_note: isInternalNote,
+          attachments,
         }),
       })
       const json = await res.json()
       if (json.success) {
         setNewMessage('')
-        loadMessages()
+        setAttachments([])
+        if (!isConnected) loadMessages()
         loadTicket()
       }
     } catch {
@@ -189,6 +215,13 @@ export default function TicketDetailPage() {
           </span>
           <StatusBadge status={ticket.status} />
           <PriorityBadge priority={ticket.priority} />
+          <div title={isConnected ? 'Tempo real ativo' : 'Reconectando...'}>
+            {isConnected ? (
+              <Wifi className="h-4 w-4 text-green-400" />
+            ) : (
+              <WifiOff className="h-4 w-4 text-muted-foreground" />
+            )}
+          </div>
         </div>
       </Header>
 
@@ -222,6 +255,7 @@ export default function TicketDetailPage() {
 
                 const isAgent = msg.sender_type === 'agent'
                 const isInternal = msg.is_internal_note
+                const msgAttachments = (msg.attachments as unknown as Attachment[]) || []
 
                 return (
                   <div
@@ -254,6 +288,7 @@ export default function TicketDetailPage() {
                         )}
                       </div>
                       <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                      <MessageAttachments attachments={msgAttachments} />
                       <p className={`mt-1 text-right text-xs ${isAgent && !isInternal ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
                         {formatRelativeTime(msg.created_at)}
                       </p>
@@ -289,7 +324,24 @@ export default function TicketDetailPage() {
                   )}
                 </Label>
               </div>
+              {/* Attachment previews */}
+              {attachments.length > 0 && (
+                <div className="mb-2 flex flex-wrap gap-2">
+                  {attachments.map((att, i) => (
+                    <AttachmentPreview
+                      key={i}
+                      attachment={att}
+                      onRemove={() => setAttachments((prev) => prev.filter((_, idx) => idx !== i))}
+                    />
+                  ))}
+                </div>
+              )}
               <div className="flex gap-3">
+                <FileUploadButton
+                  ticketId={ticketId}
+                  onUpload={(att) => setAttachments((prev) => [...prev, att])}
+                  disabled={isSending}
+                />
                 <Textarea
                   placeholder={isInternalNote ? 'Escreva uma nota interna...' : 'Escreva uma resposta...'}
                   value={newMessage}
@@ -305,7 +357,7 @@ export default function TicketDetailPage() {
                 />
                 <Button
                   onClick={handleSend}
-                  disabled={!newMessage.trim() || isSending}
+                  disabled={(!newMessage.trim() && attachments.length === 0) || isSending}
                   className={isInternalNote ? 'bg-yellow-600 hover:bg-yellow-700' : ''}
                 >
                   {isSending ? (

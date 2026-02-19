@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { sendEmail } from '@/lib/email/send'
+import { ticketCreatedCustomer } from '@/lib/email/templates'
 import { z } from 'zod'
 
 const createTicketSchema = z.object({
@@ -97,6 +99,21 @@ export async function POST(request: NextRequest) {
       action: 'created',
       details: { source: 'portal' },
     })
+
+    // Send email notification to customer (non-blocking)
+    const emailData = ticketCreatedCustomer({
+      customerName: name,
+      ticketCode: ticket.ticket_code,
+      accessToken: ticket.access_token,
+      title,
+    })
+    sendEmail({
+      to: email,
+      subject: emailData.subject,
+      html: emailData.html,
+      ticketId: ticket.id,
+      template: 'ticket_created',
+    }).catch(() => {})
 
     return NextResponse.json(
       {
