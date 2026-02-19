@@ -13,26 +13,34 @@ export async function GET(request: NextRequest) {
     const admin = createAdminClient()
     const searchParams = request.nextUrl.searchParams
     const period = searchParams.get('period') || '30' // days
+    const productId = searchParams.get('product_id')
+    const categoryId = searchParams.get('category_id')
     const daysAgo = parseInt(period, 10)
     const startDate = new Date()
     startDate.setDate(startDate.getDate() - daysAgo)
     const startDateISO = startDate.toISOString()
 
     // Tickets created in period
-    const { data: periodTickets } = await admin
+    let ticketsQuery = admin
       .from('tickets')
-      .select('id, status, priority, created_at, resolved_at, first_response_at, satisfaction_rating, assigned_agent_id')
+      .select('id, status, priority, created_at, resolved_at, first_response_at, satisfaction_rating, assigned_agent_id, product_id')
       .gte('created_at', startDateISO)
+    if (productId) ticketsQuery = ticketsQuery.eq('product_id', productId)
+    if (categoryId) ticketsQuery = ticketsQuery.eq('category_id', categoryId)
 
+    const { data: periodTickets } = await ticketsQuery
     const tickets = periodTickets || []
 
     // CSAT data
-    const { data: csatTickets } = await admin
+    let csatQuery = admin
       .from('tickets')
       .select('satisfaction_rating, satisfaction_comment')
       .not('satisfaction_rating', 'is', null)
       .gte('satisfaction_rated_at', startDateISO)
+    if (productId) csatQuery = csatQuery.eq('product_id', productId)
+    if (categoryId) csatQuery = csatQuery.eq('category_id', categoryId)
 
+    const { data: csatTickets } = await csatQuery
     const ratings = csatTickets || []
     const avgRating = ratings.length > 0
       ? ratings.reduce((acc, t) => acc + (t.satisfaction_rating || 0), 0) / ratings.length
@@ -56,11 +64,15 @@ export async function GET(request: NextRequest) {
     })
 
     // Resolved tickets in period
-    const { data: resolvedInPeriod } = await admin
+    let resolvedQuery = admin
       .from('tickets')
       .select('resolved_at')
       .not('resolved_at', 'is', null)
       .gte('resolved_at', startDateISO)
+    if (productId) resolvedQuery = resolvedQuery.eq('product_id', productId)
+    if (categoryId) resolvedQuery = resolvedQuery.eq('category_id', categoryId)
+
+    const { data: resolvedInPeriod } = await resolvedQuery
 
     ;(resolvedInPeriod || []).forEach((t) => {
       const day = t.resolved_at!.split('T')[0]
@@ -111,16 +123,22 @@ export async function GET(request: NextRequest) {
     })
 
     // AI stats
-    const { count: aiResolvedCount } = await admin
+    let aiQuery = admin
       .from('tickets')
       .select('*', { count: 'exact', head: true })
       .eq('status', 'resolved_ia')
       .gte('created_at', startDateISO)
+    if (productId) aiQuery = aiQuery.eq('product_id', productId)
+    if (categoryId) aiQuery = aiQuery.eq('category_id', categoryId)
+    const { count: aiResolvedCount } = await aiQuery
 
-    const { count: totalInPeriod } = await admin
+    let totalQuery = admin
       .from('tickets')
       .select('*', { count: 'exact', head: true })
       .gte('created_at', startDateISO)
+    if (productId) totalQuery = totalQuery.eq('product_id', productId)
+    if (categoryId) totalQuery = totalQuery.eq('category_id', categoryId)
+    const { count: totalInPeriod } = await totalQuery
 
     return NextResponse.json({
       success: true,

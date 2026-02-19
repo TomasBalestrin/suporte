@@ -1,9 +1,19 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Header } from '@/components/layout/Header'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   Table,
   TableBody,
@@ -20,7 +30,8 @@ import {
   UserCheck,
   AlertTriangle,
   CheckCircle,
-  TrendingUp,
+  Filter,
+  X,
 } from 'lucide-react'
 import { formatRelativeTime } from '@/lib/utils/format'
 import { TICKET_STATUS_LABELS, TICKET_STATUS_COLORS } from '@/lib/utils/constants'
@@ -30,6 +41,7 @@ interface DashboardData {
   myTickets: number
   slaBreached: number
   resolvedToday: number
+  resolvedLabel?: string
   totalTickets: number
   statusCounts: Record<string, number>
   recentTickets: Array<{
@@ -46,27 +58,91 @@ interface DashboardData {
   }>
 }
 
+interface Product {
+  id: string
+  name: string
+}
+
+interface Category {
+  id: string
+  name: string
+}
+
 export default function DashboardPage() {
   const router = useRouter()
   const [data, setData] = useState<DashboardData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
+  // Filters
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
+  const [productFilter, setProductFilter] = useState('all')
+  const [categoryFilter, setCategoryFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [priorityFilter, setPriorityFilter] = useState('all')
+
+  // Filter options
+  const [products, setProducts] = useState<Product[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
+  const [showFilters, setShowFilters] = useState(false)
+
+  // Load filter options
   useEffect(() => {
-    async function load() {
+    async function loadOptions() {
       try {
-        const res = await fetch('/api/admin/analytics/overview')
-        const json = await res.json()
-        if (json.success) setData(json.data)
+        const [productsRes, categoriesRes] = await Promise.all([
+          fetch('/api/products'),
+          fetch('/api/categories'),
+        ])
+        const productsJson = await productsRes.json()
+        const categoriesJson = await categoriesRes.json()
+        if (productsJson.success) setProducts(productsJson.data || [])
+        if (categoriesJson.success) setCategories(categoriesJson.data || [])
       } catch {
-        // handle error
-      } finally {
-        setIsLoading(false)
+        // silent
       }
     }
-    load()
+    loadOptions()
   }, [])
 
-  if (isLoading) {
+  const loadData = useCallback(async () => {
+    setIsLoading(true)
+    try {
+      const params = new URLSearchParams()
+      if (dateFrom) params.set('date_from', dateFrom)
+      if (dateTo) params.set('date_to', dateTo)
+      if (productFilter !== 'all') params.set('product_id', productFilter)
+      if (categoryFilter !== 'all') params.set('category_id', categoryFilter)
+      if (statusFilter !== 'all') params.set('status', statusFilter)
+      if (priorityFilter !== 'all') params.set('priority', priorityFilter)
+
+      const query = params.toString()
+      const res = await fetch(`/api/admin/analytics/overview${query ? `?${query}` : ''}`)
+      const json = await res.json()
+      if (json.success) setData(json.data)
+    } catch {
+      // handle error
+    } finally {
+      setIsLoading(false)
+    }
+  }, [dateFrom, dateTo, productFilter, categoryFilter, statusFilter, priorityFilter])
+
+  useEffect(() => {
+    loadData()
+  }, [loadData])
+
+  const hasActiveFilters = dateFrom || dateTo || productFilter !== 'all' || categoryFilter !== 'all' || statusFilter !== 'all' || priorityFilter !== 'all'
+
+  function clearFilters() {
+    setDateFrom('')
+    setDateTo('')
+    setProductFilter('all')
+    setCategoryFilter('all')
+    setStatusFilter('all')
+    setPriorityFilter('all')
+  }
+
+  if (isLoading && !data) {
     return (
       <>
         <Header title="Dashboard" />
@@ -111,7 +187,7 @@ export default function DashboardPage() {
       bg: data.slaBreached > 0 ? 'bg-red-500/10' : 'bg-green-500/10',
     },
     {
-      title: 'Resolvidos Hoje',
+      title: data.resolvedLabel || 'Resolvidos Hoje',
       value: data.resolvedToday,
       icon: CheckCircle,
       color: 'text-green-400',
@@ -123,6 +199,114 @@ export default function DashboardPage() {
     <>
       <Header title="Dashboard" />
       <div className="p-6 space-y-6">
+        {/* Filters */}
+        <Card className="border-border bg-card">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between gap-4">
+              <Button
+                variant={showFilters ? 'secondary' : 'outline'}
+                size="sm"
+                onClick={() => setShowFilters(!showFilters)}
+                className="gap-2"
+              >
+                <Filter className="h-4 w-4" />
+                Filtros
+                {hasActiveFilters && (
+                  <span className="ml-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground">
+                    {[dateFrom || dateTo ? 1 : 0, productFilter !== 'all' ? 1 : 0, categoryFilter !== 'all' ? 1 : 0, statusFilter !== 'all' ? 1 : 0, priorityFilter !== 'all' ? 1 : 0].reduce((a, b) => a + b, 0)}
+                  </span>
+                )}
+              </Button>
+              {hasActiveFilters && (
+                <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1 text-muted-foreground">
+                  <X className="h-3 w-3" />
+                  Limpar filtros
+                </Button>
+              )}
+            </div>
+
+            {showFilters && (
+              <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Data Inicio</Label>
+                  <Input
+                    type="date"
+                    value={dateFrom}
+                    onChange={(e) => setDateFrom(e.target.value)}
+                    className="bg-muted h-9"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Data Fim</Label>
+                  <Input
+                    type="date"
+                    value={dateTo}
+                    onChange={(e) => setDateTo(e.target.value)}
+                    className="bg-muted h-9"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Produto</Label>
+                  <Select value={productFilter} onValueChange={setProductFilter}>
+                    <SelectTrigger className="bg-muted h-9 w-full">
+                      <SelectValue placeholder="Todos" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos os Produtos</SelectItem>
+                      {products.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Categoria</Label>
+                  <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                    <SelectTrigger className="bg-muted h-9 w-full">
+                      <SelectValue placeholder="Todas" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas as Categorias</SelectItem>
+                      {categories.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Status</Label>
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="bg-muted h-9 w-full">
+                      <SelectValue placeholder="Todos" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos os Status</SelectItem>
+                      {Object.entries(TICKET_STATUS_LABELS).map(([value, label]) => (
+                        <SelectItem key={value} value={value}>{label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Prioridade</Label>
+                  <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                    <SelectTrigger className="bg-muted h-9 w-full">
+                      <SelectValue placeholder="Todas" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas as Prioridades</SelectItem>
+                      <SelectItem value="urgent">Urgente</SelectItem>
+                      <SelectItem value="high">Alta</SelectItem>
+                      <SelectItem value="medium">Media</SelectItem>
+                      <SelectItem value="low">Baixa</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {/* KPI Cards */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {kpiCards.map((card) => (
