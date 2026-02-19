@@ -52,19 +52,13 @@ const quickTopics = [
     description: 'Duvidas sobre aplicacao do conteudo',
     color: 'text-rose-600 bg-rose-50',
   },
-  {
-    icon: MessageCircle,
-    title: 'Falar com suporte',
-    description: 'WhatsApp: (49) 99840-2162',
-    color: 'text-teal-600 bg-teal-50',
-  },
 ]
 
 const faqItems = [
   {
     question: 'Como acesso meu produto apos a compra?',
     answer:
-      'Depende do produto:\n\n• Produtos Julia Ottoni: juliaacademy.com.br (senha: ottoni123)\n• Produtos Cleiton: cleitonquerobin1.com.br/area-de-membros (senha: performance123)\n• Script GO: scriptgo.app/login (senha: 12345678)\n• Couply: usecouply.app/login (senha: 12345678)\n\nUse sempre o e-mail da compra como login.',
+      'Depende do produto:\n\n• Produtos Julia Ottoni: juliaacademy.com.br (senha: ottoni123)\n• Produtos Cleiton: cleitonquerobin1.com.br/area-de-membros (senha: performance123)\n• 50 Scripts: scriptgo.app/login (senha: Script@123)\n• Couply: usecouply.app/login (senha: 12345678)\n\nUse sempre o e-mail da compra como login.',
   },
   {
     question: 'Quais sao as formas de pagamento?',
@@ -75,12 +69,8 @@ const faqItems = [
     answer: 'Sim! Voce tem 7 dias de garantia a partir da data da compra. Para solicitar o reembolso, entre em contato pela propria plataforma de compra (Hotmart ou Pagtrust).',
   },
   {
-    question: 'Por quanto tempo terei acesso ao produto?',
-    answer: 'A maioria dos produtos tem acesso por 1 ano. Produtos no Trello (como 50 Modelos de Conteudo) tem acesso vitalicio. O Teste dos Arquetipos esta disponivel permanentemente online.',
-  },
-  {
     question: 'Nao recebi o e-mail de confirmacao. E agora?',
-    answer: 'Verifique sua caixa de spam ou lixo eletronico. Se nao encontrar, entre em contato pelo WhatsApp (49) 99840-2162 informando seu nome, e-mail de compra e nome do produto.',
+    answer: 'Verifique sua caixa de spam ou lixo eletronico. O produto tambem e enviado por WhatsApp, porem esse nao e um canal de suporte. Se nao encontrar, abra um ticket aqui na plataforma informando seu nome, e-mail de compra e nome do produto.',
   },
 ]
 
@@ -367,17 +357,6 @@ export default function SupportPage() {
             </div>
             <div className="text-xs text-muted-foreground">
               <p>Atendimento: Seg a Sex, 8h30 as 20h</p>
-              <p>
-                WhatsApp:{' '}
-                <a
-                  href="https://wa.me/5549998402162"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-medium text-primary hover:underline"
-                >
-                  (49) 99840-2162
-                </a>
-              </p>
             </div>
           </div>
         </div>
