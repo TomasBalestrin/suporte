@@ -262,7 +262,7 @@ export default function HelpPage() {
                     <div className="grid gap-4 md:grid-cols-2">
                       <div className="space-y-2">
                         <Label>Produto *</Label>
-                        <Select onValueChange={(v) => setValue('product_id', v)}>
+                        <Select onValueChange={(v) => setValue('product_id', v, { shouldValidate: true })}>
                           <SelectTrigger className="bg-muted">
                             <SelectValue placeholder="Selecione" />
                           </SelectTrigger>
@@ -280,7 +280,7 @@ export default function HelpPage() {
                       </div>
                       <div className="space-y-2">
                         <Label>Tipo de dificuldade *</Label>
-                        <Select onValueChange={(v) => setValue('category_id', v)}>
+                        <Select onValueChange={(v) => setValue('category_id', v, { shouldValidate: true })}>
                           <SelectTrigger className="bg-muted">
                             <SelectValue placeholder="Selecione" />
                           </SelectTrigger>
