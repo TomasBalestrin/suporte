@@ -211,7 +211,7 @@ export default function HelpPage() {
                 <CardHeader>
                   <CardTitle>Preciso de ajuda</CardTitle>
                   <CardDescription>
-                    Preencha os dados abaixo e nossa IA vai tentar resolver seu problema
+                    Preencha os dados abaixo para que possamos te atender da melhor forma
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -358,7 +358,7 @@ export default function HelpPage() {
                           <p className="mb-1 text-xs font-medium text-muted-foreground">
                             {aiName}
                             {msg.confidence != null && (
-                              <span className={`ml-2 ${msg.confidence >= 80 ? 'text-green-400' : msg.confidence >= 60 ? 'text-yellow-400' : 'text-red-400'}`}>
+                              <span className={`ml-2 ${msg.confidence >= 80 ? 'text-green-600' : msg.confidence >= 60 ? 'text-yellow-600' : 'text-red-500'}`}>
                                 {msg.confidence}% confianca
                               </span>
                             )}
@@ -370,13 +370,13 @@ export default function HelpPage() {
                             <span className="text-xs text-muted-foreground">Foi util?</span>
                             <button
                               onClick={() => sendFeedback(true)}
-                              className="rounded p-1 text-muted-foreground hover:bg-green-500/10 hover:text-green-400 transition-colors"
+                              className="rounded p-1 text-muted-foreground hover:bg-green-100 hover:text-green-600 transition-colors"
                             >
                               <ThumbsUp className="h-3.5 w-3.5" />
                             </button>
                             <button
                               onClick={() => sendFeedback(false)}
-                              className="rounded p-1 text-muted-foreground hover:bg-red-500/10 hover:text-red-400 transition-colors"
+                              className="rounded p-1 text-muted-foreground hover:bg-red-100 hover:text-red-500 transition-colors"
                             >
                               <ThumbsDown className="h-3.5 w-3.5" />
                             </button>
@@ -461,8 +461,8 @@ export default function HelpPage() {
             >
               <Card className="border-border bg-card">
                 <CardContent className="flex flex-col items-center p-8 text-center">
-                  <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-500/20">
-                    <CheckCircle className="h-8 w-8 text-green-400" />
+                  <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
+                    <CheckCircle className="h-8 w-8 text-green-600" />
                   </div>
 
                   {ticketResult ? (

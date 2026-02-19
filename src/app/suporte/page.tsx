@@ -5,8 +5,84 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
-import { Ticket, Search, ArrowRight, MessageCircle, Loader2 } from 'lucide-react'
+import {
+  Ticket,
+  Search,
+  ArrowRight,
+  MessageCircle,
+  Loader2,
+  KeyRound,
+  CreditCard,
+  ShieldCheck,
+  Clock,
+  HelpCircle,
+  ChevronDown,
+  ChevronUp,
+} from 'lucide-react'
 import { motion } from 'framer-motion'
+
+const quickTopics = [
+  {
+    icon: KeyRound,
+    title: 'Acesso e Senha',
+    description: 'Login, senha padrao e plataforma de acesso',
+    color: 'text-blue-600 bg-blue-50',
+  },
+  {
+    icon: CreditCard,
+    title: 'Pagamento',
+    description: 'Formas de pagamento e parcelamento',
+    color: 'text-emerald-600 bg-emerald-50',
+  },
+  {
+    icon: ShieldCheck,
+    title: 'Garantia e Reembolso',
+    description: 'Prazo de 7 dias e como solicitar',
+    color: 'text-violet-600 bg-violet-50',
+  },
+  {
+    icon: Clock,
+    title: 'Horario de Atendimento',
+    description: 'Segunda a sexta, 8h30 as 20h',
+    color: 'text-amber-600 bg-amber-50',
+  },
+  {
+    icon: HelpCircle,
+    title: 'Como usar meu produto',
+    description: 'Duvidas sobre aplicacao do conteudo',
+    color: 'text-rose-600 bg-rose-50',
+  },
+  {
+    icon: MessageCircle,
+    title: 'Falar com suporte',
+    description: 'WhatsApp: (49) 99840-2162',
+    color: 'text-teal-600 bg-teal-50',
+  },
+]
+
+const faqItems = [
+  {
+    question: 'Como acesso meu produto apos a compra?',
+    answer:
+      'Depende do produto:\n\n• Produtos Julia Ottoni: juliaacademy.com.br (senha: ottoni123)\n• Produtos Cleiton: cleitonquerobin1.com.br/area-de-membros (senha: performance123)\n• Script GO: scriptgo.app/login (senha: 12345678)\n• Couply: usecouply.app/login (senha: 12345678)\n\nUse sempre o e-mail da compra como login.',
+  },
+  {
+    question: 'Quais sao as formas de pagamento?',
+    answer: 'Aceitamos PIX (pagamento a vista) e cartao de credito (parcelamento em ate 12x). Os pagamentos sao processados pela Hotmart ou Pagtrust.',
+  },
+  {
+    question: 'Tem garantia? Como funciona o reembolso?',
+    answer: 'Sim! Voce tem 7 dias de garantia a partir da data da compra. Para solicitar o reembolso, entre em contato pela propria plataforma de compra (Hotmart ou Pagtrust).',
+  },
+  {
+    question: 'Por quanto tempo terei acesso ao produto?',
+    answer: 'A maioria dos produtos tem acesso por 1 ano. Produtos no Trello (como 50 Modelos de Conteudo) tem acesso vitalicio. O Teste dos Arquetipos esta disponivel permanentemente online.',
+  },
+  {
+    question: 'Nao recebi o e-mail de confirmacao. E agora?',
+    answer: 'Verifique sua caixa de spam ou lixo eletronico. Se nao encontrar, entre em contato pelo WhatsApp (49) 99840-2162 informando seu nome, e-mail de compra e nome do produto.',
+  },
+]
 
 export default function SupportPage() {
   const router = useRouter()
@@ -15,6 +91,8 @@ export default function SupportPage() {
   const [lookupStep, setLookupStep] = useState<'code' | 'email'>('code')
   const [lookupError, setLookupError] = useState<string | null>(null)
   const [isSearching, setIsSearching] = useState(false)
+  const [showTicketLookup, setShowTicketLookup] = useState(false)
+  const [openFaq, setOpenFaq] = useState<number | null>(null)
 
   async function handleLookup() {
     if (lookupStep === 'code') {
@@ -35,7 +113,7 @@ export default function SupportPage() {
       if (json.success && json.data) {
         router.push(`/suporte/ticket/${json.data.access_token}`)
       } else {
-        setLookupError('Ticket nao encontrado ou email nao confere')
+        setLookupError('Ticket nao encontrado ou e-mail nao confere')
       }
     } catch {
       setLookupError('Erro ao buscar ticket')
@@ -47,77 +125,63 @@ export default function SupportPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="border-b border-border bg-card/50 backdrop-blur-lg">
-        <div className="mx-auto flex h-16 max-w-4xl items-center px-4">
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
+      <header className="border-b border-border bg-card">
+        <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-4">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary">
               <span className="text-sm font-bold text-primary-foreground">B</span>
             </div>
-            <span className="text-lg font-bold">Bethel Suporte</span>
+            <span className="text-lg font-bold text-foreground">Bethel Suporte</span>
           </div>
+          <button
+            onClick={() => setShowTicketLookup(!showTicketLookup)}
+            className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <Ticket className="h-4 w-4" />
+            Acompanhar ticket
+          </button>
         </div>
       </header>
 
-      <main className="mx-auto max-w-4xl px-4 py-12">
-        {/* Hero */}
-        <motion.div
+      <main className="mx-auto max-w-5xl px-4">
+        {/* Hero Section */}
+        <motion.section
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-12 text-center"
+          className="py-12 text-center md:py-16"
         >
-          <h1 className="mb-4 text-4xl font-bold tracking-tight">
-            Como podemos te <span className="text-primary">ajudar</span>?
+          <h1 className="mb-3 text-3xl font-bold tracking-tight text-foreground md:text-4xl">
+            Ola! Como podemos te ajudar?
           </h1>
-          <p className="text-lg text-muted-foreground">
-            Nossa equipe e inteligencia artificial estao prontas para resolver seu problema
+          <p className="mx-auto mb-8 max-w-lg text-base text-muted-foreground">
+            Tire suas duvidas rapidamente ou fale com nossa equipe de suporte
           </p>
-        </motion.div>
-
-        {/* Two main paths */}
-        <div className="mb-12 grid gap-6 md:grid-cols-2">
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.1 }}
+          <Button
+            size="lg"
+            onClick={() => router.push('/suporte/ajuda')}
+            className="h-12 rounded-xl px-8 text-base font-semibold shadow-lg shadow-primary/25 transition-all hover:shadow-xl hover:shadow-primary/30"
           >
-            <Card
-              className="group cursor-pointer border-border bg-card transition-all hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5"
-              onClick={() => router.push('/suporte/ajuda')}
-            >
-              <CardContent className="flex flex-col items-center p-8 text-center">
-                <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 transition-colors group-hover:bg-primary/20">
-                  <MessageCircle className="h-8 w-8 text-primary" />
-                </div>
-                <h2 className="mb-2 text-xl font-semibold">Preciso de ajuda</h2>
-                <p className="mb-4 text-sm text-muted-foreground">
-                  Nossa IA vai tentar resolver seu problema. Se nao conseguir, abrimos um ticket automaticamente.
-                </p>
-                <Button variant="outline" className="group-hover:border-primary group-hover:text-primary">
-                  Iniciar atendimento
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </CardContent>
-            </Card>
-          </motion.div>
+            <MessageCircle className="mr-2 h-5 w-5" />
+            Iniciar atendimento
+            <ArrowRight className="ml-2 h-5 w-5" />
+          </Button>
+        </motion.section>
 
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.2 }}
+        {/* Ticket Lookup - Collapsible */}
+        {showTicketLookup && (
+          <motion.section
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            className="mb-8"
           >
-            <Card className="border-border bg-card">
-              <CardContent className="flex flex-col items-center p-8 text-center">
-                <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-secondary/10">
-                  <Ticket className="h-8 w-8 text-secondary" />
-                </div>
-                <h2 className="mb-2 text-xl font-semibold">Ja tenho um ticket</h2>
-                <p className="mb-4 text-sm text-muted-foreground">
-                  Digite o codigo do seu ticket para acompanhar o andamento.
-                </p>
-
-                <div className="w-full space-y-3">
+            <Card className="mx-auto max-w-md border-border bg-card shadow-sm">
+              <CardContent className="p-5">
+                <h3 className="mb-3 text-center text-sm font-semibold text-foreground">
+                  Acompanhar meu ticket
+                </h3>
+                <div className="space-y-2.5">
                   <Input
-                    placeholder="SUP-2026-0001"
+                    placeholder="Codigo do ticket (ex: SUP-2026-0001)"
                     value={ticketCode}
                     onChange={(e) => {
                       setTicketCode(e.target.value.toUpperCase())
@@ -127,12 +191,12 @@ export default function SupportPage() {
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') handleLookup()
                     }}
-                    className="bg-muted text-center font-mono"
+                    className="bg-muted text-center font-mono text-sm"
                   />
                   {lookupStep === 'email' && (
                     <Input
                       type="email"
-                      placeholder="Seu email cadastrado"
+                      placeholder="Seu e-mail cadastrado"
                       value={ticketEmail}
                       onChange={(e) => {
                         setTicketEmail(e.target.value)
@@ -141,17 +205,21 @@ export default function SupportPage() {
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') handleLookup()
                       }}
-                      className="bg-muted text-center"
+                      className="bg-muted text-center text-sm"
                       autoFocus
                     />
                   )}
                   {lookupError && (
-                    <p className="text-sm text-destructive">{lookupError}</p>
+                    <p className="text-center text-sm text-destructive">{lookupError}</p>
                   )}
                   <Button
                     variant="outline"
                     onClick={handleLookup}
-                    disabled={isSearching || (lookupStep === 'code' && !ticketCode.trim()) || (lookupStep === 'email' && !ticketEmail.trim())}
+                    disabled={
+                      isSearching ||
+                      (lookupStep === 'code' && !ticketCode.trim()) ||
+                      (lookupStep === 'email' && !ticketEmail.trim())
+                    }
                     className="w-full"
                   >
                     {isSearching ? (
@@ -164,13 +232,155 @@ export default function SupportPage() {
                 </div>
               </CardContent>
             </Card>
-          </motion.div>
-        </div>
+          </motion.section>
+        )}
+
+        {/* Quick Topics */}
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="mb-12"
+        >
+          <h2 className="mb-6 text-center text-lg font-semibold text-foreground">
+            Topicos mais procurados
+          </h2>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {quickTopics.map((topic, i) => {
+              const Icon = topic.icon
+              return (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.15 + i * 0.05 }}
+                >
+                  <Card
+                    className="group cursor-pointer border-border bg-card shadow-sm transition-all hover:border-primary/30 hover:shadow-md"
+                    onClick={() => router.push('/suporte/ajuda')}
+                  >
+                    <CardContent className="flex items-center gap-4 p-4">
+                      <div
+                        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${topic.color}`}
+                      >
+                        <Icon className="h-5 w-5" />
+                      </div>
+                      <div className="min-w-0">
+                        <h3 className="text-sm font-semibold text-foreground">
+                          {topic.title}
+                        </h3>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {topic.description}
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              )
+            })}
+          </div>
+        </motion.section>
+
+        {/* FAQ Accordion */}
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="mb-12"
+        >
+          <h2 className="mb-6 text-center text-lg font-semibold text-foreground">
+            Perguntas frequentes
+          </h2>
+          <div className="mx-auto max-w-2xl space-y-2">
+            {faqItems.map((item, i) => (
+              <Card
+                key={i}
+                className="border-border bg-card shadow-sm overflow-hidden"
+              >
+                <button
+                  onClick={() => setOpenFaq(openFaq === i ? null : i)}
+                  className="flex w-full items-center justify-between p-4 text-left transition-colors hover:bg-muted/50"
+                >
+                  <span className="pr-4 text-sm font-medium text-foreground">
+                    {item.question}
+                  </span>
+                  {openFaq === i ? (
+                    <ChevronUp className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  )}
+                </button>
+                {openFaq === i && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="border-t border-border px-4 pb-4 pt-3"
+                  >
+                    <p className="whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
+                      {item.answer}
+                    </p>
+                  </motion.div>
+                )}
+              </Card>
+            ))}
+          </div>
+        </motion.section>
+
+        {/* CTA Banner */}
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="mb-12"
+        >
+          <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-secondary/5 shadow-sm">
+            <CardContent className="flex flex-col items-center gap-4 p-8 text-center md:flex-row md:text-left">
+              <div className="flex-1">
+                <h3 className="mb-1 text-lg font-semibold text-foreground">
+                  Nao encontrou o que procurava?
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  Nossa equipe esta pronta para te ajudar de forma rapida e personalizada.
+                </p>
+              </div>
+              <Button
+                onClick={() => router.push('/suporte/ajuda')}
+                className="shrink-0 rounded-xl shadow-md shadow-primary/20"
+              >
+                Falar com a equipe
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </CardContent>
+          </Card>
+        </motion.section>
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-border py-6 text-center text-sm text-muted-foreground">
-        Bethel Suporte &mdash; Sistema de atendimento inteligente
+      <footer className="border-t border-border bg-card py-8">
+        <div className="mx-auto max-w-5xl px-4">
+          <div className="flex flex-col items-center gap-4 text-center md:flex-row md:justify-between md:text-left">
+            <div>
+              <p className="text-sm font-semibold text-foreground">Bethel Suporte</p>
+              <p className="text-xs text-muted-foreground">
+                Sistema de atendimento inteligente
+              </p>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              <p>Atendimento: Seg a Sex, 8h30 as 20h</p>
+              <p>
+                WhatsApp:{' '}
+                <a
+                  href="https://wa.me/5549998402162"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-primary hover:underline"
+                >
+                  (49) 99840-2162
+                </a>
+              </p>
+            </div>
+          </div>
+        </div>
       </footer>
     </div>
   )

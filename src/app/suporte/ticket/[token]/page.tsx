@@ -163,11 +163,11 @@ export default function TicketTrackingPage() {
       case 'ai':
         return <Bot className="h-4 w-4 text-primary" />
       case 'agent':
-        return <Monitor className="h-4 w-4 text-green-400" />
+        return <Monitor className="h-4 w-4 text-green-600" />
       case 'system':
         return <Clock className="h-4 w-4 text-muted-foreground" />
       default:
-        return <User className="h-4 w-4 text-blue-400" />
+        return <User className="h-4 w-4 text-blue-600" />
     }
   }
 
@@ -214,7 +214,7 @@ export default function TicketTrackingPage() {
           </div>
           <div title={isConnected ? 'Conectado em tempo real' : 'Reconectando...'}>
             {isConnected ? (
-              <Wifi className="h-4 w-4 text-green-400" />
+              <Wifi className="h-4 w-4 text-green-600" />
             ) : (
               <WifiOff className="h-4 w-4 text-muted-foreground" />
             )}
@@ -231,9 +231,9 @@ export default function TicketTrackingPage() {
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
             >
-              <Card className="mb-4 border-green-500/30 bg-green-500/5">
+              <Card className="mb-4 border-green-200 bg-green-50">
                 <CardContent className="p-4">
-                  <p className="mb-3 text-center font-medium text-green-400">
+                  <p className="mb-3 text-center font-medium text-green-700">
                     Seu ticket foi resolvido! Como foi o atendimento?
                   </p>
                   <div className="mb-3 flex justify-center gap-1">
@@ -246,7 +246,7 @@ export default function TicketTrackingPage() {
                         <Star
                           className={`h-8 w-8 ${
                             star <= rating
-                              ? 'fill-yellow-400 text-yellow-400'
+                              ? 'fill-yellow-400 text-yellow-500'
                               : 'text-muted-foreground'
                           }`}
                         />

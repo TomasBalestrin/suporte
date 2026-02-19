@@ -114,3 +114,34 @@
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
+
+/* ============================================
+   Portal Light Theme — Customer-facing pages
+   ============================================ */
+.portal-light {
+  --background: #F8FAFC;
+  --foreground: #1E293B;
+  --card: #FFFFFF;
+  --card-foreground: #1E293B;
+  --popover: #FFFFFF;
+  --popover-foreground: #1E293B;
+  --primary: #0EA5E9;
+  --primary-foreground: #FFFFFF;
+  --secondary: #7C5CFC;
+  --secondary-foreground: #FFFFFF;
+  --muted: #F1F5F9;
+  --muted-foreground: #64748B;
+  --accent: #F1F5F9;
+  --accent-foreground: #1E293B;
+  --destructive: #EF4444;
+  --border: #E2E8F0;
+  --input: #E2E8F0;
+  --ring: #0EA5E9;
+}
+
+.portal-light ::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+}
+.portal-light ::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
