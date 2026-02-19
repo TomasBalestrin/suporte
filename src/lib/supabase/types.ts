@@ -479,6 +479,29 @@ export type Database = {
           status?: 'sent' | 'failed' | 'bounced'
         }
       }
+      ai_usage_stats: {
+        Row: {
+          id: string
+          query: string
+          response: string | null
+          articles_found: number
+          confidence_score: number | null
+          was_helpful: boolean | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          query: string
+          response?: string | null
+          articles_found?: number
+          confidence_score?: number | null
+          was_helpful?: boolean | null
+          created_at?: string
+        }
+        Update: {
+          was_helpful?: boolean | null
+        }
+      }
       activity_log: {
         Row: {
           id: string
@@ -555,6 +578,7 @@ export type AiFeedback = Database['public']['Tables']['ai_feedback']['Row']
 export type SlaConfig = Database['public']['Tables']['sla_configs']['Row']
 export type AutomationRule = Database['public']['Tables']['automation_rules']['Row']
 export type NotificationLog = Database['public']['Tables']['notification_log']['Row']
+export type AiUsageStats = Database['public']['Tables']['ai_usage_stats']['Row']
 export type ActivityLog = Database['public']['Tables']['activity_log']['Row']
 
 // Extended types with relations

@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { ArrowLeft, Send, Loader2, Bot, User, CheckCircle, XCircle } from 'lucide-react'
+import { ArrowLeft, Send, Loader2, Bot, User, CheckCircle, XCircle, ThumbsUp, ThumbsDown } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import type { Product, Category } from '@/lib/supabase/types'
 import Link from 'next/link'
@@ -28,6 +28,7 @@ type Step = 'form' | 'ai' | 'creating' | 'done'
 interface AiMessage {
   role: 'user' | 'ai'
   content: string
+  confidence?: number
 }
 
 export default function HelpPage() {
@@ -36,8 +37,10 @@ export default function HelpPage() {
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [aiMessages, setAiMessages] = useState<AiMessage[]>([])
+  const [aiName, setAiName] = useState('Sofia')
   const [isAiLoading, setIsAiLoading] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
+  const [feedbackGiven, setFeedbackGiven] = useState(false)
   const [ticketResult, setTicketResult] = useState<{
     ticket_code: string
     access_token: string
@@ -81,10 +84,18 @@ export default function HelpPage() {
       })
       const json = await res.json()
 
+      if (json.success && json.data?.ai_name) {
+        setAiName(json.data.ai_name)
+      }
+
       if (json.success && json.data?.answer) {
         setAiMessages((prev) => [
           ...prev,
-          { role: 'ai', content: json.data.answer },
+          {
+            role: 'ai',
+            content: json.data.answer,
+            confidence: json.data.confidence,
+          },
         ])
       } else {
         setAiMessages((prev) => [
@@ -108,12 +119,30 @@ export default function HelpPage() {
     }
   }
 
+  async function sendFeedback(helpful: boolean) {
+    setFeedbackGiven(true)
+    try {
+      const userMsg = aiMessages.find((m) => m.role === 'user')
+      if (userMsg) {
+        await fetch('/api/ai/feedback', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: userMsg.content, helpful }),
+        })
+      }
+    } catch {
+      // non-blocking
+    }
+  }
+
   async function handleResolved() {
+    if (!feedbackGiven) sendFeedback(true)
     setStep('done')
     setTicketResult(null)
   }
 
   async function handleNotResolved() {
+    if (!feedbackGiven) sendFeedback(false)
     setStep('creating')
     setIsCreating(true)
 
@@ -304,7 +333,7 @@ export default function HelpPage() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Bot className="h-5 w-5 text-primary" />
-                    Assistente IA
+                    {aiName} — Assistente IA
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -325,7 +354,39 @@ export default function HelpPage() {
                             : 'bg-muted text-foreground'
                         }`}
                       >
+                        {msg.role === 'ai' && (
+                          <p className="mb-1 text-xs font-medium text-muted-foreground">
+                            {aiName}
+                            {msg.confidence != null && (
+                              <span className={`ml-2 ${msg.confidence >= 80 ? 'text-green-400' : msg.confidence >= 60 ? 'text-yellow-400' : 'text-red-400'}`}>
+                                {msg.confidence}% confianca
+                              </span>
+                            )}
+                          </p>
+                        )}
                         <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                        {msg.role === 'ai' && !feedbackGiven && i === aiMessages.length - 1 && !isAiLoading && (
+                          <div className="mt-2 flex items-center gap-2 border-t border-border/50 pt-2">
+                            <span className="text-xs text-muted-foreground">Foi util?</span>
+                            <button
+                              onClick={() => sendFeedback(true)}
+                              className="rounded p-1 text-muted-foreground hover:bg-green-500/10 hover:text-green-400 transition-colors"
+                            >
+                              <ThumbsUp className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              onClick={() => sendFeedback(false)}
+                              className="rounded p-1 text-muted-foreground hover:bg-red-500/10 hover:text-red-400 transition-colors"
+                            >
+                              <ThumbsDown className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        )}
+                        {msg.role === 'ai' && feedbackGiven && i === aiMessages.length - 1 && (
+                          <p className="mt-2 border-t border-border/50 pt-2 text-xs text-muted-foreground">
+                            Obrigado pelo feedback!
+                          </p>
+                        )}
                       </div>
                       {msg.role === 'user' && (
                         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted">
