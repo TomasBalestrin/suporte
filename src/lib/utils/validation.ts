@@ -52,3 +52,29 @@ export const satisfactionSchema = z.object({
 })
 
 export type SatisfactionFormData = z.infer<typeof satisfactionSchema>
+
+export const quickReplySchema = z.object({
+  shortcut: z.string().min(1, 'Atalho obrigatorio').max(20, 'Maximo 20 caracteres').regex(/^[a-z0-9_-]+$/, 'Apenas letras minusculas, numeros, _ e -'),
+  title: z.string().min(2, 'Titulo deve ter pelo menos 2 caracteres'),
+  content: z.string().min(5, 'Conteudo deve ter pelo menos 5 caracteres'),
+  category: z.string().optional(),
+  is_active: z.boolean().optional(),
+})
+
+export type QuickReplyFormData = z.infer<typeof quickReplySchema>
+
+export const tagSchema = z.object({
+  name: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres').max(30, 'Maximo 30 caracteres'),
+  color: z.string().min(4, 'Cor invalida').max(7),
+})
+
+export type TagFormData = z.infer<typeof tagSchema>
+
+export const slaConfigSchema = z.object({
+  priority: z.enum(['low', 'medium', 'high', 'urgent']),
+  first_response_minutes: z.number().min(1, 'Minimo 1 minuto'),
+  resolution_minutes: z.number().min(1, 'Minimo 1 minuto'),
+  is_active: z.boolean().optional(),
+})
+
+export type SlaConfigFormData = z.infer<typeof slaConfigSchema>

@@ -1,0 +1,69 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { quickReplySchema } from '@/lib/utils/validation'
+
+export async function GET() {
+  try {
+    const supabase = await createServerSupabaseClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return NextResponse.json({ success: false, error: 'Nao autorizado' }, { status: 401 })
+    }
+
+    const { data, error } = await supabase
+      .from('quick_replies')
+      .select('*')
+      .order('shortcut', { ascending: true })
+
+    if (error) throw error
+
+    return NextResponse.json({ success: true, data })
+  } catch {
+    return NextResponse.json(
+      { success: false, error: 'Erro ao buscar respostas rapidas' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const supabase = await createServerSupabaseClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return NextResponse.json({ success: false, error: 'Nao autorizado' }, { status: 401 })
+    }
+
+    const body = await request.json()
+    const parsed = quickReplySchema.safeParse(body)
+    if (!parsed.success) {
+      return NextResponse.json(
+        { success: false, error: parsed.error.message },
+        { status: 400 }
+      )
+    }
+
+    const { data, error } = await supabase
+      .from('quick_replies')
+      .insert({ ...parsed.data, created_by: user.id })
+      .select()
+      .single()
+
+    if (error) {
+      if (error.code === '23505') {
+        return NextResponse.json(
+          { success: false, error: 'Atalho ja existe' },
+          { status: 409 }
+        )
+      }
+      throw error
+    }
+
+    return NextResponse.json({ success: true, data }, { status: 201 })
+  } catch {
+    return NextResponse.json(
+      { success: false, error: 'Erro ao criar resposta rapida' },
+      { status: 500 }
+    )
+  }
+}
