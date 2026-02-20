@@ -72,6 +72,14 @@ export async function POST(
       )
     }
 
+    // Block messages on closed tickets
+    if (ticket.status === 'closed') {
+      return NextResponse.json(
+        { success: false, error: 'Este ticket foi encerrado e nao aceita novas mensagens' },
+        { status: 403 }
+      )
+    }
+
     // Insert message
     const { data: message, error } = await supabase
       .from('messages')

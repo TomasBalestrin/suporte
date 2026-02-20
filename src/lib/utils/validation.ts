@@ -3,7 +3,7 @@ import { z } from 'zod'
 export const ticketFormSchema = z.object({
   name: z.string().min(3, 'Nome deve ter pelo menos 3 caracteres'),
   email: z.string().email('Email invalido'),
-  phone: z.string().min(14, 'Telefone invalido').max(15),
+  phone: z.string().regex(/^\(\d{2}\) \d{4,5}-\d{4}$/, 'Telefone invalido. Use o formato (XX) XXXXX-XXXX'),
   product_id: z.string().min(1, 'Selecione um produto'),
   category_id: z.string().min(1, 'Selecione uma categoria'),
   description: z

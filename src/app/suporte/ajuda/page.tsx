@@ -36,6 +36,7 @@ export default function HelpPage() {
   const [step, setStep] = useState<Step>('form')
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
+  const [isLoadingData, setIsLoadingData] = useState(true)
   const [aiMessages, setAiMessages] = useState<AiMessage[]>([])
   const [aiName, setAiName] = useState('Sofia')
   const [isAiLoading, setIsAiLoading] = useState(false)
@@ -59,25 +60,31 @@ export default function HelpPage() {
 
   useEffect(() => {
     async function loadData() {
-      const [prodRes, catRes] = await Promise.all([
-        fetch('/api/products'),
-        fetch('/api/categories'),
-      ])
-      const prodJson = await prodRes.json()
-      const catJson = await catRes.json()
-      if (prodJson.success) {
-        const mainProducts = ['50 Scripts', 'Teste dos Arquétipos']
-        const sorted = [...(prodJson.data as Product[])].sort((a, b) => {
-          const aIdx = mainProducts.findIndex((name) => a.name.toLowerCase().includes(name.toLowerCase()))
-          const bIdx = mainProducts.findIndex((name) => b.name.toLowerCase().includes(name.toLowerCase()))
-          if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx
-          if (aIdx !== -1) return -1
-          if (bIdx !== -1) return 1
-          return a.name.localeCompare(b.name)
-        })
-        setProducts(sorted)
+      try {
+        const [prodRes, catRes] = await Promise.all([
+          fetch('/api/products'),
+          fetch('/api/categories'),
+        ])
+        const prodJson = await prodRes.json()
+        const catJson = await catRes.json()
+        if (prodJson.success) {
+          const mainProducts = ['50 Scripts', 'Teste dos Arquétipos']
+          const sorted = [...(prodJson.data as Product[])].sort((a, b) => {
+            const aIdx = mainProducts.findIndex((name) => a.name.toLowerCase().includes(name.toLowerCase()))
+            const bIdx = mainProducts.findIndex((name) => b.name.toLowerCase().includes(name.toLowerCase()))
+            if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx
+            if (aIdx !== -1) return -1
+            if (bIdx !== -1) return 1
+            return a.name.localeCompare(b.name)
+          })
+          setProducts(sorted)
+        }
+        if (catJson.success) setCategories(catJson.data)
+      } catch {
+        // Dados nao carregaram, selects ficarao vazios
+      } finally {
+        setIsLoadingData(false)
       }
-      if (catJson.success) setCategories(catJson.data)
     }
     loadData()
   }, [])
@@ -270,10 +277,18 @@ export default function HelpPage() {
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="mb-4 flex items-start gap-2 rounded-lg bg-destructive/10 p-3"
+              className="mb-4 flex items-center gap-2 rounded-lg bg-destructive/10 p-3"
             >
-              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
-              <p className="text-sm text-destructive">{createError}</p>
+              <AlertCircle className="h-4 w-4 shrink-0 text-destructive" />
+              <p className="flex-1 text-sm text-destructive">{createError}</p>
+              <Button
+                size="sm"
+                variant="outline"
+                className="shrink-0 border-destructive text-destructive hover:bg-destructive/10"
+                onClick={() => { setCreateError(null); handleNotResolved() }}
+              >
+                Tentar novamente
+              </Button>
             </motion.div>
           )}
         </AnimatePresence>
@@ -345,9 +360,9 @@ export default function HelpPage() {
                           name="product_id"
                           control={control}
                           render={({ field }) => (
-                            <Select value={field.value} onValueChange={field.onChange}>
+                            <Select value={field.value} onValueChange={field.onChange} disabled={isLoadingData}>
                               <SelectTrigger className="bg-muted">
-                                <SelectValue placeholder="Selecione" />
+                                <SelectValue placeholder={isLoadingData ? 'Carregando...' : 'Selecione'} />
                               </SelectTrigger>
                               <SelectContent>
                                 {products.map((p) => (
@@ -369,9 +384,9 @@ export default function HelpPage() {
                           name="category_id"
                           control={control}
                           render={({ field }) => (
-                            <Select value={field.value} onValueChange={field.onChange}>
+                            <Select value={field.value} onValueChange={field.onChange} disabled={isLoadingData}>
                               <SelectTrigger className="bg-muted">
-                                <SelectValue placeholder="Selecione" />
+                                <SelectValue placeholder={isLoadingData ? 'Carregando...' : 'Selecione'} />
                               </SelectTrigger>
                               <SelectContent>
                                 {categories.map((c) => (

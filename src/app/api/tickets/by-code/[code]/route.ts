@@ -34,12 +34,12 @@ export async function GET(
       )
     }
 
-    // Verify email
+    // Verify email (same error message to prevent email enumeration)
     const customer = ticket.customer as unknown as { email: string }
     if (customer.email.toLowerCase() !== email.toLowerCase()) {
       return NextResponse.json(
-        { success: false, error: 'Email nao confere' },
-        { status: 403 }
+        { success: false, error: 'Ticket nao encontrado ou e-mail nao confere' },
+        { status: 404 }
       )
     }
 

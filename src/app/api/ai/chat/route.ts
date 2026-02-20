@@ -6,9 +6,16 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { question, product_id, category_id } = body
 
-    if (!question || question.trim().length === 0) {
+    if (!question || typeof question !== 'string' || question.trim().length === 0) {
       return NextResponse.json(
         { success: false, error: 'Pergunta nao pode ser vazia' },
+        { status: 400 }
+      )
+    }
+
+    if (question.trim().length > 2000) {
+      return NextResponse.json(
+        { success: false, error: 'Pergunta muito longa (maximo 2000 caracteres)' },
         { status: 400 }
       )
     }
