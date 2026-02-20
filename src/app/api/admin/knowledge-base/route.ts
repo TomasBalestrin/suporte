@@ -14,8 +14,8 @@ export async function GET(request: NextRequest) {
     const search = url.searchParams.get('search') || ''
     const category = url.searchParams.get('category') || ''
     const productId = url.searchParams.get('product_id') || ''
-    const page = parseInt(url.searchParams.get('page') || '1', 10)
-    const limit = parseInt(url.searchParams.get('limit') || '20', 10)
+    const page = Math.max(1, parseInt(url.searchParams.get('page') || '1', 10))
+    const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get('limit') || '20', 10)))
     const offset = (page - 1) * limit
 
     const admin = createAdminClient()

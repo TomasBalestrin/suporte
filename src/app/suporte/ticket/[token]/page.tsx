@@ -417,6 +417,7 @@ export default function TicketTrackingPage() {
             <div className="flex items-center gap-2">
               <FileUploadButton
                 ticketId={ticket.id}
+                accessToken={token}
                 onUpload={(att) => setAttachments((prev) => [...prev, att])}
                 disabled={isSending}
               />

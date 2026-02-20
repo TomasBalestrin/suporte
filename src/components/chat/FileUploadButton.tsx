@@ -16,11 +16,12 @@ export interface Attachment {
 
 interface FileUploadButtonProps {
   ticketId?: string
+  accessToken?: string
   onUpload: (attachment: Attachment) => void
   disabled?: boolean
 }
 
-export function FileUploadButton({ ticketId, onUpload, disabled }: FileUploadButtonProps) {
+export function FileUploadButton({ ticketId, accessToken, onUpload, disabled }: FileUploadButtonProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [isUploading, setIsUploading] = useState(false)
 
@@ -46,6 +47,7 @@ export function FileUploadButton({ ticketId, onUpload, disabled }: FileUploadBut
       const formData = new FormData()
       formData.append('file', file)
       if (ticketId) formData.append('ticket_id', ticketId)
+      if (accessToken) formData.append('access_token', accessToken)
 
       const res = await fetch('/api/upload', { method: 'POST', body: formData })
       const json = await res.json()
