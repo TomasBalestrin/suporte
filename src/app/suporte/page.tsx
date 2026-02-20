@@ -12,7 +12,6 @@ import {
   MessageCircle,
   Loader2,
   KeyRound,
-  CreditCard,
   ShieldCheck,
   Clock,
   HelpCircle,
@@ -28,12 +27,6 @@ const quickTopics = [
     title: 'Acesso e Senha',
     description: 'Login, senha padrao e plataforma de acesso',
     color: 'text-blue-600 bg-blue-50',
-  },
-  {
-    icon: CreditCard,
-    title: 'Pagamento',
-    description: 'Formas de pagamento e parcelamento',
-    color: 'text-emerald-600 bg-emerald-50',
   },
   {
     icon: ShieldCheck,
@@ -61,11 +54,6 @@ const faqItems = [
     answer:
       'Depende do produto:\n\n• Produtos Julia Ottoni: juliaacademy.com.br (senha: ottoni123)\n• Produtos Cleiton: cleitonquerobin1.com.br/area-de-membros (senha: performance123)\n• 50 Scripts: scriptgo.app/login (senha: Script@123)\n• Couply: usecouply.app/login (senha: 12345678)\n\nUse sempre o e-mail da compra como login.',
     tags: ['acesso', 'login', 'senha', 'produto', 'compra', 'plataforma'],
-  },
-  {
-    question: 'Quais sao as formas de pagamento?',
-    answer: 'Aceitamos PIX (pagamento a vista) e cartao de credito (parcelamento em ate 12x). Os pagamentos sao processados pela Hotmart ou Pagtrust.',
-    tags: ['pagamento', 'pix', 'cartao', 'credito', 'parcelamento', 'hotmart'],
   },
   {
     question: 'Tem garantia? Como funciona o reembolso?',
@@ -301,7 +289,7 @@ export default function SupportPage() {
           <h2 className="mb-6 text-center text-lg font-semibold text-foreground">
             Topicos mais procurados
           </h2>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2">
             {quickTopics.map((topic, i) => {
               const Icon = topic.icon
               return (
