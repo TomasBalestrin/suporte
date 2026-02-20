@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -27,24 +27,28 @@ const quickTopics = [
     title: 'Acesso e Senha',
     description: 'Login, senha padrao e plataforma de acesso',
     color: 'text-blue-600 bg-blue-50',
+    faqIndex: 0,
   },
   {
     icon: ShieldCheck,
     title: 'Garantia e Reembolso',
     description: 'Prazo de 7 dias e como solicitar',
     color: 'text-violet-600 bg-violet-50',
+    faqIndex: 1,
   },
   {
     icon: Clock,
     title: 'Horario de Atendimento',
     description: 'Segunda a sexta, 8h30 as 20h',
     color: 'text-amber-600 bg-amber-50',
+    faqIndex: 3,
   },
   {
     icon: HelpCircle,
     title: 'Como usar meu produto',
     description: 'Duvidas sobre aplicacao do conteudo',
     color: 'text-rose-600 bg-rose-50',
+    faqIndex: 4,
   },
 ]
 
@@ -64,6 +68,16 @@ const faqItems = [
     question: 'Nao recebi o e-mail de confirmacao. E agora?',
     answer: 'Verifique sua caixa de spam ou lixo eletronico. O produto tambem e enviado por WhatsApp, porem esse nao e um canal de suporte. Se nao encontrar, abra um ticket aqui na plataforma informando seu nome, e-mail de compra e nome do produto.',
     tags: ['email', 'confirmacao', 'spam', 'nao recebi', 'whatsapp'],
+  },
+  {
+    question: 'Qual o horario de atendimento?',
+    answer: 'Nosso atendimento funciona de segunda a sexta-feira, das 8h30 as 20h (horario de Brasilia). Fora desse horario voce pode abrir um ticket normalmente e responderemos assim que retornarmos.',
+    tags: ['horario', 'atendimento', 'funcionamento', 'segunda', 'sexta'],
+  },
+  {
+    question: 'Como usar meu produto?',
+    answer: 'Acesse a plataforma do seu produto usando o e-mail da compra e a senha padrao informada no e-mail de confirmacao. Se tiver duvidas sobre como aplicar o conteudo ou navegar na plataforma, abra um ticket e nossa equipe ira te orientar passo a passo.',
+    tags: ['usar', 'produto', 'conteudo', 'aplicar', 'duvida', 'plataforma'],
   },
 ]
 
@@ -97,6 +111,7 @@ export default function SupportPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null)
   const [faqSearch, setFaqSearch] = useState('')
 
+  const faqRef = useRef<HTMLDivElement>(null)
   const isOnline = isWithinSupportHours()
 
   const filteredFaq = useMemo(() => {
@@ -301,7 +316,13 @@ export default function SupportPage() {
                 >
                   <Card
                     className="group cursor-pointer border-border bg-card shadow-sm transition-all hover:border-primary/30 hover:shadow-md"
-                    onClick={() => router.push('/suporte/ajuda')}
+                    onClick={() => {
+                      setFaqSearch('')
+                      setOpenFaq(topic.faqIndex)
+                      setTimeout(() => {
+                        faqRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                      }, 100)
+                    }}
                   >
                     <CardContent className="flex items-center gap-4 p-4">
                       <div
@@ -328,6 +349,7 @@ export default function SupportPage() {
 
         {/* FAQ Accordion with Search */}
         <motion.section
+          ref={faqRef}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
