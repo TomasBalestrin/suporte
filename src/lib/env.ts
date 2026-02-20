@@ -14,6 +14,8 @@ const optionalServerVars = [
   'RESEND_API_KEY',
   'EMAIL_FROM',
   'CRON_SECRET',
+  'NEXT_PUBLIC_SENTRY_DSN',
+  'SENTRY_AUTH_TOKEN',
 ] as const
 
 export function validateEnv() {
