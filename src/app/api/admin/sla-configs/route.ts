@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { isAdmin } from '@/lib/supabase/guards'
 
 export async function GET() {
   try {
@@ -19,7 +20,8 @@ export async function GET() {
     if (error) throw error
 
     return NextResponse.json({ success: true, data })
-  } catch {
+  } catch (error) {
+    console.error('SLA config API error:', error)
     return NextResponse.json(
       { success: false, error: 'Erro ao buscar configuracoes de SLA' },
       { status: 500 }
@@ -33,6 +35,10 @@ export async function PUT(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       return NextResponse.json({ success: false, error: 'Nao autorizado' }, { status: 401 })
+    }
+
+    if (!(await isAdmin(user.id))) {
+      return NextResponse.json({ success: false, error: 'Apenas admins podem editar configuracoes de SLA' }, { status: 403 })
     }
 
     const body = await request.json()
@@ -70,7 +76,8 @@ export async function PUT(request: NextRequest) {
     }
 
     return NextResponse.json({ success: true })
-  } catch {
+  } catch (error) {
+    console.error('SLA config API error:', error)
     return NextResponse.json(
       { success: false, error: 'Erro ao salvar configuracoes de SLA' },
       { status: 500 }

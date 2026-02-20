@@ -44,7 +44,8 @@ export async function PATCH(
     if (error) throw error
 
     return NextResponse.json({ success: true, data })
-  } catch {
+  } catch (error) {
+    console.error('Users API error:', error)
     return NextResponse.json(
       { success: false, error: 'Erro ao atualizar usuario' },
       { status: 500 }
@@ -90,7 +91,8 @@ export async function DELETE(
     if (error) throw error
 
     return NextResponse.json({ success: true })
-  } catch {
+  } catch (error) {
+    console.error('Users API error:', error)
     return NextResponse.json(
       { success: false, error: 'Erro ao desativar usuario' },
       { status: 500 }

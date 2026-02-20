@@ -170,18 +170,19 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Update usage count for used articles
-    for (const article of articles) {
-      await supabase
-        .from('knowledge_base')
-        .update({
-          usage_count: (article as { usage_count?: number }).usage_count
-            ? (article as { usage_count: number }).usage_count + 1
-            : 1,
-          last_used_at: new Date().toISOString(),
-        })
-        .eq('id', (article as { id: string }).id)
-    }
+    // Update usage count for used articles (parallel, non-blocking)
+    const now = new Date().toISOString()
+    Promise.all(
+      articles.map((article: { id: string; usage_count?: number }) =>
+        supabase
+          .from('knowledge_base')
+          .update({
+            usage_count: (article.usage_count || 0) + 1,
+            last_used_at: now,
+          })
+          .eq('id', article.id)
+      )
+    ).catch(() => {})
 
     // Update ai_usage_stats (non-blocking)
     try {

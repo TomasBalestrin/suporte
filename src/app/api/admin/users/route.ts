@@ -19,7 +19,8 @@ export async function GET() {
     if (error) throw error
 
     return NextResponse.json({ success: true, data })
-  } catch {
+  } catch (error) {
+    console.error('Users API error:', error)
     return NextResponse.json(
       { success: false, error: 'Erro ao buscar usuarios' },
       { status: 500 }
@@ -86,7 +87,8 @@ export async function POST(request: NextRequest) {
     if (userError) throw userError
 
     return NextResponse.json({ success: true, data: userData }, { status: 201 })
-  } catch {
+  } catch (error) {
+    console.error('Users API error:', error)
     return NextResponse.json(
       { success: false, error: 'Erro ao criar usuario' },
       { status: 500 }

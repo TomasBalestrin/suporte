@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { isAdmin } from '@/lib/supabase/guards'
 
 export async function GET() {
   try {
@@ -19,7 +20,8 @@ export async function GET() {
     if (error) throw error
 
     return NextResponse.json({ success: true, data })
-  } catch {
+  } catch (error) {
+    console.error('Automations API error:', error)
     return NextResponse.json(
       { success: false, error: 'Erro ao buscar automacoes' },
       { status: 500 }
@@ -33,6 +35,10 @@ export async function POST(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       return NextResponse.json({ success: false, error: 'Nao autorizado' }, { status: 401 })
+    }
+
+    if (!(await isAdmin(user.id))) {
+      return NextResponse.json({ success: false, error: 'Apenas admins podem criar automacoes' }, { status: 403 })
     }
 
     const body = await request.json()
@@ -62,7 +68,8 @@ export async function POST(request: NextRequest) {
     if (error) throw error
 
     return NextResponse.json({ success: true, data }, { status: 201 })
-  } catch {
+  } catch (error) {
+    console.error('Automations API error:', error)
     return NextResponse.json(
       { success: false, error: 'Erro ao criar automacao' },
       { status: 500 }

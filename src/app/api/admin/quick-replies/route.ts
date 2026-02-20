@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { quickReplySchema } from '@/lib/utils/validation'
+import { isAdmin } from '@/lib/supabase/guards'
 
 export async function GET() {
   try {
@@ -18,7 +19,8 @@ export async function GET() {
     if (error) throw error
 
     return NextResponse.json({ success: true, data })
-  } catch {
+  } catch (error) {
+    console.error('Quick replies API error:', error)
     return NextResponse.json(
       { success: false, error: 'Erro ao buscar respostas rapidas' },
       { status: 500 }
@@ -32,6 +34,10 @@ export async function POST(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       return NextResponse.json({ success: false, error: 'Nao autorizado' }, { status: 401 })
+    }
+
+    if (!(await isAdmin(user.id))) {
+      return NextResponse.json({ success: false, error: 'Apenas admins podem criar respostas rapidas' }, { status: 403 })
     }
 
     const body = await request.json()
@@ -60,7 +66,8 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ success: true, data }, { status: 201 })
-  } catch {
+  } catch (error) {
+    console.error('Quick replies API error:', error)
     return NextResponse.json(
       { success: false, error: 'Erro ao criar resposta rapida' },
       { status: 500 }
