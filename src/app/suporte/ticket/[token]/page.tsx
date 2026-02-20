@@ -23,6 +23,9 @@ import {
   Clock,
   Wifi,
   WifiOff,
+  MessageSquare,
+  AlertCircle,
+  Lock,
 } from 'lucide-react'
 import { formatRelativeTime } from '@/lib/utils/format'
 import { SENDER_TYPE_LABELS } from '@/lib/utils/constants'
@@ -181,10 +184,16 @@ export default function TicketTrackingPage() {
 
   if (!ticket) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-background">
+      <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4">
+        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+          <AlertCircle className="h-8 w-8 text-muted-foreground" />
+        </div>
         <h1 className="mb-2 text-2xl font-bold">Ticket nao encontrado</h1>
-        <p className="mb-4 text-muted-foreground">
-          Verifique o link ou tente consultar pelo codigo
+        <p className="mb-1 text-center text-muted-foreground">
+          O link pode estar incorreto ou ter expirado.
+        </p>
+        <p className="mb-6 text-center text-sm text-muted-foreground">
+          Tente buscar pelo codigo do ticket na pagina de suporte.
         </p>
         <Link href="/suporte">
           <Button variant="outline">Voltar ao suporte</Button>
@@ -280,6 +289,17 @@ export default function TicketTrackingPage() {
 
           {/* Messages */}
           <div className="space-y-4">
+            {messages.length === 0 && (
+              <div className="flex flex-col items-center py-12 text-center">
+                <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                  <MessageSquare className="h-6 w-6 text-muted-foreground" />
+                </div>
+                <p className="text-sm font-medium text-foreground">Nenhuma mensagem ainda</p>
+                <p className="text-xs text-muted-foreground">
+                  Envie uma mensagem para iniciar a conversa com a equipe.
+                </p>
+              </div>
+            )}
             {messages.map((msg) => {
               if (msg.sender_type === 'system') {
                 return (
@@ -340,7 +360,19 @@ export default function TicketTrackingPage() {
       </div>
 
       {/* Input area */}
-      {ticket.status !== 'closed' && (
+      {ticket.status === 'closed' ? (
+        <div className="border-t border-border bg-card/50 backdrop-blur-lg">
+          <div className="mx-auto flex max-w-3xl items-center justify-center gap-2 px-4 py-4">
+            <Lock className="h-4 w-4 text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">
+              Este ticket foi encerrado. Precisa de mais ajuda?{' '}
+              <Link href="/suporte/ajuda" className="font-medium text-primary hover:underline">
+                Abrir novo ticket
+              </Link>
+            </p>
+          </div>
+        </div>
+      ) : (
         <div className="border-t border-border bg-card/50 backdrop-blur-lg">
           <div className="mx-auto max-w-3xl px-4 py-3">
             {/* Attachment previews */}
