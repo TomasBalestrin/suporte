@@ -11,9 +11,9 @@ export async function POST(
     const body = await request.json()
 
     const rating = Number(body.rating)
-    if (!rating || rating < 1 || rating > 5) {
+    if (!rating || !Number.isInteger(rating) || rating < 1 || rating > 5) {
       return NextResponse.json(
-        { success: false, error: 'Avaliacao deve ser entre 1 e 5' },
+        { success: false, error: 'Avaliacao deve ser um numero inteiro entre 1 e 5' },
         { status: 400 }
       )
     }

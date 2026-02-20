@@ -1,19 +1,22 @@
-import { format, formatDistanceToNow, parseISO } from 'date-fns'
+import { format, formatDistanceToNow, parseISO, isValid } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 
-export function formatDate(date: string | Date): string {
+function safeParse(date: string | Date): Date {
   const d = typeof date === 'string' ? parseISO(date) : date
-  return format(d, "dd/MM/yyyy HH:mm", { locale: ptBR })
+  if (!isValid(d)) return new Date()
+  return d
+}
+
+export function formatDate(date: string | Date): string {
+  return format(safeParse(date), "dd/MM/yyyy HH:mm", { locale: ptBR })
 }
 
 export function formatDateShort(date: string | Date): string {
-  const d = typeof date === 'string' ? parseISO(date) : date
-  return format(d, "dd/MM/yyyy", { locale: ptBR })
+  return format(safeParse(date), "dd/MM/yyyy", { locale: ptBR })
 }
 
 export function formatRelativeTime(date: string | Date): string {
-  const d = typeof date === 'string' ? parseISO(date) : date
-  return formatDistanceToNow(d, { addSuffix: true, locale: ptBR })
+  return formatDistanceToNow(safeParse(date), { addSuffix: true, locale: ptBR })
 }
 
 export function formatPhone(phone: string): string {
