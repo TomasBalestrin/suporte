@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { isAdmin } from '@/lib/supabase/guards'
 
 export async function POST() {
   try {
@@ -8,6 +9,9 @@ export async function POST() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       return NextResponse.json({ success: false, error: 'Nao autorizado' }, { status: 401 })
+    }
+    if (!(await isAdmin(user.id))) {
+      return NextResponse.json({ success: false, error: 'Apenas admins podem gerar embeddings' }, { status: 403 })
     }
 
     if (!process.env.OPENAI_API_KEY) {

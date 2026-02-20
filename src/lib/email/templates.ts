@@ -1,5 +1,14 @@
 import { APP_NAME, APP_URL } from '@/lib/utils/constants'
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 const baseStyle = `
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background-color: #0A0A0B;
@@ -60,18 +69,18 @@ export function ticketCreatedCustomer(data: {
   accessToken: string
   title: string
 }) {
-  const trackUrl = `${APP_URL}/suporte/ticket/${data.accessToken}`
+  const trackUrl = `${APP_URL}/suporte/ticket/${encodeURIComponent(data.accessToken)}`
   return {
     subject: `[${data.ticketCode}] Ticket criado - ${APP_NAME}`,
     html: layout(`
       <div style="${cardStyle}">
-        <h2 style="color: #FFFFFF; margin: 0 0 16px;">Ola, ${data.customerName}!</h2>
+        <h2 style="color: #FFFFFF; margin: 0 0 16px;">Ola, ${escapeHtml(data.customerName)}!</h2>
         <p>Seu ticket foi criado com sucesso. Nosso time ira analisar e responder o mais breve possivel.</p>
         <div style="background-color: #0A0A0B; border-radius: 8px; padding: 16px; margin: 16px 0;">
           <p style="margin: 0; font-size: 14px; color: #71717A;">Codigo do ticket</p>
-          <p style="margin: 4px 0 0; font-size: 20px; font-weight: bold; color: #00B8D9; font-family: monospace;">${data.ticketCode}</p>
+          <p style="margin: 4px 0 0; font-size: 20px; font-weight: bold; color: #00B8D9; font-family: monospace;">${escapeHtml(data.ticketCode)}</p>
         </div>
-        <p style="color: #A1A1AA; font-size: 14px;"><strong>Assunto:</strong> ${data.title}</p>
+        <p style="color: #A1A1AA; font-size: 14px;"><strong>Assunto:</strong> ${escapeHtml(data.title)}</p>
         <div style="text-align: center; margin-top: 24px;">
           <a href="${trackUrl}" style="${buttonStyle}">Acompanhar Ticket</a>
         </div>
@@ -87,16 +96,16 @@ export function newMessageCustomer(data: {
   senderName: string
   preview: string
 }) {
-  const trackUrl = `${APP_URL}/suporte/ticket/${data.accessToken}`
+  const trackUrl = `${APP_URL}/suporte/ticket/${encodeURIComponent(data.accessToken)}`
   return {
     subject: `[${data.ticketCode}] Nova resposta - ${APP_NAME}`,
     html: layout(`
       <div style="${cardStyle}">
         <h2 style="color: #FFFFFF; margin: 0 0 16px;">Nova resposta no seu ticket</h2>
-        <p>Ola, ${data.customerName}! Voce recebeu uma nova resposta no ticket <strong style="color: #00B8D9;">${data.ticketCode}</strong>.</p>
+        <p>Ola, ${escapeHtml(data.customerName)}! Voce recebeu uma nova resposta no ticket <strong style="color: #00B8D9;">${escapeHtml(data.ticketCode)}</strong>.</p>
         <div style="background-color: #0A0A0B; border-radius: 8px; padding: 16px; margin: 16px 0;">
-          <p style="margin: 0; font-size: 12px; color: #71717A;">${data.senderName}</p>
-          <p style="margin: 8px 0 0; font-size: 14px; color: #E4E4E7;">${data.preview}</p>
+          <p style="margin: 0; font-size: 12px; color: #71717A;">${escapeHtml(data.senderName)}</p>
+          <p style="margin: 8px 0 0; font-size: 14px; color: #E4E4E7;">${escapeHtml(data.preview)}</p>
         </div>
         <div style="text-align: center; margin-top: 24px;">
           <a href="${trackUrl}" style="${buttonStyle}">Ver Conversa</a>
@@ -111,13 +120,13 @@ export function ticketResolvedCustomer(data: {
   ticketCode: string
   accessToken: string
 }) {
-  const trackUrl = `${APP_URL}/suporte/ticket/${data.accessToken}`
+  const trackUrl = `${APP_URL}/suporte/ticket/${encodeURIComponent(data.accessToken)}`
   return {
     subject: `[${data.ticketCode}] Ticket resolvido - ${APP_NAME}`,
     html: layout(`
       <div style="${cardStyle}">
         <h2 style="color: #22C55E; margin: 0 0 16px;">Ticket Resolvido</h2>
-        <p>Ola, ${data.customerName}! Seu ticket <strong style="color: #00B8D9;">${data.ticketCode}</strong> foi marcado como resolvido.</p>
+        <p>Ola, ${escapeHtml(data.customerName)}! Seu ticket <strong style="color: #00B8D9;">${escapeHtml(data.ticketCode)}</strong> foi marcado como resolvido.</p>
         <p>Se o problema persistir, voce pode reabrir o ticket respondendo pela pagina de acompanhamento.</p>
         <div style="text-align: center; margin-top: 24px;">
           <a href="${trackUrl}" style="${buttonStyle}">Avaliar Atendimento</a>
@@ -141,11 +150,11 @@ export function newTicketAgent(data: {
     html: layout(`
       <div style="${cardStyle}">
         <h2 style="color: #FFFFFF; margin: 0 0 16px;">Novo ticket atribuido a voce</h2>
-        <p>Ola, ${data.agentName}! Um novo ticket foi atribuido a voce.</p>
+        <p>Ola, ${escapeHtml(data.agentName)}! Um novo ticket foi atribuido a voce.</p>
         <div style="background-color: #0A0A0B; border-radius: 8px; padding: 16px; margin: 16px 0;">
-          <p style="margin: 0;"><strong style="color: #00B8D9;">${data.ticketCode}</strong></p>
-          <p style="margin: 8px 0 4px; font-size: 14px;">${data.title}</p>
-          <p style="margin: 0; font-size: 12px; color: #71717A;">Cliente: ${data.customerName} | Prioridade: ${data.priority}</p>
+          <p style="margin: 0;"><strong style="color: #00B8D9;">${escapeHtml(data.ticketCode)}</strong></p>
+          <p style="margin: 8px 0 4px; font-size: 14px;">${escapeHtml(data.title)}</p>
+          <p style="margin: 0; font-size: 12px; color: #71717A;">Cliente: ${escapeHtml(data.customerName)} | Prioridade: ${escapeHtml(data.priority)}</p>
         </div>
         <div style="text-align: center; margin-top: 24px;">
           <a href="${ticketUrl}" style="${buttonStyle}">Abrir Ticket</a>
@@ -160,13 +169,13 @@ export function satisfactionReminder(data: {
   ticketCode: string
   accessToken: string
 }) {
-  const trackUrl = `${APP_URL}/suporte/ticket/${data.accessToken}`
+  const trackUrl = `${APP_URL}/suporte/ticket/${encodeURIComponent(data.accessToken)}`
   return {
     subject: `[${data.ticketCode}] Como foi o atendimento? - ${APP_NAME}`,
     html: layout(`
       <div style="${cardStyle}">
         <h2 style="color: #FFFFFF; margin: 0 0 16px;">Nos ajude a melhorar!</h2>
-        <p>Ola, ${data.customerName}! Seu ticket <strong style="color: #00B8D9;">${data.ticketCode}</strong> foi resolvido recentemente.</p>
+        <p>Ola, ${escapeHtml(data.customerName)}! Seu ticket <strong style="color: #00B8D9;">${escapeHtml(data.ticketCode)}</strong> foi resolvido recentemente.</p>
         <p>Gostavamos de saber como foi sua experiencia. Sua avaliacao nos ajuda a melhorar o atendimento.</p>
         <div style="text-align: center; margin-top: 24px;">
           <a href="${trackUrl}" style="${buttonStyle}">Avaliar Atendimento</a>

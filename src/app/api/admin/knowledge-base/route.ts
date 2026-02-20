@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { escapeIlike, isAdmin } from '@/lib/supabase/guards'
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,8 +15,8 @@ export async function GET(request: NextRequest) {
     const search = url.searchParams.get('search') || ''
     const category = url.searchParams.get('category') || ''
     const productId = url.searchParams.get('product_id') || ''
-    const page = parseInt(url.searchParams.get('page') || '1', 10)
-    const limit = parseInt(url.searchParams.get('limit') || '20', 10)
+    const page = Math.max(1, parseInt(url.searchParams.get('page') || '1', 10))
+    const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get('limit') || '20', 10)))
     const offset = (page - 1) * limit
 
     const admin = createAdminClient()
@@ -24,7 +25,8 @@ export async function GET(request: NextRequest) {
       .select('*, product:products(name)', { count: 'exact' })
 
     if (search) {
-      query = query.or(`title.ilike.%${search}%,content.ilike.%${search}%`)
+      const escaped = escapeIlike(search)
+      query = query.or(`title.ilike.%${escaped}%,content.ilike.%${escaped}%`)
     }
     if (category) {
       query = query.eq('category', category)
@@ -63,6 +65,10 @@ export async function POST(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       return NextResponse.json({ success: false, error: 'Nao autorizado' }, { status: 401 })
+    }
+
+    if (!(await isAdmin(user.id))) {
+      return NextResponse.json({ success: false, error: 'Apenas admins podem criar artigos' }, { status: 403 })
     }
 
     const body = await request.json()

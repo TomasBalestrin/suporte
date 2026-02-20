@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendEmail } from '@/lib/email/send'
+import { isAdmin } from '@/lib/supabase/guards'
 
 export async function GET(request: NextRequest) {
   try {
@@ -56,7 +57,8 @@ export async function GET(request: NextRequest) {
         },
       },
     })
-  } catch {
+  } catch (error) {
+    console.error('Email API error:', error)
     return NextResponse.json(
       { success: false, error: 'Erro ao buscar logs de email' },
       { status: 500 }
@@ -70,6 +72,10 @@ export async function POST(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       return NextResponse.json({ success: false, error: 'Nao autorizado' }, { status: 401 })
+    }
+
+    if (!(await isAdmin(user.id))) {
+      return NextResponse.json({ success: false, error: 'Apenas admins podem enviar emails de teste' }, { status: 403 })
     }
 
     const body = await request.json()
@@ -116,7 +122,8 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       )
     }
-  } catch {
+  } catch (error) {
+    console.error('Email API error:', error)
     return NextResponse.json(
       { success: false, error: 'Erro ao enviar email de teste' },
       { status: 500 }

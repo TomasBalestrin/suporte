@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { isAdmin } from '@/lib/supabase/guards'
 
 const DEFAULT_CONFIGS: Record<string, string> = {
   system_prompt:
@@ -47,6 +48,10 @@ export async function PUT(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       return NextResponse.json({ success: false, error: 'Nao autorizado' }, { status: 401 })
+    }
+
+    if (!(await isAdmin(user.id))) {
+      return NextResponse.json({ success: false, error: 'Apenas admins podem editar configuracoes de IA' }, { status: 403 })
     }
 
     const body = await request.json()

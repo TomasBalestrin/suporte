@@ -4,8 +4,17 @@ import { TooltipProvider } from "@/components/ui/tooltip"
 import "./globals.css"
 
 export const metadata: Metadata = {
-  title: "Bethel Suporte",
-  description: "Sistema de suporte inteligente com IA",
+  title: {
+    default: "Bethel Suporte",
+    template: "%s | Bethel Suporte",
+  },
+  description: "Sistema de suporte inteligente com IA - Bethel Systems",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://suporte.bethelsystems.com.br"),
+  openGraph: {
+    title: "Bethel Suporte",
+    description: "Sistema de suporte inteligente com IA",
+    type: "website",
+  },
 }
 
 export default function RootLayout({

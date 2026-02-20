@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendEmail } from '@/lib/email/send'
 import { ticketCreatedCustomer } from '@/lib/email/templates'
+import { rateLimit, getClientIp } from '@/lib/rate-limit'
 import { z } from 'zod'
 
 const createTicketSchema = z.object({
@@ -25,6 +26,15 @@ const createTicketSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    const ip = getClientIp(request)
+    const { allowed } = rateLimit(`tickets:${ip}`, { limit: 5, windowSeconds: 60 })
+    if (!allowed) {
+      return NextResponse.json(
+        { success: false, error: 'Muitas requisicoes. Aguarde um momento.' },
+        { status: 429 }
+      )
+    }
+
     const supabase = createAdminClient()
     const body = await request.json()
     const parsed = createTicketSchema.safeParse(body)

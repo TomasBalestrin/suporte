@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { productSchema } from '@/lib/utils/validation'
+import { isAdmin } from '@/lib/supabase/guards'
 
 export async function GET() {
   try {
@@ -32,6 +33,10 @@ export async function POST(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       return NextResponse.json({ success: false, error: 'Nao autorizado' }, { status: 401 })
+    }
+
+    if (!(await isAdmin(user.id))) {
+      return NextResponse.json({ success: false, error: 'Apenas admins podem criar produtos' }, { status: 403 })
     }
 
     const body = await request.json()

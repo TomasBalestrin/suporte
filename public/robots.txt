@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /suporte
+Disallow: /admin
+Disallow: /api

@@ -23,7 +23,9 @@ export async function sendEmail({ to, subject, html, ticketId, template }: SendE
 
   // Skip if Resend is not configured
   if (!resend) {
-    console.log(`[Email] Resend not configured. Would send "${subject}" to ${to}`)
+    if (process.env.NODE_ENV === 'development') {
+      console.warn(`[Email] Resend not configured. Would send "${subject}" to ${to}`)
+    }
     return null
   }
 

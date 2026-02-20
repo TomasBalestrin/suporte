@@ -1,8 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { rateLimit, getClientIp } from '@/lib/rate-limit'
 
 export async function POST(request: NextRequest) {
   try {
+    const ip = getClientIp(request)
+    const { allowed } = rateLimit(`ai-chat:${ip}`, { limit: 20, windowSeconds: 60 })
+    if (!allowed) {
+      return NextResponse.json(
+        { success: false, error: 'Muitas requisicoes. Aguarde um momento.' },
+        { status: 429 }
+      )
+    }
+
     const body = await request.json()
     const { question, product_id, category_id } = body
 
@@ -160,18 +170,19 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Update usage count for used articles
-    for (const article of articles) {
-      await supabase
-        .from('knowledge_base')
-        .update({
-          usage_count: (article as { usage_count?: number }).usage_count
-            ? (article as { usage_count: number }).usage_count + 1
-            : 1,
-          last_used_at: new Date().toISOString(),
-        })
-        .eq('id', (article as { id: string }).id)
-    }
+    // Update usage count for used articles (parallel, non-blocking)
+    const now = new Date().toISOString()
+    Promise.all(
+      articles.map((article: { id: string; usage_count?: number }) =>
+        supabase
+          .from('knowledge_base')
+          .update({
+            usage_count: (article.usage_count || 0) + 1,
+            last_used_at: now,
+          })
+          .eq('id', article.id)
+      )
+    ).catch(() => {})
 
     // Update ai_usage_stats (non-blocking)
     try {
