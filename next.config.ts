@@ -53,11 +53,10 @@ export default withSentryConfig(nextConfig, {
   // Upload source maps for better stack traces
   widenClientFileUpload: true,
 
-  // Automatically tree-shake Sentry logger statements
-  disableLogger: true,
-
   // Hide source maps from users
-  hideSourceMaps: true,
+  sourcemaps: {
+    deleteSourcemapsAfterUpload: true,
+  },
 
   // Only enable telemetry if explicitly opted in
   telemetry: false,
