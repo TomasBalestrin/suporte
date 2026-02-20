@@ -81,13 +81,21 @@ const faqItems = [
 
 function isWithinSupportHours(): boolean {
   const now = new Date()
-  const brTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }))
-  const day = brTime.getDay()
-  const hour = brTime.getHours()
-  const minutes = brTime.getMinutes()
-  const timeInMinutes = hour * 60 + minutes
-  // Seg-Sex (1-5), 8h30 (510min) às 20h (1200min)
-  return day >= 1 && day <= 5 && timeInMinutes >= 510 && timeInMinutes < 1200
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Sao_Paulo',
+    weekday: 'short',
+    hour: 'numeric',
+    minute: 'numeric',
+    hour12: false,
+  })
+  const parts = formatter.formatToParts(now)
+  const weekday = parts.find((p) => p.type === 'weekday')?.value
+  const hour = parseInt(parts.find((p) => p.type === 'hour')?.value || '0', 10)
+  const minute = parseInt(parts.find((p) => p.type === 'minute')?.value || '0', 10)
+  const timeInMinutes = hour * 60 + minute
+  const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
+  // Seg-Sex, 8h30 (510min) as 20h (1200min)
+  return weekdays.includes(weekday || '') && timeInMinutes >= 510 && timeInMinutes < 1200
 }
 
 export default function SupportPage() {

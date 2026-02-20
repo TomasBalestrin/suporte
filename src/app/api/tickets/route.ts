@@ -8,12 +8,18 @@ const createTicketSchema = z.object({
   name: z.string().min(3),
   email: z.string().email(),
   phone: z.string().optional(),
-  product_id: z.string().uuid(),
-  category_id: z.string().uuid(),
+  product_id: z.string().min(1),
+  category_id: z.string().min(1),
   title: z.string().min(1),
   description: z.string().min(20),
   ai_messages: z
-    .array(z.object({ role: z.string(), content: z.string() }))
+    .array(
+      z.object({
+        role: z.string(),
+        content: z.string(),
+        confidence: z.number().optional(),
+      })
+    )
     .optional(),
 })
 
@@ -24,8 +30,10 @@ export async function POST(request: NextRequest) {
     const parsed = createTicketSchema.safeParse(body)
 
     if (!parsed.success) {
+      const fieldErrors = parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ')
+      console.error('Ticket validation failed:', fieldErrors)
       return NextResponse.json(
-        { success: false, error: parsed.error.message },
+        { success: false, error: `Dados invalidos: ${fieldErrors}` },
         { status: 400 }
       )
     }

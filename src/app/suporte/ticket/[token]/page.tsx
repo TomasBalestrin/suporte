@@ -31,6 +31,7 @@ import { formatRelativeTime } from '@/lib/utils/format'
 import { SENDER_TYPE_LABELS } from '@/lib/utils/constants'
 import type { Message, TicketWithRelations } from '@/lib/supabase/types'
 import { motion } from 'framer-motion'
+import { toast } from 'sonner'
 
 export default function TicketTrackingPage() {
   const params = useParams()
@@ -46,6 +47,7 @@ export default function TicketTrackingPage() {
   const [ratingComment, setRatingComment] = useState('')
   const [isRating, setIsRating] = useState(false)
   const [attachments, setAttachments] = useState<Attachment[]>([])
+  const [loadError, setLoadError] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const loadTicket = useCallback(async () => {
@@ -54,6 +56,7 @@ export default function TicketTrackingPage() {
       const json = await res.json()
       if (json.success) {
         setTicket(json.data)
+        setLoadError(false)
         if (
           (json.data.status === 'resolved' || json.data.status === 'resolved_ia') &&
           !json.data.satisfaction_rating
@@ -62,7 +65,7 @@ export default function TicketTrackingPage() {
         }
       }
     } catch {
-      // handle error silently
+      setLoadError(true)
     }
   }, [token])
 
@@ -72,7 +75,7 @@ export default function TicketTrackingPage() {
       const json = await res.json()
       if (json.success) setMessages(json.data)
     } catch {
-      // handle error silently
+      // polling silencioso - nao mostrar erro repetido
     }
   }, [token])
 
@@ -116,13 +119,16 @@ export default function TicketTrackingPage() {
     if ((!newMessage.trim() && attachments.length === 0) || isSending) return
     setIsSending(true)
 
+    const savedMessage = newMessage
+    const savedAttachments = [...attachments]
+
     try {
       const res = await fetch(`/api/tickets/${token}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          content: newMessage.trim() || '[Arquivo anexado]',
-          attachments,
+          content: savedMessage.trim() || '[Arquivo anexado]',
+          attachments: savedAttachments,
         }),
       })
       const json = await res.json()
@@ -131,9 +137,11 @@ export default function TicketTrackingPage() {
         setAttachments([])
         if (!isConnected) loadMessages()
         loadTicket()
+      } else {
+        toast.error('Erro ao enviar mensagem. Tente novamente.')
       }
     } catch {
-      // handle error
+      toast.error('Erro de conexao. Verifique sua internet.')
     } finally {
       setIsSending(false)
     }
@@ -147,15 +155,18 @@ export default function TicketTrackingPage() {
       const res = await fetch(`/api/tickets/${token}/rate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rating, comment: ratingComment }),
+        body: JSON.stringify({ rating, comment: ratingComment.slice(0, 1000) }),
       })
       const json = await res.json()
       if (json.success) {
         setShowRating(false)
         loadTicket()
+        toast.success('Avaliacao enviada! Obrigado.')
+      } else {
+        toast.error('Erro ao enviar avaliacao. Tente novamente.')
       }
     } catch {
-      // handle error
+      toast.error('Erro de conexao. Verifique sua internet.')
     } finally {
       setIsRating(false)
     }
@@ -188,16 +199,30 @@ export default function TicketTrackingPage() {
         <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
           <AlertCircle className="h-8 w-8 text-muted-foreground" />
         </div>
-        <h1 className="mb-2 text-2xl font-bold">Ticket nao encontrado</h1>
-        <p className="mb-1 text-center text-muted-foreground">
-          O link pode estar incorreto ou ter expirado.
-        </p>
-        <p className="mb-6 text-center text-sm text-muted-foreground">
-          Tente buscar pelo codigo do ticket na pagina de suporte.
-        </p>
-        <Link href="/suporte">
-          <Button variant="outline">Voltar ao suporte</Button>
-        </Link>
+        {loadError ? (
+          <>
+            <h1 className="mb-2 text-2xl font-bold">Erro de conexao</h1>
+            <p className="mb-6 text-center text-muted-foreground">
+              Nao foi possivel carregar o ticket. Verifique sua internet e tente novamente.
+            </p>
+            <Button onClick={() => { setIsLoading(true); setLoadError(false); loadTicket().then(() => loadMessages()).finally(() => setIsLoading(false)) }}>
+              Tentar novamente
+            </Button>
+          </>
+        ) : (
+          <>
+            <h1 className="mb-2 text-2xl font-bold">Ticket nao encontrado</h1>
+            <p className="mb-1 text-center text-muted-foreground">
+              O link pode estar incorreto ou ter expirado.
+            </p>
+            <p className="mb-6 text-center text-sm text-muted-foreground">
+              Tente buscar pelo codigo do ticket na pagina de suporte.
+            </p>
+            <Link href="/suporte">
+              <Button variant="outline">Voltar ao suporte</Button>
+            </Link>
+          </>
+        )}
       </div>
     )
   }
@@ -250,7 +275,9 @@ export default function TicketTrackingPage() {
                       <button
                         key={star}
                         onClick={() => setRating(star)}
-                        className="transition-transform hover:scale-110"
+                        aria-label={`${star} estrela${star > 1 ? 's' : ''}`}
+                        aria-pressed={star <= rating}
+                        className="rounded-md transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-primary/50"
                       >
                         <Star
                           className={`h-8 w-8 ${
