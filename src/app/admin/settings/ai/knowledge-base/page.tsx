@@ -358,7 +358,7 @@ export default function KnowledgeBasePage() {
                 <Input
                   value={form.category}
                   onChange={(e) => setForm({ ...form, category: e.target.value })}
-                  placeholder="Ex: Conta, Pagamento"
+                  placeholder="Ex: Conta, Acesso"
                   className="mt-1 bg-muted"
                 />
               </div>
