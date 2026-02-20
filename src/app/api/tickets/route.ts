@@ -97,16 +97,22 @@ export async function POST(request: NextRequest) {
         is_internal_note: false,
       }))
 
-      await supabase.from('messages').insert(messagesToInsert)
+      const { error: messagesError } = await supabase.from('messages').insert(messagesToInsert)
+      if (messagesError) {
+        console.error('Error inserting AI messages:', messagesError)
+      }
     }
 
     // Log activity
-    await supabase.from('activity_log').insert({
+    const { error: activityError } = await supabase.from('activity_log').insert({
       ticket_id: ticket.id,
       actor_type: 'customer',
       action: 'created',
       details: { source: 'portal' },
     })
+    if (activityError) {
+      console.error('Error logging activity:', activityError)
+    }
 
     // Send email notification to customer (non-blocking)
     const emailData = ticketCreatedCustomer({
