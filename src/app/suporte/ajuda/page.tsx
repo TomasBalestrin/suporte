@@ -48,7 +48,7 @@ export default function HelpPage() {
   } | null>(null)
   const [createError, setCreateError] = useState<string | null>(null)
 
-  const { register, handleSubmit, setValue, watch, control, formState: { errors } } = useForm<TicketFormData>({
+  const { register, handleSubmit, setValue, watch, control, formState: { errors, isSubmitting } } = useForm<TicketFormData>({
     resolver: zodResolver(ticketFormSchema),
     defaultValues: {
       product_id: '',
@@ -90,6 +90,7 @@ export default function HelpPage() {
   }, [])
 
   async function onFormSubmit(data: TicketFormData) {
+    if (isAiLoading) return
     setStep('ai')
     setIsAiLoading(true)
 
@@ -165,6 +166,7 @@ export default function HelpPage() {
   }
 
   async function handleNotResolved() {
+    if (isCreating) return
     if (!feedbackGiven) sendFeedback(false)
     setStep('creating')
     setIsCreating(true)
@@ -196,10 +198,11 @@ export default function HelpPage() {
         })
         setStep('done')
       } else {
-        throw new Error(json.error)
+        throw new Error(json.error || 'Erro desconhecido')
       }
-    } catch {
-      setCreateError('Nao foi possivel criar o ticket. Tente novamente.')
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Erro desconhecido'
+      setCreateError(`Nao foi possivel criar o ticket: ${errorMsg}`)
       setStep('ai')
     } finally {
       setIsCreating(false)
@@ -417,9 +420,18 @@ export default function HelpPage() {
                       )}
                     </div>
 
-                    <Button type="submit" className="w-full">
-                      <Send className="mr-2 h-4 w-4" />
-                      Buscar solucao
+                    <Button type="submit" className="w-full" disabled={isSubmitting || isAiLoading}>
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Buscando...
+                        </>
+                      ) : (
+                        <>
+                          <Send className="mr-2 h-4 w-4" />
+                          Buscar solucao
+                        </>
+                      )}
                     </Button>
                   </form>
                 </CardContent>
