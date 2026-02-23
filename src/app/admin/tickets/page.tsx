@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Header } from '@/components/layout/Header'
 import { Button } from '@/components/ui/button'
@@ -33,12 +33,21 @@ export default function TicketsPage() {
   const router = useRouter()
   const [tickets, setTickets] = useState<TicketWithRelations[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [priorityFilter, setPriorityFilter] = useState<string>('all')
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [total, setTotal] = useState(0)
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(null)
+
+  // Debounce search input
+  function handleSearchChange(value: string) {
+    setSearchInput(value)
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => setSearch(value), 400)
+  }
 
   const loadTickets = useCallback(async () => {
     setIsLoading(true)
@@ -91,8 +100,8 @@ export default function TicketsPage() {
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     placeholder="Buscar..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
+                    value={searchInput}
+                    onChange={(e) => handleSearchChange(e.target.value)}
                     className="bg-muted pl-9 w-[200px]"
                   />
                 </div>
@@ -106,6 +115,7 @@ export default function TicketsPage() {
                     <SelectItem value="in_progress">Em Andamento</SelectItem>
                     <SelectItem value="awaiting_customer">Aguardando Cliente</SelectItem>
                     <SelectItem value="resolved">Resolvido</SelectItem>
+                    <SelectItem value="resolved_ia">Resolvido por IA</SelectItem>
                     <SelectItem value="closed">Fechado</SelectItem>
                   </SelectContent>
                 </Select>

@@ -209,9 +209,15 @@ export default function HelpPage() {
     }
   }
 
+  function handleBackToForm() {
+    setStep('form')
+    setAiMessages([])
+    setFeedbackGiven(false)
+  }
+
   const stepLabels = [
     { key: 'form', label: 'Dados' },
-    { key: 'ai', label: 'IA' },
+    { key: 'ai', label: 'Analise' },
     { key: 'done', label: 'Conclusao' },
   ]
 
@@ -449,10 +455,22 @@ export default function HelpPage() {
             >
               <Card className="border-border bg-card">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Bot className="h-5 w-5 text-primary" />
-                    {aiName} — Assistente IA
-                  </CardTitle>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2">
+                      <Bot className="h-5 w-5 text-primary" />
+                      {aiName} — Assistente IA
+                    </CardTitle>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleBackToForm}
+                      disabled={isAiLoading}
+                      className="text-muted-foreground"
+                    >
+                      <ArrowLeft className="mr-1 h-4 w-4" />
+                      Editar dados
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {aiMessages.map((msg, i) => (
@@ -477,7 +495,7 @@ export default function HelpPage() {
                             {aiName}
                             {msg.confidence != null && (
                               <span className={`ml-2 ${msg.confidence >= 80 ? 'text-green-600' : msg.confidence >= 60 ? 'text-yellow-600' : 'text-red-500'}`}>
-                                {msg.confidence}% confianca
+                                {msg.confidence >= 80 ? 'Alta confianca' : msg.confidence >= 60 ? 'Media confianca' : 'Baixa confianca'}
                               </span>
                             )}
                           </p>
