@@ -153,13 +153,13 @@ export default function CategoriesPage() {
                 <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="name">Nome</Label>
-                    <Input id="name" {...register('name')} className="bg-muted" />
+                    <Input id="name" {...register('name')} className="bg-muted" aria-describedby={errors.name ? 'name-error' : undefined} />
                     {errors.name && (
-                      <p className="text-sm text-destructive">{errors.name.message}</p>
+                      <p id="name-error" className="text-sm text-destructive">{errors.name.message}</p>
                     )}
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="description">Descricao</Label>
+                    <Label htmlFor="description">Descrição</Label>
                     <Textarea
                       id="description"
                       {...register('description')}
@@ -168,7 +168,7 @@ export default function CategoriesPage() {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="icon">Icone (Lucide)</Label>
+                      <Label htmlFor="icon">Ícone (Lucide)</Label>
                       <Input
                         id="icon"
                         placeholder="ex: HelpCircle"
@@ -226,10 +226,10 @@ export default function CategoriesPage() {
                   <TableRow>
                     <TableHead>Cor</TableHead>
                     <TableHead>Nome</TableHead>
-                    <TableHead>Descricao</TableHead>
+                    <TableHead>Descrição</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Criado em</TableHead>
-                    <TableHead className="text-right">Acoes</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

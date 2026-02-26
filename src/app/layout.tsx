@@ -39,7 +39,9 @@ export default function RootLayout({
           Pular para o conteudo principal
         </a>
         <TooltipProvider>
-          {children}
+          <main id="main-content">
+            {children}
+          </main>
         </TooltipProvider>
         <Toaster position="top-right" richColors />
       </body>

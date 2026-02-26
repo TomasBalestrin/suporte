@@ -247,13 +247,13 @@ export default function AutomationsSettingsPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="desc">Descricao</Label>
+                    <Label htmlFor="desc">Descrição</Label>
                     <Textarea
                       id="desc"
                       value={formDescription}
                       onChange={(e) => setFormDescription(e.target.value)}
                       className="bg-muted"
-                      placeholder="Descricao opcional"
+                      placeholder="Descrição opcional"
                       rows={2}
                     />
                   </div>

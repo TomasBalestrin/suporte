@@ -32,6 +32,7 @@ import {
   CheckCircle,
   Filter,
   X,
+  RefreshCw,
 } from 'lucide-react'
 import { formatRelativeTime } from '@/lib/utils/format'
 import { TICKET_STATUS_LABELS, TICKET_STATUS_COLORS } from '@/lib/utils/constants'
@@ -72,6 +73,7 @@ export default function DashboardPage() {
   const router = useRouter()
   const [data, setData] = useState<DashboardData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [hasError, setHasError] = useState(false)
 
   // Filters
   const [dateFrom, setDateFrom] = useState('')
@@ -107,6 +109,7 @@ export default function DashboardPage() {
 
   const loadData = useCallback(async () => {
     setIsLoading(true)
+    setHasError(false)
     try {
       const params = new URLSearchParams()
       if (dateFrom) params.set('date_from', dateFrom)
@@ -120,8 +123,10 @@ export default function DashboardPage() {
       const res = await fetch(`/api/admin/analytics/overview${query ? `?${query}` : ''}`)
       const json = await res.json()
       if (json.success) setData(json.data)
+      else setHasError(true)
     } catch (err) {
       console.error('[Dashboard] Failed to load overview data:', err)
+      setHasError(true)
     } finally {
       setIsLoading(false)
     }
@@ -153,12 +158,17 @@ export default function DashboardPage() {
     )
   }
 
-  if (!data) {
+  if (!data || hasError) {
     return (
       <>
         <Header title="Dashboard" />
-        <div className="p-6 text-center text-muted-foreground">
-          Erro ao carregar dados do dashboard
+        <div className="flex flex-col items-center justify-center p-12 text-center">
+          <AlertTriangle className="mb-4 h-10 w-10 text-muted-foreground" />
+          <p className="mb-4 text-muted-foreground">Erro ao carregar dados do dashboard</p>
+          <Button variant="outline" onClick={loadData} className="gap-2">
+            <RefreshCw className="h-4 w-4" />
+            Tentar novamente
+          </Button>
         </div>
       </>
     )
@@ -375,8 +385,8 @@ export default function DashboardPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Codigo</TableHead>
-                      <TableHead>Titulo</TableHead>
+                      <TableHead>Código</TableHead>
+                      <TableHead>Título</TableHead>
                       <TableHead>Cliente</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Prioridade</TableHead>

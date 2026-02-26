@@ -174,9 +174,9 @@ export default function QuickRepliesSettingsPage() {
                     <div className="grid gap-4 md:grid-cols-2">
                       <div className="space-y-2">
                         <Label htmlFor="shortcut">Atalho (sem /)</Label>
-                        <Input id="shortcut" {...register('shortcut')} className="bg-muted font-mono" placeholder="saudacao" />
+                        <Input id="shortcut" {...register('shortcut')} className="bg-muted font-mono" placeholder="saudacao" aria-describedby={errors.shortcut ? 'shortcut-error' : undefined} />
                         {errors.shortcut && (
-                          <p className="text-sm text-destructive">{errors.shortcut.message}</p>
+                          <p id="shortcut-error" className="text-sm text-destructive">{errors.shortcut.message}</p>
                         )}
                       </div>
                       <div className="space-y-2">
@@ -185,14 +185,14 @@ export default function QuickRepliesSettingsPage() {
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="title">Titulo</Label>
-                      <Input id="title" {...register('title')} className="bg-muted" placeholder="Saudacao inicial" />
+                      <Label htmlFor="title">Título</Label>
+                      <Input id="title" {...register('title')} className="bg-muted" placeholder="Saudação inicial" aria-describedby={errors.title ? 'title-error' : undefined} />
                       {errors.title && (
-                        <p className="text-sm text-destructive">{errors.title.message}</p>
+                        <p id="title-error" className="text-sm text-destructive">{errors.title.message}</p>
                       )}
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="content">Conteudo</Label>
+                      <Label htmlFor="content">Conteúdo</Label>
                       <Textarea
                         id="content"
                         {...register('content')}
@@ -200,7 +200,7 @@ export default function QuickRepliesSettingsPage() {
                         placeholder="Ola! Como posso te ajudar hoje?"
                       />
                       {errors.content && (
-                        <p className="text-sm text-destructive">{errors.content.message}</p>
+                        <p id="content-error" className="text-sm text-destructive">{errors.content.message}</p>
                       )}
                     </div>
                     <div className="flex items-center gap-2">
@@ -234,11 +234,11 @@ export default function QuickRepliesSettingsPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Atalho</TableHead>
-                    <TableHead>Titulo</TableHead>
+                    <TableHead>Título</TableHead>
                     <TableHead>Categoria</TableHead>
                     <TableHead>Usos</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Acoes</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

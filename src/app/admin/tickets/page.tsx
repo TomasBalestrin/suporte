@@ -25,7 +25,7 @@ import { StatusBadge } from '@/components/common/StatusBadge'
 import { PriorityBadge } from '@/components/common/PriorityBadge'
 import { EmptyState } from '@/components/common/EmptyState'
 import { LoadingState } from '@/components/common/LoadingState'
-import { Search, Ticket, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Search, Ticket, ChevronLeft, ChevronRight, AlertTriangle, RefreshCw } from 'lucide-react'
 import { formatRelativeTime } from '@/lib/utils/format'
 import type { TicketWithRelations } from '@/lib/supabase/types'
 
@@ -33,6 +33,7 @@ export default function TicketsPage() {
   const router = useRouter()
   const [tickets, setTickets] = useState<TicketWithRelations[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [hasError, setHasError] = useState(false)
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
@@ -51,6 +52,7 @@ export default function TicketsPage() {
 
   const loadTickets = useCallback(async () => {
     setIsLoading(true)
+    setHasError(false)
     try {
       const params = new URLSearchParams()
       params.set('page', page.toString())
@@ -66,9 +68,12 @@ export default function TicketsPage() {
         setTickets(json.data)
         setTotalPages(json.pagination.totalPages)
         setTotal(json.pagination.total)
+      } else {
+        setHasError(true)
       }
     } catch (err) {
       console.error('[Tickets] Failed to load tickets:', err)
+      setHasError(true)
     } finally {
       setIsLoading(false)
     }
@@ -135,7 +140,16 @@ export default function TicketsPage() {
             </div>
           </CardHeader>
           <CardContent>
-            {isLoading ? (
+            {hasError ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <AlertTriangle className="mb-4 h-10 w-10 text-muted-foreground" />
+                <p className="mb-4 text-muted-foreground">Erro ao carregar tickets</p>
+                <Button variant="outline" onClick={loadTickets} className="gap-2">
+                  <RefreshCw className="h-4 w-4" />
+                  Tentar novamente
+                </Button>
+              </div>
+            ) : isLoading ? (
               <LoadingState />
             ) : tickets.length === 0 ? (
               <EmptyState
@@ -149,8 +163,8 @@ export default function TicketsPage() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Codigo</TableHead>
-                        <TableHead>Titulo</TableHead>
+                        <TableHead>Código</TableHead>
+                        <TableHead>Título</TableHead>
                         <TableHead>Cliente</TableHead>
                         <TableHead>Produto</TableHead>
                         <TableHead>Prioridade</TableHead>
@@ -201,7 +215,7 @@ export default function TicketsPage() {
                 {/* Pagination */}
                 <div className="mt-4 flex items-center justify-between">
                   <p className="text-sm text-muted-foreground">
-                    Pagina {page} de {totalPages}
+                    Página {page} de {totalPages}
                   </p>
                   <div className="flex gap-2">
                     <Button

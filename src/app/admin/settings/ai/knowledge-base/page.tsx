@@ -226,7 +226,7 @@ export default function KnowledgeBasePage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Titulo</TableHead>
+                    <TableHead>Título</TableHead>
                     <TableHead>Categoria</TableHead>
                     <TableHead>Produto</TableHead>
                     <TableHead className="text-center">Uso</TableHead>
@@ -344,7 +344,7 @@ export default function KnowledgeBasePage() {
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label>Titulo</Label>
+              <Label>Título</Label>
               <Input
                 value={form.title}
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
@@ -353,7 +353,7 @@ export default function KnowledgeBasePage() {
               />
             </div>
             <div>
-              <Label>Conteudo</Label>
+              <Label>Conteúdo</Label>
               <Textarea
                 value={form.content}
                 onChange={(e) => setForm({ ...form, content: e.target.value })}
