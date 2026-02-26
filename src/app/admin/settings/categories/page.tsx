@@ -31,6 +31,7 @@ import { LoadingState } from '@/components/common/LoadingState'
 import { Plus, Pencil, Trash2, FolderOpen, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { formatDate } from '@/lib/utils/format'
+import { useConfirmDialog } from '@/components/common/ConfirmDialog'
 import type { Category } from '@/lib/supabase/types'
 
 export default function CategoriesPage() {
@@ -39,6 +40,8 @@ export default function CategoriesPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
   const [isSaving, setIsSaving] = useState(false)
+
+  const { confirm, dialog: confirmDialog } = useConfirmDialog()
 
   const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<CategoryFormData>({
     resolver: zodResolver(categorySchema),
@@ -106,21 +109,29 @@ export default function CategoriesPage() {
     }
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm('Deseja desativar esta categoria?')) return
-    try {
-      const res = await fetch(`/api/admin/categories/${id}`, { method: 'DELETE' })
-      const json = await res.json()
-      if (!json.success) throw new Error(json.error)
-      toast.success('Categoria desativada')
-      loadCategories()
-    } catch {
-      toast.error('Erro ao desativar categoria')
-    }
+  function handleDelete(id: string) {
+    confirm({
+      title: 'Desativar categoria',
+      description: 'Tem certeza que deseja desativar esta categoria?',
+      confirmLabel: 'Desativar',
+      variant: 'destructive',
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`/api/admin/categories/${id}`, { method: 'DELETE' })
+          const json = await res.json()
+          if (!json.success) throw new Error(json.error)
+          toast.success('Categoria desativada')
+          loadCategories()
+        } catch {
+          toast.error('Erro ao desativar categoria')
+        }
+      },
+    })
   }
 
   return (
     <>
+      {confirmDialog}
       <Header title="Categorias" />
       <div className="p-6">
         <Card className="border-border bg-card">
@@ -142,13 +153,13 @@ export default function CategoriesPage() {
                 <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="name">Nome</Label>
-                    <Input id="name" {...register('name')} className="bg-muted" />
+                    <Input id="name" {...register('name')} className="bg-muted" aria-describedby={errors.name ? 'name-error' : undefined} />
                     {errors.name && (
-                      <p className="text-sm text-destructive">{errors.name.message}</p>
+                      <p id="name-error" className="text-sm text-destructive">{errors.name.message}</p>
                     )}
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="description">Descricao</Label>
+                    <Label htmlFor="description">Descrição</Label>
                     <Textarea
                       id="description"
                       {...register('description')}
@@ -157,7 +168,7 @@ export default function CategoriesPage() {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="icon">Icone (Lucide)</Label>
+                      <Label htmlFor="icon">Ícone (Lucide)</Label>
                       <Input
                         id="icon"
                         placeholder="ex: HelpCircle"
@@ -215,10 +226,10 @@ export default function CategoriesPage() {
                   <TableRow>
                     <TableHead>Cor</TableHead>
                     <TableHead>Nome</TableHead>
-                    <TableHead>Descricao</TableHead>
+                    <TableHead>Descrição</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Criado em</TableHead>
-                    <TableHead className="text-right">Acoes</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -239,7 +250,7 @@ export default function CategoriesPage() {
                           className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
                             category.is_active
                               ? 'bg-green-500/20 text-green-400'
-                              : 'bg-zinc-500/20 text-zinc-400'
+                              : 'bg-zinc-500/20 text-zinc-300'
                           }`}
                         >
                           {category.is_active ? 'Ativa' : 'Inativa'}

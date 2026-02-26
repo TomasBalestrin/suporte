@@ -4,6 +4,10 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { sendEmail } from '@/lib/email/send'
 import { ticketResolvedCustomer, newTicketAgent } from '@/lib/email/templates'
 import { PRIORITY_LABELS } from '@/lib/utils/constants'
+import { isAgentOrAdmin } from '@/lib/supabase/guards'
+import { executeAutomations } from '@/lib/automations/engine'
+import { ticketUpdateSchema } from '@/lib/utils/validation'
+import { rateLimit, getClientIp } from '@/lib/rate-limit'
 
 export async function GET(
   _request: NextRequest,
@@ -14,6 +18,9 @@ export async function GET(
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       return NextResponse.json({ success: false, error: 'Nao autorizado' }, { status: 401 })
+    }
+    if (!(await isAgentOrAdmin(user.id))) {
+      return NextResponse.json({ success: false, error: 'Acesso negado' }, { status: 403 })
     }
 
     const { id } = await params
@@ -51,14 +58,33 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const ip = getClientIp(request)
+    const { allowed } = rateLimit(`admin:${ip}`, { limit: 60, windowSeconds: 60 })
+    if (!allowed) {
+      return NextResponse.json(
+        { success: false, error: 'Muitas requisicoes. Aguarde um momento.' },
+        { status: 429 }
+      )
+    }
+
     const supabase = await createServerSupabaseClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       return NextResponse.json({ success: false, error: 'Nao autorizado' }, { status: 401 })
     }
+    if (!(await isAgentOrAdmin(user.id))) {
+      return NextResponse.json({ success: false, error: 'Acesso negado' }, { status: 403 })
+    }
 
     const { id } = await params
     const body = await request.json()
+    const parsed = ticketUpdateSchema.safeParse(body)
+    if (!parsed.success) {
+      return NextResponse.json(
+        { success: false, error: parsed.error.issues[0]?.message || 'Dados invalidos' },
+        { status: 400 }
+      )
+    }
 
     // Get current ticket for activity log
     const { data: currentTicket } = await supabase
@@ -70,34 +96,34 @@ export async function PATCH(
     const updateData: Record<string, unknown> = {}
     const activities: Array<{ action: string; details: Record<string, unknown> }> = []
 
-    if (body.status && body.status !== currentTicket?.status) {
-      updateData.status = body.status
+    if (parsed.data.status && parsed.data.status !== currentTicket?.status) {
+      updateData.status = parsed.data.status
       activities.push({
         action: 'status_changed',
-        details: { from: currentTicket?.status, to: body.status },
+        details: { from: currentTicket?.status, to: parsed.data.status },
       })
 
-      if (body.status === 'resolved' || body.status === 'resolved_ia') {
+      if (parsed.data.status === 'resolved' || parsed.data.status === 'resolved_ia') {
         updateData.resolved_at = new Date().toISOString()
       }
-      if (body.status === 'closed') {
+      if (parsed.data.status === 'closed') {
         updateData.closed_at = new Date().toISOString()
       }
     }
 
-    if (body.priority && body.priority !== currentTicket?.priority) {
-      updateData.priority = body.priority
+    if (parsed.data.priority && parsed.data.priority !== currentTicket?.priority) {
+      updateData.priority = parsed.data.priority
       activities.push({
         action: 'priority_changed',
-        details: { from: currentTicket?.priority, to: body.priority },
+        details: { from: currentTicket?.priority, to: parsed.data.priority },
       })
     }
 
-    if (body.assigned_agent_id !== undefined && body.assigned_agent_id !== currentTicket?.assigned_agent_id) {
-      updateData.assigned_agent_id = body.assigned_agent_id || null
+    if (parsed.data.assigned_agent_id !== undefined && parsed.data.assigned_agent_id !== currentTicket?.assigned_agent_id) {
+      updateData.assigned_agent_id = parsed.data.assigned_agent_id || null
       activities.push({
         action: 'assigned',
-        details: { agent_id: body.assigned_agent_id },
+        details: { agent_id: parsed.data.assigned_agent_id },
       })
     }
 
@@ -125,6 +151,15 @@ export async function PATCH(
       })
     }
 
+    // Execute automations for status change (non-blocking)
+    if (parsed.data.status && parsed.data.status !== currentTicket?.status) {
+      executeAutomations({
+        ticket_id: id,
+        trigger_type: 'status_changed',
+        data: { status: parsed.data.status, priority: ticket.priority },
+      }).catch(() => {})
+    }
+
     // Send email notifications (non-blocking)
     const admin = createAdminClient()
     const { data: fullTicket } = await admin
@@ -137,7 +172,7 @@ export async function PATCH(
       const customer = fullTicket.customer as unknown as { name: string; email: string }
 
       // Notify customer when ticket is resolved
-      if (body.status === 'resolved' || body.status === 'resolved_ia') {
+      if (parsed.data.status === 'resolved' || parsed.data.status === 'resolved_ia') {
         const emailData = ticketResolvedCustomer({
           customerName: customer.name,
           ticketCode: fullTicket.ticket_code,
@@ -153,11 +188,11 @@ export async function PATCH(
       }
 
       // Notify agent when ticket is assigned
-      if (body.assigned_agent_id && body.assigned_agent_id !== currentTicket?.assigned_agent_id) {
+      if (parsed.data.assigned_agent_id && parsed.data.assigned_agent_id !== currentTicket?.assigned_agent_id) {
         const { data: agent } = await admin
           .from('users')
           .select('name, email')
-          .eq('id', body.assigned_agent_id)
+          .eq('id', parsed.data.assigned_agent_id)
           .single()
 
         if (agent) {

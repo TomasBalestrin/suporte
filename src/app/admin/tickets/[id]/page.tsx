@@ -10,6 +10,13 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet'
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -41,6 +48,7 @@ import {
   WifiOff,
   Sparkles,
   History,
+  PanelRight,
 } from 'lucide-react'
 import { formatDate, formatRelativeTime, formatPhone } from '@/lib/utils/format'
 import { SENDER_TYPE_LABELS, TICKET_STATUS_LABELS, PRIORITY_LABELS } from '@/lib/utils/constants'
@@ -72,8 +80,8 @@ export default function TicketDetailPage() {
       const res = await fetch(`/api/admin/tickets/${ticketId}`)
       const json = await res.json()
       if (json.success) setTicket(json.data)
-    } catch {
-      // handle error
+    } catch (err) {
+      console.error('[TicketDetail] Failed to load ticket:', err)
     }
   }, [ticketId])
 
@@ -82,8 +90,8 @@ export default function TicketDetailPage() {
       const res = await fetch(`/api/admin/tickets/${ticketId}/messages`)
       const json = await res.json()
       if (json.success) setMessages(json.data)
-    } catch {
-      // handle error
+    } catch (err) {
+      console.error('[TicketDetail] Failed to load messages:', err)
     }
   }, [ticketId])
 
@@ -99,7 +107,7 @@ export default function TicketDetailPage() {
     [loadTicket]
   )
 
-  const { isConnected } = useRealtimeMessages({
+  const { isConnected, hasConnectionError } = useRealtimeMessages({
     ticketId,
     onNewMessage: handleNewMessage,
   })
@@ -113,12 +121,12 @@ export default function TicketDetailPage() {
       fetch('/api/admin/quick-replies')
         .then((r) => r.json())
         .then((j) => { if (j.success) setQuickReplies(j.data.filter((qr: QuickReply) => qr.is_active)) })
-        .catch(() => {})
+        .catch((err) => { console.error('[TicketDetail] Failed to load quick replies:', err) })
 
       fetch('/api/admin/users')
         .then((r) => r.json())
         .then((j) => { if (j.success) setAgents(j.data.filter((u: UserType) => u.is_active)) })
-        .catch(() => {})
+        .catch((err) => { console.error('[TicketDetail] Failed to load agents:', err) })
     }
     init()
 
@@ -139,7 +147,7 @@ export default function TicketDetailPage() {
       .then((j) => {
         if (j.success) setCustomerHistory(j.data.filter((t: Ticket) => t.id !== ticketId))
       })
-      .catch(() => {})
+      .catch((err) => { console.error('[TicketDetail] Failed to load customer history:', err) })
   }, [ticket?.customer_id, ticketId])
 
   async function handleSend() {
@@ -266,6 +274,172 @@ export default function TicketDetailPage() {
 
   const customer = ticket.customer as TicketWithRelations['customer']
 
+  const sidebarContent = (
+    <div className="p-4 space-y-6">
+      {/* Ticket Info */}
+      <div>
+        <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          Informacoes
+        </h3>
+        <div className="space-y-3">
+          <div>
+            <Label className="text-xs text-muted-foreground">Status</Label>
+            <Select
+              value={ticket.status}
+              onValueChange={(v) => updateTicket('status', v)}
+            >
+              <SelectTrigger className="mt-1 bg-muted">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(TICKET_STATUS_LABELS).map(([key, label]) => (
+                  <SelectItem key={key} value={key}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs text-muted-foreground">Prioridade</Label>
+            <Select
+              value={ticket.priority}
+              onValueChange={(v) => updateTicket('priority', v)}
+            >
+              <SelectTrigger className="mt-1 bg-muted">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(PRIORITY_LABELS).map(([key, label]) => (
+                  <SelectItem key={key} value={key}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs text-muted-foreground">Produto</Label>
+            <p className="mt-1 text-sm">{ticket.product?.name || '-'}</p>
+          </div>
+          <div>
+            <Label className="text-xs text-muted-foreground">Categoria</Label>
+            <p className="mt-1 text-sm">{ticket.category?.name || '-'}</p>
+          </div>
+          <div>
+            <Label className="text-xs text-muted-foreground">Criado em</Label>
+            <p className="mt-1 text-sm">{formatDate(ticket.created_at)}</p>
+          </div>
+          {ticket.sla_first_response_at && !ticket.first_response_at && (
+            <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/5 p-3">
+              <div className="flex items-center gap-2 text-yellow-400">
+                <AlertTriangle className="h-4 w-4" />
+                <span className="text-xs font-medium">SLA Primeira Resposta</span>
+              </div>
+              <p className="mt-1 text-sm">
+                {formatRelativeTime(ticket.sla_first_response_at)}
+              </p>
+            </div>
+          )}
+          {ticket.satisfaction_rating && (
+            <div className="rounded-lg border border-border bg-muted/30 p-3">
+              <Label className="text-xs text-muted-foreground">Avaliacao</Label>
+              <div className="mt-1 flex gap-0.5">
+                {[1, 2, 3, 4, 5].map((s) => (
+                  <Star
+                    key={s}
+                    className={`h-4 w-4 ${s <= ticket.satisfaction_rating! ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground'}`}
+                  />
+                ))}
+              </div>
+              {ticket.satisfaction_comment && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  &ldquo;{ticket.satisfaction_comment}&rdquo;
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+      <Separator />
+      {/* Customer Info */}
+      <div>
+        <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          Cliente
+        </h3>
+        <div className="space-y-2">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/20 text-sm font-medium text-primary">
+              {customer?.name?.charAt(0)?.toUpperCase() || '?'}
+            </div>
+            <div>
+              <p className="font-medium">{customer?.name}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Mail className="h-4 w-4" />
+            <span>{customer?.email}</span>
+          </div>
+          {customer?.phone && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Phone className="h-4 w-4" />
+              <span>{formatPhone(customer.phone)}</span>
+            </div>
+          )}
+        </div>
+      </div>
+      <Separator />
+      {/* Agent Assignment */}
+      <div>
+        <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          Agente Responsavel
+        </h3>
+        <Select
+          value={ticket.assigned_agent_id || '_none'}
+          onValueChange={(v) => updateTicket('assigned_agent_id', v === '_none' ? '' : v)}
+        >
+          <SelectTrigger className="bg-muted">
+            <SelectValue placeholder="Nenhum agente" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="_none">Nenhum agente</SelectItem>
+            {agents.map((agent) => (
+              <SelectItem key={agent.id} value={agent.id}>
+                {agent.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      {customerHistory.length > 0 && (
+        <>
+          <Separator />
+          <div>
+            <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+              <History className="h-4 w-4" />
+              Historico do Cliente
+            </h3>
+            <div className="space-y-2">
+              {customerHistory.map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => router.push(`/admin/tickets/${t.id}`)}
+                  className="w-full rounded-lg border border-border p-2 text-left transition-colors hover:bg-muted/50"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-xs text-primary">{t.ticket_code}</span>
+                    <StatusBadge status={t.status} />
+                  </div>
+                  <p className="mt-1 truncate text-xs text-muted-foreground">{t.title}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  )
+
   return (
     <>
       <Header>
@@ -283,13 +457,36 @@ export default function TicketDetailPage() {
           </span>
           <StatusBadge status={ticket.status} />
           <PriorityBadge priority={ticket.priority} />
-          <div title={isConnected ? 'Tempo real ativo' : 'Reconectando...'}>
+          <div
+            role="status"
+            aria-label={isConnected ? 'Tempo real ativo' : hasConnectionError ? 'Conexao perdida' : 'Reconectando...'}
+            title={isConnected ? 'Tempo real ativo' : hasConnectionError ? 'Conexao perdida — usando polling' : 'Reconectando...'}
+            className="flex items-center gap-1"
+          >
             {isConnected ? (
-              <Wifi className="h-4 w-4 text-green-400" />
+              <Wifi className="h-4 w-4 text-green-400" aria-hidden="true" />
+            ) : hasConnectionError ? (
+              <WifiOff className="h-4 w-4 text-destructive" aria-hidden="true" />
             ) : (
-              <WifiOff className="h-4 w-4 text-muted-foreground" />
+              <WifiOff className="h-4 w-4 text-muted-foreground animate-pulse motion-reduce:animate-none" aria-hidden="true" />
             )}
           </div>
+          {/* Mobile sidebar trigger */}
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" className="lg:hidden">
+                <PanelRight className="h-4 w-4" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-80 p-0">
+              <SheetHeader className="px-4 pt-4">
+                <SheetTitle>Detalhes do Ticket</SheetTitle>
+              </SheetHeader>
+              <ScrollArea className="h-[calc(100vh-60px)]">
+                {sidebarContent}
+              </ScrollArea>
+            </SheetContent>
+          </Sheet>
         </div>
       </Header>
 
@@ -298,7 +495,7 @@ export default function TicketDetailPage() {
         <div className="flex flex-1 flex-col">
           {/* Messages */}
           <ScrollArea className="flex-1 p-4">
-            <div className="mx-auto max-w-3xl space-y-4">
+            <div className="mx-auto max-w-3xl space-y-4" aria-live="polite" aria-relevant="additions">
               {/* Ticket description as first message */}
               <div className="rounded-lg border border-border bg-muted/30 p-4">
                 <h3 className="mb-2 font-semibold">{ticket.title}</h3>
@@ -499,191 +696,16 @@ export default function TicketDetailPage() {
                 </Button>
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
-                Ctrl+Enter para enviar
+                {typeof navigator !== 'undefined' && /Mac/i.test(navigator.userAgent) ? '⌘' : 'Ctrl'}+Enter para enviar
               </p>
             </div>
           </div>
         </div>
 
-        {/* Sidebar */}
+        {/* Sidebar — desktop only */}
         <div className="hidden w-80 border-l border-border lg:block">
           <ScrollArea className="h-full">
-            <div className="p-4 space-y-6">
-              {/* Ticket Info */}
-              <div>
-                <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-                  Informacoes
-                </h3>
-                <div className="space-y-3">
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Status</Label>
-                    <Select
-                      value={ticket.status}
-                      onValueChange={(v) => updateTicket('status', v)}
-                    >
-                      <SelectTrigger className="mt-1 bg-muted">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(TICKET_STATUS_LABELS).map(([key, label]) => (
-                          <SelectItem key={key} value={key}>
-                            {label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Prioridade</Label>
-                    <Select
-                      value={ticket.priority}
-                      onValueChange={(v) => updateTicket('priority', v)}
-                    >
-                      <SelectTrigger className="mt-1 bg-muted">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(PRIORITY_LABELS).map(([key, label]) => (
-                          <SelectItem key={key} value={key}>
-                            {label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Produto</Label>
-                    <p className="mt-1 text-sm">{ticket.product?.name || '-'}</p>
-                  </div>
-
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Categoria</Label>
-                    <p className="mt-1 text-sm">{ticket.category?.name || '-'}</p>
-                  </div>
-
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Criado em</Label>
-                    <p className="mt-1 text-sm">{formatDate(ticket.created_at)}</p>
-                  </div>
-
-                  {/* SLA indicators */}
-                  {ticket.sla_first_response_at && !ticket.first_response_at && (
-                    <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/5 p-3">
-                      <div className="flex items-center gap-2 text-yellow-400">
-                        <AlertTriangle className="h-4 w-4" />
-                        <span className="text-xs font-medium">SLA Primeira Resposta</span>
-                      </div>
-                      <p className="mt-1 text-sm">
-                        {formatRelativeTime(ticket.sla_first_response_at)}
-                      </p>
-                    </div>
-                  )}
-
-                  {ticket.satisfaction_rating && (
-                    <div className="rounded-lg border border-border bg-muted/30 p-3">
-                      <Label className="text-xs text-muted-foreground">Avaliacao</Label>
-                      <div className="mt-1 flex gap-0.5">
-                        {[1, 2, 3, 4, 5].map((s) => (
-                          <Star
-                            key={s}
-                            className={`h-4 w-4 ${s <= ticket.satisfaction_rating! ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground'}`}
-                          />
-                        ))}
-                      </div>
-                      {ticket.satisfaction_comment && (
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          &ldquo;{ticket.satisfaction_comment}&rdquo;
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* Customer Info */}
-              <div>
-                <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-                  Cliente
-                </h3>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/20 text-sm font-medium text-primary">
-                      {customer?.name?.charAt(0)?.toUpperCase() || '?'}
-                    </div>
-                    <div>
-                      <p className="font-medium">{customer?.name}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Mail className="h-4 w-4" />
-                    <span>{customer?.email}</span>
-                  </div>
-                  {customer?.phone && (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Phone className="h-4 w-4" />
-                      <span>{formatPhone(customer.phone)}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* Agent Assignment */}
-              <div>
-                <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-                  Agente Responsavel
-                </h3>
-                <Select
-                  value={ticket.assigned_agent_id || '_none'}
-                  onValueChange={(v) => updateTicket('assigned_agent_id', v === '_none' ? '' : v)}
-                >
-                  <SelectTrigger className="bg-muted">
-                    <SelectValue placeholder="Nenhum agente" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="_none">Nenhum agente</SelectItem>
-                    {agents.map((agent) => (
-                      <SelectItem key={agent.id} value={agent.id}>
-                        {agent.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Customer History */}
-              {customerHistory.length > 0 && (
-                <>
-                  <Separator />
-                  <div>
-                    <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-                      <History className="h-4 w-4" />
-                      Historico do Cliente
-                    </h3>
-                    <div className="space-y-2">
-                      {customerHistory.map((t) => (
-                        <button
-                          key={t.id}
-                          onClick={() => router.push(`/admin/tickets/${t.id}`)}
-                          className="w-full rounded-lg border border-border p-2 text-left transition-colors hover:bg-muted/50"
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="font-mono text-xs text-primary">{t.ticket_code}</span>
-                            <StatusBadge status={t.status} />
-                          </div>
-                          <p className="mt-1 truncate text-xs text-muted-foreground">{t.title}</p>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
+            {sidebarContent}
           </ScrollArea>
         </div>
       </div>

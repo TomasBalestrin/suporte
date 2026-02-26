@@ -326,7 +326,7 @@ export default function EmailSettingsPage() {
                 {totalPages > 1 && (
                   <div className="mt-4 flex items-center justify-between">
                     <p className="text-sm text-muted-foreground">
-                      Pagina {page} de {totalPages}
+                      Página {page} de {totalPages}
                     </p>
                     <div className="flex gap-2">
                       <Button

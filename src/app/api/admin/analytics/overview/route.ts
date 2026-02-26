@@ -1,12 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { isAgentOrAdmin } from '@/lib/supabase/guards'
+import { rateLimit, getClientIp } from '@/lib/rate-limit'
 
 export async function GET(request: NextRequest) {
   try {
+    const ip = getClientIp(request)
+    const { allowed } = rateLimit(`admin:${ip}`, { limit: 60, windowSeconds: 60 })
+    if (!allowed) {
+      return NextResponse.json(
+        { success: false, error: 'Muitas requisicoes. Aguarde um momento.' },
+        { status: 429 }
+      )
+    }
+
     const supabase = await createServerSupabaseClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       return NextResponse.json({ success: false, error: 'Nao autorizado' }, { status: 401 })
+    }
+    if (!(await isAgentOrAdmin(user.id))) {
+      return NextResponse.json({ success: false, error: 'Acesso negado' }, { status: 403 })
     }
 
     const searchParams = request.nextUrl.searchParams
@@ -26,43 +40,19 @@ export async function GET(request: NextRequest) {
       dateToISO = end.toISOString()
     }
 
-    // Total open tickets
-    let openQuery = supabase
-      .from('tickets')
-      .select('*', { count: 'exact', head: true })
-      .in('status', ['open', 'in_progress', 'awaiting_customer'])
-    if (dateFromISO) openQuery = openQuery.gte('created_at', dateFromISO)
-    if (dateToISO) openQuery = openQuery.lte('created_at', dateToISO)
-    if (productId) openQuery = openQuery.eq('product_id', productId)
-    if (categoryId) openQuery = openQuery.eq('category_id', categoryId)
-    const { count: openTickets } = await openQuery
-
-    // My tickets
-    let myQuery = supabase
-      .from('tickets')
-      .select('*', { count: 'exact', head: true })
-      .eq('assigned_agent_id', user.id)
-      .in('status', ['open', 'in_progress', 'awaiting_customer'])
-    if (dateFromISO) myQuery = myQuery.gte('created_at', dateFromISO)
-    if (dateToISO) myQuery = myQuery.lte('created_at', dateToISO)
-    if (productId) myQuery = myQuery.eq('product_id', productId)
-    if (categoryId) myQuery = myQuery.eq('category_id', categoryId)
-    const { count: myTickets } = await myQuery
-
-    // SLA breached
     const now = new Date().toISOString()
-    let slaQuery = supabase
-      .from('tickets')
-      .select('*', { count: 'exact', head: true })
-      .in('status', ['open', 'in_progress', 'awaiting_customer'])
-      .lt('sla_resolution_at', now)
-    if (dateFromISO) slaQuery = slaQuery.gte('created_at', dateFromISO)
-    if (dateToISO) slaQuery = slaQuery.lte('created_at', dateToISO)
-    if (productId) slaQuery = slaQuery.eq('product_id', productId)
-    if (categoryId) slaQuery = slaQuery.eq('category_id', categoryId)
-    const { count: slaBreached } = await slaQuery
 
-    // Resolved count
+    // Helper to apply common date/product/category filters
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    function applyFilters(query: any, dateCol = 'created_at') {
+      if (dateFromISO) query = query.gte(dateCol, dateFromISO)
+      if (dateToISO) query = query.lte(dateCol, dateToISO)
+      if (productId) query = query.eq('product_id', productId)
+      if (categoryId) query = query.eq('category_id', categoryId)
+      return query
+    }
+
+    // Build resolved query with special date handling
     let resolvedQuery = supabase
       .from('tickets')
       .select('*', { count: 'exact', head: true })
@@ -77,52 +67,58 @@ export async function GET(request: NextRequest) {
     }
     if (productId) resolvedQuery = resolvedQuery.eq('product_id', productId)
     if (categoryId) resolvedQuery = resolvedQuery.eq('category_id', categoryId)
-    const { count: resolvedCount } = await resolvedQuery
 
-    // Total tickets
-    let totalQuery = supabase
-      .from('tickets')
-      .select('*', { count: 'exact', head: true })
-    if (dateFromISO) totalQuery = totalQuery.gte('created_at', dateFromISO)
-    if (dateToISO) totalQuery = totalQuery.lte('created_at', dateToISO)
-    if (productId) totalQuery = totalQuery.eq('product_id', productId)
-    if (categoryId) totalQuery = totalQuery.eq('category_id', categoryId)
+    // Build total query with optional status/priority filters
+    let totalQuery = applyFilters(
+      supabase.from('tickets').select('*', { count: 'exact', head: true })
+    )
     if (status && status !== 'all') totalQuery = totalQuery.eq('status', status)
     if (priority && priority !== 'all') totalQuery = totalQuery.eq('priority', priority)
-    const { count: totalTickets } = await totalQuery
 
-    // Tickets by status
-    let statusQuery = supabase.from('tickets').select('status')
-    if (dateFromISO) statusQuery = statusQuery.gte('created_at', dateFromISO)
-    if (dateToISO) statusQuery = statusQuery.lte('created_at', dateToISO)
-    if (productId) statusQuery = statusQuery.eq('product_id', productId)
-    if (categoryId) statusQuery = statusQuery.eq('category_id', categoryId)
-    const { data: allTickets } = await statusQuery as unknown as { data: { status: string }[] | null }
-
-    const statusCounts: Record<string, number> = {}
-    allTickets?.forEach((t) => {
-      statusCounts[t.status] = (statusCounts[t.status] || 0) + 1
-    })
-
-    // Recent tickets
-    let recentQuery = supabase
-      .from('tickets')
-      .select(`
-        *,
-        customer:customers(name, email),
-        product:products(name),
-        category:categories(name),
-        assigned_agent:users(name)
-      `)
-      .order('created_at', { ascending: false })
-      .limit(10)
-    if (dateFromISO) recentQuery = recentQuery.gte('created_at', dateFromISO)
-    if (dateToISO) recentQuery = recentQuery.lte('created_at', dateToISO)
-    if (productId) recentQuery = recentQuery.eq('product_id', productId)
-    if (categoryId) recentQuery = recentQuery.eq('category_id', categoryId)
+    // Build recent tickets query
+    let recentQuery = applyFilters(
+      supabase.from('tickets')
+        .select(`*, customer:customers(name, email), product:products(name), category:categories(name), assigned_agent:users(name)`)
+        .order('created_at', { ascending: false })
+        .limit(10)
+    )
     if (status && status !== 'all') recentQuery = recentQuery.eq('status', status)
     if (priority && priority !== 'all') recentQuery = recentQuery.eq('priority', priority)
-    const { data: recentTickets } = await recentQuery
+
+    // Run ALL queries in parallel instead of sequentially (N+1 fix)
+    const [
+      { count: openTickets },
+      { count: myTickets },
+      { count: slaBreached },
+      { count: resolvedCount },
+      { count: totalTickets },
+      { data: allTickets },
+      { data: recentTickets },
+    ] = await Promise.all([
+      applyFilters(
+        supabase.from('tickets').select('*', { count: 'exact', head: true })
+          .in('status', ['open', 'in_progress', 'awaiting_customer'])
+      ),
+      applyFilters(
+        supabase.from('tickets').select('*', { count: 'exact', head: true })
+          .eq('assigned_agent_id', user.id)
+          .in('status', ['open', 'in_progress', 'awaiting_customer'])
+      ),
+      applyFilters(
+        supabase.from('tickets').select('*', { count: 'exact', head: true })
+          .in('status', ['open', 'in_progress', 'awaiting_customer'])
+          .lt('sla_resolution_at', now)
+      ),
+      resolvedQuery,
+      totalQuery,
+      applyFilters(supabase.from('tickets').select('status')),
+      recentQuery,
+    ])
+
+    const statusCounts: Record<string, number> = {}
+    ;(allTickets as { status: string }[] | null)?.forEach((t) => {
+      statusCounts[t.status] = (statusCounts[t.status] || 0) + 1
+    })
 
     return NextResponse.json({
       success: true,

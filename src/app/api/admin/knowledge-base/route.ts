@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
         const OpenAI = (await import('openai')).default
         const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
         const embeddingRes = await openai.embeddings.create({
-          model: 'text-embedding-3-small',
+          model: process.env.OPENAI_EMBEDDING_MODEL || 'text-embedding-3-small',
           input: `${body.title}\n\n${body.content}`,
         })
         embedding = embeddingRes.data[0].embedding

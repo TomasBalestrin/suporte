@@ -94,7 +94,7 @@ export default function TicketTrackingPage() {
     [loadTicket]
   )
 
-  const { isConnected } = useRealtimeMessages({
+  const { isConnected, hasConnectionError } = useRealtimeMessages({
     ticketId: ticket?.id || null,
     onNewMessage: handleNewMessage,
   })
@@ -246,11 +246,17 @@ export default function TicketTrackingPage() {
               {ticket.product?.name} &middot; {ticket.category?.name}
             </p>
           </div>
-          <div title={isConnected ? 'Conectado em tempo real' : 'Reconectando...'}>
+          <div
+            role="status"
+            aria-label={isConnected ? 'Conectado em tempo real' : hasConnectionError ? 'Conexao perdida' : 'Reconectando...'}
+            title={isConnected ? 'Conectado em tempo real' : hasConnectionError ? 'Conexao perdida — atualizando a cada 30s' : 'Reconectando...'}
+          >
             {isConnected ? (
-              <Wifi className="h-4 w-4 text-green-600" />
+              <Wifi className="h-4 w-4 text-green-600" aria-hidden="true" />
+            ) : hasConnectionError ? (
+              <WifiOff className="h-4 w-4 text-destructive" aria-hidden="true" />
             ) : (
-              <WifiOff className="h-4 w-4 text-muted-foreground" />
+              <WifiOff className="h-4 w-4 text-muted-foreground animate-pulse motion-reduce:animate-none" aria-hidden="true" />
             )}
           </div>
         </div>
@@ -315,7 +321,7 @@ export default function TicketTrackingPage() {
           )}
 
           {/* Messages */}
-          <div className="space-y-4">
+          <div className="space-y-4" aria-live="polite" aria-relevant="additions">
             {messages.length === 0 && (
               <div className="flex flex-col items-center py-12 text-center">
                 <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-muted">

@@ -24,6 +24,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { EmptyState } from '@/components/common/EmptyState'
 import { LoadingState } from '@/components/common/LoadingState'
 import { Plus, Zap, Loader2, Trash2, Pencil, Play, Pause } from 'lucide-react'
+import { useConfirmDialog } from '@/components/common/ConfirmDialog'
 import { toast } from 'sonner'
 
 interface AutomationRule {
@@ -66,6 +67,7 @@ export default function AutomationsSettingsPage() {
   const [formTrigger, setFormTrigger] = useState('ticket_created')
   const [formConditionField, setFormConditionField] = useState('')
   const [formConditionValue, setFormConditionValue] = useState('')
+  const { confirm, dialog: confirmDialog } = useConfirmDialog()
   const [formActionType, setFormActionType] = useState('assign_agent')
   const [formActionValue, setFormActionValue] = useState('')
 
@@ -183,21 +185,29 @@ export default function AutomationsSettingsPage() {
     }
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm('Deseja excluir esta automacao?')) return
-    try {
-      const res = await fetch(`/api/admin/automations/${id}`, { method: 'DELETE' })
-      const json = await res.json()
-      if (!json.success) throw new Error(json.error)
-      toast.success('Automacao excluida')
-      loadRules()
-    } catch {
-      toast.error('Erro ao excluir')
-    }
+  function handleDelete(id: string) {
+    confirm({
+      title: 'Excluir automacao',
+      description: 'Tem certeza que deseja excluir esta automacao? Esta acao nao pode ser desfeita.',
+      confirmLabel: 'Excluir',
+      variant: 'destructive',
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`/api/admin/automations/${id}`, { method: 'DELETE' })
+          const json = await res.json()
+          if (!json.success) throw new Error(json.error)
+          toast.success('Automacao excluida')
+          loadRules()
+        } catch {
+          toast.error('Erro ao excluir')
+        }
+      },
+    })
   }
 
   return (
     <>
+      {confirmDialog}
       <Header title="Automacoes" />
       <div className="p-6">
         <Card className="border-border bg-card">
@@ -237,13 +247,13 @@ export default function AutomationsSettingsPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="desc">Descricao</Label>
+                    <Label htmlFor="desc">Descrição</Label>
                     <Textarea
                       id="desc"
                       value={formDescription}
                       onChange={(e) => setFormDescription(e.target.value)}
                       className="bg-muted"
-                      placeholder="Descricao opcional"
+                      placeholder="Descrição opcional"
                       rows={2}
                     />
                   </div>
@@ -349,7 +359,7 @@ export default function AutomationsSettingsPage() {
                             className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
                               rule.is_active
                                 ? 'bg-green-500/20 text-green-400'
-                                : 'bg-zinc-500/20 text-zinc-400'
+                                : 'bg-zinc-500/20 text-zinc-300'
                             }`}
                           >
                             {rule.is_active ? 'Ativo' : 'Inativo'}

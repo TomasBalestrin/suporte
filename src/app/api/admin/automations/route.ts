@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { isAdmin } from '@/lib/supabase/guards'
+import { isAdmin, isAgentOrAdmin } from '@/lib/supabase/guards'
+import { automationSchema } from '@/lib/utils/validation'
 
 export async function GET() {
   try {
@@ -9,6 +10,9 @@ export async function GET() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       return NextResponse.json({ success: false, error: 'Nao autorizado' }, { status: 401 })
+    }
+    if (!(await isAgentOrAdmin(user.id))) {
+      return NextResponse.json({ success: false, error: 'Acesso negado' }, { status: 403 })
     }
 
     const admin = createAdminClient()
@@ -42,14 +46,15 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { name, description, trigger_type, conditions, actions } = body
-
-    if (!name || !trigger_type) {
+    const parsed = automationSchema.safeParse(body)
+    if (!parsed.success) {
       return NextResponse.json(
-        { success: false, error: 'Nome e tipo de gatilho sao obrigatorios' },
+        { success: false, error: parsed.error.issues[0]?.message || 'Dados invalidos' },
         { status: 400 }
       )
     }
+
+    const { name, description, trigger_type, conditions, actions } = parsed.data
 
     const admin = createAdminClient()
     const { data, error } = await admin

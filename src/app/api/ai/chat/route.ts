@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
 
     // Generate embedding for the question
     const embeddingRes = await openai.embeddings.create({
-      model: 'text-embedding-3-small',
+      model: process.env.OPENAI_EMBEDDING_MODEL || 'text-embedding-3-small',
       input: enrichedQuestion,
     })
     const embedding = embeddingRes.data[0].embedding
@@ -147,7 +147,7 @@ export async function POST(request: NextRequest) {
 
     // Call GPT-4o Mini
     const chatRes = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
       temperature,
       max_tokens: maxTokens,
       messages: [

@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { sendEmail } from '@/lib/email/send'
 import { ticketCreatedCustomer } from '@/lib/email/templates'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
+import { executeAutomations } from '@/lib/automations/engine'
 import { z } from 'zod'
 
 const createTicketSchema = z.object({
@@ -137,6 +138,13 @@ export async function POST(request: NextRequest) {
       html: emailData.html,
       ticketId: ticket.id,
       template: 'ticket_created',
+    }).catch(() => {})
+
+    // Execute automations (non-blocking)
+    executeAutomations({
+      ticket_id: ticket.id,
+      trigger_type: 'ticket_created',
+      data: { status: 'open', priority: 'medium', product_id, category_id },
     }).catch(() => {})
 
     return NextResponse.json(

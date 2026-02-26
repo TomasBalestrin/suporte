@@ -14,8 +14,8 @@ export function EmptyState({
   children,
 }: EmptyStateProps) {
   return (
-    <div className="flex flex-col items-center justify-center py-12 text-center">
-      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+    <div className="flex flex-col items-center justify-center py-12 text-center" role="region" aria-label={title}>
+      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted" aria-hidden="true">
         <Icon className="h-8 w-8 text-muted-foreground" />
       </div>
       <h3 className="mb-1 text-lg font-semibold">{title}</h3>

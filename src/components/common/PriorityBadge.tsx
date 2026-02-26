@@ -8,16 +8,19 @@ interface PriorityBadgeProps {
 }
 
 export function PriorityBadge({ priority, className }: PriorityBadgeProps) {
+  const label = PRIORITY_LABELS[priority] || priority
   return (
     <Badge
       variant="outline"
+      role="status"
+      aria-label={`Prioridade: ${label}`}
       className={cn(
         'text-xs font-medium',
-        PRIORITY_COLORS[priority] || 'bg-zinc-500/20 text-zinc-400',
+        PRIORITY_COLORS[priority] || 'bg-zinc-500/20 text-zinc-500',
         className
       )}
     >
-      {PRIORITY_LABELS[priority] || priority}
+      {label}
     </Badge>
   )
 }

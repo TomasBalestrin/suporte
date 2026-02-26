@@ -35,6 +35,7 @@ import { LoadingState } from '@/components/common/LoadingState'
 import { Plus, Pencil, Trash2, Users, Loader2, Shield, ShieldCheck } from 'lucide-react'
 import { toast } from 'sonner'
 import { formatDate } from '@/lib/utils/format'
+import { useConfirmDialog } from '@/components/common/ConfirmDialog'
 import type { User as UserType } from '@/lib/supabase/types'
 
 export default function UsersSettingsPage() {
@@ -50,6 +51,8 @@ export default function UsersSettingsPage() {
   const [formPassword, setFormPassword] = useState('')
   const [formRole, setFormRole] = useState<'admin' | 'agent'>('agent')
   const [formActive, setFormActive] = useState(true)
+
+  const { confirm, dialog: confirmDialog } = useConfirmDialog()
 
   const loadUsers = useCallback(async () => {
     try {
@@ -131,21 +134,29 @@ export default function UsersSettingsPage() {
     }
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm('Deseja desativar este usuario?')) return
-    try {
-      const res = await fetch(`/api/admin/users/${id}`, { method: 'DELETE' })
-      const json = await res.json()
-      if (!json.success) throw new Error(json.error)
-      toast.success('Usuario desativado')
-      loadUsers()
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Erro ao desativar')
-    }
+  function handleDelete(id: string) {
+    confirm({
+      title: 'Desativar usuario',
+      description: 'Tem certeza que deseja desativar este usuario? Ele nao podera mais acessar o sistema.',
+      confirmLabel: 'Desativar',
+      variant: 'destructive',
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`/api/admin/users/${id}`, { method: 'DELETE' })
+          const json = await res.json()
+          if (!json.success) throw new Error(json.error)
+          toast.success('Usuario desativado')
+          loadUsers()
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : 'Erro ao desativar')
+        }
+      },
+    })
   }
 
   return (
     <>
+      {confirmDialog}
       <Header title="Usuarios" />
       <div className="p-6">
         <Card className="border-border bg-card">
@@ -255,7 +266,7 @@ export default function UsersSettingsPage() {
                     <TableHead>Perfil</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Criado em</TableHead>
-                    <TableHead className="text-right">Acoes</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -285,7 +296,7 @@ export default function UsersSettingsPage() {
                           className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
                             u.is_active
                               ? 'bg-green-500/20 text-green-400'
-                              : 'bg-zinc-500/20 text-zinc-400'
+                              : 'bg-zinc-500/20 text-zinc-300'
                           }`}
                         >
                           {u.is_active ? 'Ativo' : 'Inativo'}

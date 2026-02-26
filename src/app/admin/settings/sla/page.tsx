@@ -136,7 +136,7 @@ export default function SLASettingsPage() {
                           className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
                             config.is_active
                               ? 'bg-green-500/20 text-green-400'
-                              : 'bg-zinc-500/20 text-zinc-400'
+                              : 'bg-zinc-500/20 text-zinc-300'
                           }`}
                         >
                           {config.is_active ? 'Ativo' : 'Inativo'}

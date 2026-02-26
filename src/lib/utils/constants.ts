@@ -16,7 +16,7 @@ export const TICKET_STATUS_COLORS: Record<string, string> = {
   in_progress: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
   resolved: 'bg-green-500/20 text-green-400 border-green-500/30',
   resolved_ia: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-  closed: 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30',
+  closed: 'bg-zinc-500/20 text-zinc-300 border-zinc-500/30',
 }
 
 export const PRIORITY_LABELS: Record<string, string> = {
@@ -27,7 +27,7 @@ export const PRIORITY_LABELS: Record<string, string> = {
 }
 
 export const PRIORITY_COLORS: Record<string, string> = {
-  low: 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30',
+  low: 'bg-zinc-500/20 text-zinc-300 border-zinc-500/30',
   medium: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
   high: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
   urgent: 'bg-red-500/20 text-red-400 border-red-500/30',

@@ -78,3 +78,66 @@ export const slaConfigSchema = z.object({
 })
 
 export type SlaConfigFormData = z.infer<typeof slaConfigSchema>
+
+export const automationSchema = z.object({
+  name: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres'),
+  description: z.string().optional(),
+  trigger_type: z.enum(['ticket_created', 'ticket_updated', 'status_changed', 'sla_approaching', 'sla_breached', 'no_response']),
+  conditions: z.record(z.string(), z.unknown()).optional(),
+  actions: z.record(z.string(), z.unknown()).optional(),
+  is_active: z.boolean().optional(),
+})
+export type AutomationFormData = z.infer<typeof automationSchema>
+
+export const aiConfigSchema = z.object({
+  config_key: z.string().min(1),
+  config_value: z.string(),
+})
+export type AiConfigFormData = z.infer<typeof aiConfigSchema>
+
+export const knowledgeBaseSchema = z.object({
+  title: z.string().min(3, 'Titulo deve ter pelo menos 3 caracteres'),
+  content: z.string().min(10, 'Conteudo deve ter pelo menos 10 caracteres'),
+  category: z.string().optional(),
+  tags: z.array(z.string()).optional(),
+  is_active: z.boolean().optional(),
+})
+export type KnowledgeBaseFormData = z.infer<typeof knowledgeBaseSchema>
+
+export const userSchema = z.object({
+  name: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres'),
+  email: z.string().email('Email invalido'),
+  role: z.enum(['admin', 'agent']),
+  password: z.string().min(6, 'Senha deve ter pelo menos 6 caracteres'),
+})
+export type UserFormData = z.infer<typeof userSchema>
+
+export const userUpdateSchema = z.object({
+  name: z.string().min(2).optional(),
+  role: z.enum(['admin', 'agent']).optional(),
+  is_active: z.boolean().optional(),
+})
+export type UserUpdateFormData = z.infer<typeof userUpdateSchema>
+
+export const ticketUpdateSchema = z.object({
+  status: z.enum(['open', 'awaiting_customer', 'in_progress', 'resolved', 'resolved_ia', 'closed']).optional(),
+  priority: z.enum(['low', 'medium', 'high', 'urgent']).optional(),
+  assigned_agent_id: z.string().uuid().nullable().optional(),
+})
+export type TicketUpdateFormData = z.infer<typeof ticketUpdateSchema>
+
+export const aiFeedbackSchema = z.object({
+  usage_stat_id: z.string().uuid(),
+  was_helpful: z.boolean(),
+})
+export type AiFeedbackFormData = z.infer<typeof aiFeedbackSchema>
+
+export const aiSuggestSchema = z.object({
+  customer_question: z.string().min(1, 'Pergunta do cliente obrigatoria'),
+  ticket_description: z.string().optional(),
+  messages: z.array(z.object({
+    sender_type: z.string(),
+    content: z.string(),
+  })).optional(),
+})
+export type AiSuggestFormData = z.infer<typeof aiSuggestSchema>

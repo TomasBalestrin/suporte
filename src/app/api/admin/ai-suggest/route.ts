@@ -1,13 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { isAgentOrAdmin } from '@/lib/supabase/guards'
+import { aiSuggestSchema } from '@/lib/utils/validation'
+import { rateLimit, getClientIp } from '@/lib/rate-limit'
 
 export async function POST(request: NextRequest) {
   try {
+    const ip = getClientIp(request)
+    const { allowed } = rateLimit(`admin:${ip}`, { limit: 60, windowSeconds: 60 })
+    if (!allowed) {
+      return NextResponse.json(
+        { success: false, error: 'Muitas requisicoes. Aguarde um momento.' },
+        { status: 429 }
+      )
+    }
+
     const supabase = await createServerSupabaseClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       return NextResponse.json({ success: false, error: 'Nao autorizado' }, { status: 401 })
+    }
+    if (!(await isAgentOrAdmin(user.id))) {
+      return NextResponse.json({ success: false, error: 'Acesso negado' }, { status: 403 })
     }
 
     if (!process.env.OPENAI_API_KEY) {
@@ -18,14 +33,15 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { ticket_description, messages, customer_question } = body
-
-    if (!customer_question?.trim()) {
+    const parsed = aiSuggestSchema.safeParse(body)
+    if (!parsed.success) {
       return NextResponse.json(
-        { success: false, error: 'Pergunta do cliente obrigatoria' },
+        { success: false, error: parsed.error.issues[0]?.message || 'Dados invalidos' },
         { status: 400 }
       )
     }
+
+    const { ticket_description, messages, customer_question } = parsed.data
 
     const admin = createAdminClient()
     const OpenAI = (await import('openai')).default
@@ -43,7 +59,7 @@ export async function POST(request: NextRequest) {
 
     // Generate embedding and search knowledge base
     const embeddingRes = await openai.embeddings.create({
-      model: 'text-embedding-3-small',
+      model: process.env.OPENAI_EMBEDDING_MODEL || 'text-embedding-3-small',
       input: customer_question,
     })
 
@@ -70,7 +86,7 @@ export async function POST(request: NextRequest) {
       : ''
 
     const chatRes = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
       temperature: 0.4,
       max_tokens: 400,
       messages: [

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useRef } from 'react'
+import { useState, useMemo, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -109,10 +109,23 @@ export default function SupportPage() {
   const [isSearching, setIsSearching] = useState(false)
   const [showTicketLookup, setShowTicketLookup] = useState(false)
   const [openFaq, setOpenFaq] = useState<number | null>(null)
+  const [highlightedFaq, setHighlightedFaq] = useState<number | null>(null)
   const [faqSearch, setFaqSearch] = useState('')
 
   const faqRef = useRef<HTMLDivElement>(null)
+  const faqCardRefs = useRef<Map<number, HTMLDivElement>>(new Map())
   const isOnline = isWithinSupportHours()
+
+  const scrollToFaq = useCallback((faqIndex: number) => {
+    setFaqSearch('')
+    setOpenFaq(faqIndex)
+    setHighlightedFaq(faqIndex)
+    setTimeout(() => {
+      const card = faqCardRefs.current.get(faqIndex)
+      card?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }, 100)
+    setTimeout(() => setHighlightedFaq(null), 2000)
+  }, [])
 
   const filteredFaq = useMemo(() => {
     if (!faqSearch.trim()) return faqItems
@@ -167,7 +180,7 @@ export default function SupportPage() {
           <div className="flex items-center gap-3">
             {/* Indicador de horario */}
             <div className="hidden items-center gap-1.5 sm:flex">
-              <div className={`h-2 w-2 rounded-full ${isOnline ? 'bg-green-500 animate-pulse' : 'bg-muted-foreground/40'}`} />
+              <div className={`h-2 w-2 rounded-full ${isOnline ? 'bg-green-500 animate-pulse motion-reduce:animate-none' : 'bg-muted-foreground/40'}`} />
               <span className="text-xs text-muted-foreground">
                 {isOnline ? 'Atendimento ativo' : 'Fora do horario'}
               </span>
@@ -208,7 +221,7 @@ export default function SupportPage() {
 
           {/* Horario de atendimento no mobile */}
           <div className="mt-4 flex items-center justify-center gap-1.5 sm:hidden">
-            <div className={`h-2 w-2 rounded-full ${isOnline ? 'bg-green-500 animate-pulse' : 'bg-muted-foreground/40'}`} />
+            <div className={`h-2 w-2 rounded-full ${isOnline ? 'bg-green-500 animate-pulse motion-reduce:animate-none' : 'bg-muted-foreground/40'}`} />
             <span className="text-xs text-muted-foreground">
               {isOnline ? 'Atendimento ativo agora' : 'Fora do horario — Seg a Sex, 8h30 as 20h'}
             </span>
@@ -316,13 +329,7 @@ export default function SupportPage() {
                 >
                   <Card
                     className="group cursor-pointer border-border bg-card shadow-sm transition-all hover:border-primary/30 hover:shadow-md"
-                    onClick={() => {
-                      setFaqSearch('')
-                      setOpenFaq(topic.faqIndex)
-                      setTimeout(() => {
-                        faqRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                      }, 100)
-                    }}
+                    onClick={() => scrollToFaq(topic.faqIndex)}
                   >
                     <CardContent className="flex items-center gap-4 p-4">
                       <div
@@ -338,7 +345,7 @@ export default function SupportPage() {
                           {topic.description}
                         </p>
                       </div>
-                      <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                      <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
                     </CardContent>
                   </Card>
                 </motion.div>
@@ -378,7 +385,8 @@ export default function SupportPage() {
                   return (
                     <Card
                       key={originalIndex}
-                      className="border-border bg-card shadow-sm overflow-hidden"
+                      ref={(el) => { if (el) faqCardRefs.current.set(originalIndex, el) }}
+                      className={`border-border bg-card shadow-sm overflow-hidden transition-all ${highlightedFaq === originalIndex ? 'ring-2 ring-primary/50 border-primary/30' : ''}`}
                     >
                       <button
                         onClick={() => setOpenFaq(openFaq === originalIndex ? null : originalIndex)}

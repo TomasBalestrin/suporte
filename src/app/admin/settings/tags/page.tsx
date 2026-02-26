@@ -20,6 +20,7 @@ import { EmptyState } from '@/components/common/EmptyState'
 import { LoadingState } from '@/components/common/LoadingState'
 import { Plus, Pencil, Trash2, TagIcon, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { useConfirmDialog } from '@/components/common/ConfirmDialog'
 import type { Tag } from '@/lib/supabase/types'
 
 const PRESET_COLORS = ['#EF4444', '#F97316', '#EAB308', '#22C55E', '#06B6D4', '#3B82F6', '#8B5CF6', '#EC4899']
@@ -31,6 +32,8 @@ export default function TagsSettingsPage() {
   const [editing, setEditing] = useState<Tag | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [selectedColor, setSelectedColor] = useState(PRESET_COLORS[0])
+
+  const { confirm, dialog: confirmDialog } = useConfirmDialog()
 
   const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<TagFormData>({
     resolver: zodResolver(tagSchema),
@@ -91,21 +94,29 @@ export default function TagsSettingsPage() {
     }
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm('Deseja excluir esta tag? Ela sera removida de todos os tickets.')) return
-    try {
-      const res = await fetch(`/api/admin/tags/${id}`, { method: 'DELETE' })
-      const json = await res.json()
-      if (!json.success) throw new Error(json.error)
-      toast.success('Tag excluida')
-      loadTags()
-    } catch {
-      toast.error('Erro ao excluir tag')
-    }
+  function handleDelete(id: string) {
+    confirm({
+      title: 'Excluir tag',
+      description: 'Tem certeza que deseja excluir esta tag? Ela sera removida de todos os tickets.',
+      confirmLabel: 'Excluir',
+      variant: 'destructive',
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`/api/admin/tags/${id}`, { method: 'DELETE' })
+          const json = await res.json()
+          if (!json.success) throw new Error(json.error)
+          toast.success('Tag excluida')
+          loadTags()
+        } catch {
+          toast.error('Erro ao excluir tag')
+        }
+      },
+    })
   }
 
   return (
     <>
+      {confirmDialog}
       <Header title="Tags" />
       <div className="p-6">
         <Card className="border-border bg-card">
@@ -207,7 +218,7 @@ export default function TagsSettingsPage() {
                     >
                       {tag.name}
                     </span>
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
                       <Button
                         variant="ghost"
                         size="icon"

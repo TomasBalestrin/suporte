@@ -73,6 +73,7 @@ export function FileUploadButton({ ticketId, accessToken, onUpload, disabled }: 
         className="hidden"
         accept={ALLOWED_FILE_TYPES.join(',')}
         onChange={handleFileChange}
+        aria-label="Selecionar arquivo para anexar"
       />
       <Button
         type="button"
@@ -80,12 +81,12 @@ export function FileUploadButton({ ticketId, accessToken, onUpload, disabled }: 
         size="icon"
         disabled={disabled || isUploading}
         onClick={() => inputRef.current?.click()}
-        title="Anexar arquivo"
+        aria-label={isUploading ? 'Enviando arquivo...' : 'Anexar arquivo (maximo 5MB)'}
       >
         {isUploading ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
+          <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
         ) : (
-          <Paperclip className="h-4 w-4" />
+          <Paperclip className="h-4 w-4" aria-hidden="true" />
         )}
       </Button>
     </>
@@ -103,9 +104,9 @@ export function AttachmentPreview({
   const isVideo = attachment.type.startsWith('video/')
 
   function getIcon() {
-    if (isImage) return <ImageIcon className="h-4 w-4 text-blue-400" />
-    if (isVideo) return <Film className="h-4 w-4 text-purple-400" />
-    return <FileText className="h-4 w-4 text-muted-foreground" />
+    if (isImage) return <ImageIcon className="h-4 w-4 text-blue-400" aria-hidden="true" />
+    if (isVideo) return <Film className="h-4 w-4 text-purple-400" aria-hidden="true" />
+    return <FileText className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
   }
 
   function formatSize(bytes: number) {
@@ -115,13 +116,17 @@ export function AttachmentPreview({
   }
 
   return (
-    <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 py-2">
+    <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 py-2" role="listitem">
       {getIcon()}
       <span className="max-w-[150px] truncate text-xs">{attachment.name}</span>
       <span className="text-xs text-muted-foreground">{formatSize(attachment.size)}</span>
       {onRemove && (
-        <button onClick={onRemove} className="ml-1 text-muted-foreground hover:text-foreground">
-          <X className="h-3 w-3" />
+        <button
+          onClick={onRemove}
+          className="ml-1 text-muted-foreground hover:text-foreground"
+          aria-label={`Remover ${attachment.name}`}
+        >
+          <X className="h-3 w-3" aria-hidden="true" />
         </button>
       )}
     </div>
@@ -138,10 +143,11 @@ export function MessageAttachments({ attachments }: { attachments: Attachment[] 
 
         if (isImage) {
           return (
-            <a key={i} href={att.url} target="_blank" rel="noopener noreferrer">
+            <a key={i} href={att.url} target="_blank" rel="noopener noreferrer" aria-label={`Ver imagem: ${att.name}`}>
               <img
                 src={att.url}
                 alt={att.name}
+                loading="lazy"
                 className="max-h-48 rounded-lg border border-border"
               />
             </a>
@@ -155,8 +161,9 @@ export function MessageAttachments({ attachments }: { attachments: Attachment[] 
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs hover:bg-muted/50"
+            aria-label={`Baixar arquivo: ${att.name}`}
           >
-            <FileText className="h-4 w-4" />
+            <FileText className="h-4 w-4" aria-hidden="true" />
             <span className="truncate">{att.name}</span>
           </a>
         )

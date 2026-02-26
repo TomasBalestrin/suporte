@@ -99,6 +99,7 @@ export function Sidebar() {
             size="icon"
             className="lg:hidden"
             onClick={() => setSidebarOpen(false)}
+            aria-label="Fechar menu"
           >
             <ChevronLeft className="h-5 w-5" />
           </Button>
@@ -108,7 +109,7 @@ export function Sidebar() {
 
         <ScrollArea className="flex-1 px-3 py-4">
           {/* Main Navigation */}
-          <nav className="space-y-1">
+          <nav className="space-y-1" role="navigation" aria-label="Menu principal">
             {mainNav.map((item) => (
               <Link
                 key={item.href}
@@ -219,6 +220,7 @@ export function Sidebar() {
               size="icon"
               onClick={handleLogout}
               className="text-muted-foreground hover:text-destructive"
+              aria-label="Sair"
             >
               <LogOut className="h-4 w-4" />
             </Button>

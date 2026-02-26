@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { isAgentOrAdmin } from '@/lib/supabase/guards'
+import { userSchema } from '@/lib/utils/validation'
 
 export async function GET() {
   try {
@@ -8,6 +10,9 @@ export async function GET() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       return NextResponse.json({ success: false, error: 'Nao autorizado' }, { status: 401 })
+    }
+    if (!(await isAgentOrAdmin(user.id))) {
+      return NextResponse.json({ success: false, error: 'Acesso negado' }, { status: 403 })
     }
 
     const admin = createAdminClient()
@@ -49,14 +54,15 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { name, email, role, password } = body
-
-    if (!name || !email || !role || !password) {
+    const parsed = userSchema.safeParse(body)
+    if (!parsed.success) {
       return NextResponse.json(
-        { success: false, error: 'Dados incompletos' },
+        { success: false, error: parsed.error.issues[0]?.message || 'Dados invalidos' },
         { status: 400 }
       )
     }
+
+    const { name, email, role, password } = parsed.data
 
     // Create auth user via Supabase Admin
     const { data: authData, error: authError } = await admin.auth.admin.createUser({
