@@ -31,6 +31,7 @@ import { LoadingState } from '@/components/common/LoadingState'
 import { Plus, Pencil, Trash2, FolderOpen, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { formatDate } from '@/lib/utils/format'
+import { useConfirmDialog } from '@/components/common/ConfirmDialog'
 import type { Category } from '@/lib/supabase/types'
 
 export default function CategoriesPage() {
@@ -39,6 +40,8 @@ export default function CategoriesPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
   const [isSaving, setIsSaving] = useState(false)
+
+  const { confirm, dialog: confirmDialog } = useConfirmDialog()
 
   const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<CategoryFormData>({
     resolver: zodResolver(categorySchema),
@@ -106,21 +109,29 @@ export default function CategoriesPage() {
     }
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm('Deseja desativar esta categoria?')) return
-    try {
-      const res = await fetch(`/api/admin/categories/${id}`, { method: 'DELETE' })
-      const json = await res.json()
-      if (!json.success) throw new Error(json.error)
-      toast.success('Categoria desativada')
-      loadCategories()
-    } catch {
-      toast.error('Erro ao desativar categoria')
-    }
+  function handleDelete(id: string) {
+    confirm({
+      title: 'Desativar categoria',
+      description: 'Tem certeza que deseja desativar esta categoria?',
+      confirmLabel: 'Desativar',
+      variant: 'destructive',
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`/api/admin/categories/${id}`, { method: 'DELETE' })
+          const json = await res.json()
+          if (!json.success) throw new Error(json.error)
+          toast.success('Categoria desativada')
+          loadCategories()
+        } catch {
+          toast.error('Erro ao desativar categoria')
+        }
+      },
+    })
   }
 
   return (
     <>
+      {confirmDialog}
       <Header title="Categorias" />
       <div className="p-6">
         <Card className="border-border bg-card">
@@ -239,7 +250,7 @@ export default function CategoriesPage() {
                           className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
                             category.is_active
                               ? 'bg-green-500/20 text-green-400'
-                              : 'bg-zinc-500/20 text-zinc-400'
+                              : 'bg-zinc-500/20 text-zinc-300'
                           }`}
                         >
                           {category.is_active ? 'Ativa' : 'Inativa'}

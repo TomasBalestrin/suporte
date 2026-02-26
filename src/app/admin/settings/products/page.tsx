@@ -31,6 +31,7 @@ import { LoadingState } from '@/components/common/LoadingState'
 import { Plus, Pencil, Trash2, Package, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { formatDate } from '@/lib/utils/format'
+import { useConfirmDialog } from '@/components/common/ConfirmDialog'
 import type { Product } from '@/lib/supabase/types'
 
 export default function ProductsPage() {
@@ -39,6 +40,8 @@ export default function ProductsPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [isSaving, setIsSaving] = useState(false)
+
+  const { confirm, dialog: confirmDialog } = useConfirmDialog()
 
   const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<ProductFormData>({
     resolver: zodResolver(productSchema),
@@ -104,21 +107,29 @@ export default function ProductsPage() {
     }
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm('Deseja desativar este produto?')) return
-    try {
-      const res = await fetch(`/api/admin/products/${id}`, { method: 'DELETE' })
-      const json = await res.json()
-      if (!json.success) throw new Error(json.error)
-      toast.success('Produto desativado')
-      loadProducts()
-    } catch {
-      toast.error('Erro ao desativar produto')
-    }
+  function handleDelete(id: string) {
+    confirm({
+      title: 'Desativar produto',
+      description: 'Tem certeza que deseja desativar este produto? Ele nao aparecera mais para selecao.',
+      confirmLabel: 'Desativar',
+      variant: 'destructive',
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`/api/admin/products/${id}`, { method: 'DELETE' })
+          const json = await res.json()
+          if (!json.success) throw new Error(json.error)
+          toast.success('Produto desativado')
+          loadProducts()
+        } catch {
+          toast.error('Erro ao desativar produto')
+        }
+      },
+    })
   }
 
   return (
     <>
+      {confirmDialog}
       <Header title="Produtos" />
       <div className="p-6">
         <Card className="border-border bg-card">
@@ -203,7 +214,7 @@ export default function ProductsPage() {
                           className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
                             product.is_active
                               ? 'bg-green-500/20 text-green-400'
-                              : 'bg-zinc-500/20 text-zinc-400'
+                              : 'bg-zinc-500/20 text-zinc-300'
                           }`}
                         >
                           {product.is_active ? 'Ativo' : 'Inativo'}

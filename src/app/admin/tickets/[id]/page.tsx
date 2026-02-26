@@ -107,7 +107,7 @@ export default function TicketDetailPage() {
     [loadTicket]
   )
 
-  const { isConnected } = useRealtimeMessages({
+  const { isConnected, hasConnectionError } = useRealtimeMessages({
     ticketId,
     onNewMessage: handleNewMessage,
   })
@@ -457,11 +457,18 @@ export default function TicketDetailPage() {
           </span>
           <StatusBadge status={ticket.status} />
           <PriorityBadge priority={ticket.priority} />
-          <div title={isConnected ? 'Tempo real ativo' : 'Reconectando...'}>
+          <div
+            role="status"
+            aria-label={isConnected ? 'Tempo real ativo' : hasConnectionError ? 'Conexao perdida' : 'Reconectando...'}
+            title={isConnected ? 'Tempo real ativo' : hasConnectionError ? 'Conexao perdida — usando polling' : 'Reconectando...'}
+            className="flex items-center gap-1"
+          >
             {isConnected ? (
-              <Wifi className="h-4 w-4 text-green-400" />
+              <Wifi className="h-4 w-4 text-green-400" aria-hidden="true" />
+            ) : hasConnectionError ? (
+              <WifiOff className="h-4 w-4 text-destructive" aria-hidden="true" />
             ) : (
-              <WifiOff className="h-4 w-4 text-muted-foreground" />
+              <WifiOff className="h-4 w-4 text-muted-foreground animate-pulse motion-reduce:animate-none" aria-hidden="true" />
             )}
           </div>
           {/* Mobile sidebar trigger */}
@@ -488,7 +495,7 @@ export default function TicketDetailPage() {
         <div className="flex flex-1 flex-col">
           {/* Messages */}
           <ScrollArea className="flex-1 p-4">
-            <div className="mx-auto max-w-3xl space-y-4">
+            <div className="mx-auto max-w-3xl space-y-4" aria-live="polite" aria-relevant="additions">
               {/* Ticket description as first message */}
               <div className="rounded-lg border border-border bg-muted/30 p-4">
                 <h3 className="mb-2 font-semibold">{ticket.title}</h3>

@@ -507,14 +507,16 @@ export default function HelpPage() {
                             <button
                               onClick={() => sendFeedback(true)}
                               className="rounded p-1 text-muted-foreground hover:bg-green-100 hover:text-green-600 transition-colors"
+                              aria-label="Sim, foi util"
                             >
-                              <ThumbsUp className="h-3.5 w-3.5" />
+                              <ThumbsUp className="h-3.5 w-3.5" aria-hidden="true" />
                             </button>
                             <button
                               onClick={() => sendFeedback(false)}
                               className="rounded p-1 text-muted-foreground hover:bg-red-100 hover:text-red-500 transition-colors"
+                              aria-label="Nao foi util"
                             >
-                              <ThumbsDown className="h-3.5 w-3.5" />
+                              <ThumbsDown className="h-3.5 w-3.5" aria-hidden="true" />
                             </button>
                           </div>
                         )}

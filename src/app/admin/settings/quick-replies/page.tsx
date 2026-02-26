@@ -31,6 +31,7 @@ import { EmptyState } from '@/components/common/EmptyState'
 import { LoadingState } from '@/components/common/LoadingState'
 import { Plus, Pencil, Trash2, MessageSquareText, Loader2, Copy } from 'lucide-react'
 import { toast } from 'sonner'
+import { useConfirmDialog } from '@/components/common/ConfirmDialog'
 import type { QuickReply } from '@/lib/supabase/types'
 
 export default function QuickRepliesSettingsPage() {
@@ -40,6 +41,8 @@ export default function QuickRepliesSettingsPage() {
   const [editing, setEditing] = useState<QuickReply | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [search, setSearch] = useState('')
+
+  const { confirm, dialog: confirmDialog } = useConfirmDialog()
 
   const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<QuickReplyFormData>({
     resolver: zodResolver(quickReplySchema),
@@ -107,17 +110,24 @@ export default function QuickRepliesSettingsPage() {
     }
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm('Deseja desativar esta resposta rapida?')) return
-    try {
-      const res = await fetch(`/api/admin/quick-replies/${id}`, { method: 'DELETE' })
-      const json = await res.json()
-      if (!json.success) throw new Error(json.error)
-      toast.success('Resposta desativada')
-      loadReplies()
-    } catch {
-      toast.error('Erro ao desativar resposta')
-    }
+  function handleDelete(id: string) {
+    confirm({
+      title: 'Desativar resposta rapida',
+      description: 'Tem certeza que deseja desativar esta resposta rapida?',
+      confirmLabel: 'Desativar',
+      variant: 'destructive',
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`/api/admin/quick-replies/${id}`, { method: 'DELETE' })
+          const json = await res.json()
+          if (!json.success) throw new Error(json.error)
+          toast.success('Resposta desativada')
+          loadReplies()
+        } catch {
+          toast.error('Erro ao desativar resposta')
+        }
+      },
+    })
   }
 
   const filtered = replies.filter(
@@ -129,6 +139,7 @@ export default function QuickRepliesSettingsPage() {
 
   return (
     <>
+      {confirmDialog}
       <Header title="Respostas Rapidas" />
       <div className="p-6">
         <Card className="border-border bg-card">
@@ -250,7 +261,7 @@ export default function QuickRepliesSettingsPage() {
                           className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
                             reply.is_active
                               ? 'bg-green-500/20 text-green-400'
-                              : 'bg-zinc-500/20 text-zinc-400'
+                              : 'bg-zinc-500/20 text-zinc-300'
                           }`}
                         >
                           {reply.is_active ? 'Ativa' : 'Inativa'}

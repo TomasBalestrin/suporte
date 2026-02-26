@@ -43,6 +43,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { formatDate } from '@/lib/utils/format'
+import { useConfirmDialog } from '@/components/common/ConfirmDialog'
 import type { KnowledgeBaseArticle, Product } from '@/lib/supabase/types'
 
 interface ArticleForm {
@@ -70,6 +71,7 @@ export default function KnowledgeBasePage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<ArticleForm>(emptyForm)
   const [isSaving, setIsSaving] = useState(false)
+  const { confirm, dialog: confirmDialog } = useConfirmDialog()
   const [pagination, setPagination] = useState({ page: 1, pages: 1, total: 0 })
 
   const loadArticles = useCallback(async () => {
@@ -161,23 +163,30 @@ export default function KnowledgeBasePage() {
     }
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm('Tem certeza que deseja excluir este artigo?')) return
-
-    try {
-      const res = await fetch(`/api/admin/knowledge-base/${id}`, { method: 'DELETE' })
-      const json = await res.json()
-      if (json.success) {
-        toast.success('Artigo excluido')
-        loadArticles()
-      }
-    } catch {
-      toast.error('Erro ao excluir artigo')
-    }
+  function handleDelete(id: string) {
+    confirm({
+      title: 'Excluir artigo',
+      description: 'Tem certeza que deseja excluir este artigo? A IA nao podera mais usa-lo nas respostas.',
+      confirmLabel: 'Excluir',
+      variant: 'destructive',
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`/api/admin/knowledge-base/${id}`, { method: 'DELETE' })
+          const json = await res.json()
+          if (json.success) {
+            toast.success('Artigo excluido')
+            loadArticles()
+          }
+        } catch {
+          toast.error('Erro ao excluir artigo')
+        }
+      },
+    })
   }
 
   return (
     <>
+      {confirmDialog}
       <Header title="Base de Conhecimento" />
       <div className="p-6">
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

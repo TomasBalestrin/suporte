@@ -15,6 +15,7 @@ const RETRY_BASE_MS = 2000
 export function useRealtimeTicket({ ticketId, onUpdate }: UseRealtimeTicketOptions) {
   const supabase = useRef(createClient())
   const [isConnected, setIsConnected] = useState(false)
+  const [hasConnectionError, setHasConnectionError] = useState(false)
   const retryCount = useRef(0)
   const retryTimeout = useRef<NodeJS.Timeout>(undefined)
 
@@ -46,6 +47,7 @@ export function useRealtimeTicket({ ticketId, onUpdate }: UseRealtimeTicketOptio
         .subscribe((status) => {
           if (status === 'SUBSCRIBED') {
             setIsConnected(true)
+            setHasConnectionError(false)
             retryCount.current = 0
           } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
             setIsConnected(false)
@@ -56,6 +58,8 @@ export function useRealtimeTicket({ ticketId, onUpdate }: UseRealtimeTicketOptio
                 supabase.current.removeChannel(channel)
                 subscribe()
               }, delay)
+            } else {
+              setHasConnectionError(true)
             }
           }
         })
@@ -70,5 +74,10 @@ export function useRealtimeTicket({ ticketId, onUpdate }: UseRealtimeTicketOptio
     }
   }, [ticketId, handleUpdate])
 
-  return { isConnected }
+  const reconnect = useCallback(() => {
+    retryCount.current = 0
+    setHasConnectionError(false)
+  }, [])
+
+  return { isConnected, hasConnectionError, reconnect }
 }

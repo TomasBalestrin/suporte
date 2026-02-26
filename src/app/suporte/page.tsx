@@ -180,7 +180,7 @@ export default function SupportPage() {
           <div className="flex items-center gap-3">
             {/* Indicador de horario */}
             <div className="hidden items-center gap-1.5 sm:flex">
-              <div className={`h-2 w-2 rounded-full ${isOnline ? 'bg-green-500 animate-pulse' : 'bg-muted-foreground/40'}`} />
+              <div className={`h-2 w-2 rounded-full ${isOnline ? 'bg-green-500 animate-pulse motion-reduce:animate-none' : 'bg-muted-foreground/40'}`} />
               <span className="text-xs text-muted-foreground">
                 {isOnline ? 'Atendimento ativo' : 'Fora do horario'}
               </span>
@@ -221,7 +221,7 @@ export default function SupportPage() {
 
           {/* Horario de atendimento no mobile */}
           <div className="mt-4 flex items-center justify-center gap-1.5 sm:hidden">
-            <div className={`h-2 w-2 rounded-full ${isOnline ? 'bg-green-500 animate-pulse' : 'bg-muted-foreground/40'}`} />
+            <div className={`h-2 w-2 rounded-full ${isOnline ? 'bg-green-500 animate-pulse motion-reduce:animate-none' : 'bg-muted-foreground/40'}`} />
             <span className="text-xs text-muted-foreground">
               {isOnline ? 'Atendimento ativo agora' : 'Fora do horario — Seg a Sex, 8h30 as 20h'}
             </span>
