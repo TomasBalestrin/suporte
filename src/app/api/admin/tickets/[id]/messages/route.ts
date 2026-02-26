@@ -3,6 +3,9 @@ import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendEmail } from '@/lib/email/send'
 import { newMessageCustomer } from '@/lib/email/templates'
+import { isAgentOrAdmin } from '@/lib/supabase/guards'
+import { messageSchema } from '@/lib/utils/validation'
+import { rateLimit, getClientIp } from '@/lib/rate-limit'
 
 export async function GET(
   _request: NextRequest,
@@ -13,6 +16,9 @@ export async function GET(
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       return NextResponse.json({ success: false, error: 'Nao autorizado' }, { status: 401 })
+    }
+    if (!(await isAgentOrAdmin(user.id))) {
+      return NextResponse.json({ success: false, error: 'Acesso negado' }, { status: 403 })
     }
 
     const { id } = await params
@@ -39,18 +45,30 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const ip = getClientIp(request)
+    const { allowed } = rateLimit(`admin:${ip}`, { limit: 60, windowSeconds: 60 })
+    if (!allowed) {
+      return NextResponse.json(
+        { success: false, error: 'Muitas requisicoes. Aguarde um momento.' },
+        { status: 429 }
+      )
+    }
+
     const supabase = await createServerSupabaseClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       return NextResponse.json({ success: false, error: 'Nao autorizado' }, { status: 401 })
     }
+    if (!(await isAgentOrAdmin(user.id))) {
+      return NextResponse.json({ success: false, error: 'Acesso negado' }, { status: 403 })
+    }
 
     const { id } = await params
     const body = await request.json()
-
-    if (!body.content || body.content.trim().length === 0) {
+    const parsed = messageSchema.safeParse(body)
+    if (!parsed.success) {
       return NextResponse.json(
-        { success: false, error: 'Mensagem nao pode ser vazia' },
+        { success: false, error: parsed.error.issues[0]?.message || 'Dados invalidos' },
         { status: 400 }
       )
     }
@@ -62,8 +80,8 @@ export async function POST(
         ticket_id: id,
         sender_type: 'agent',
         sender_id: user.id,
-        content: body.content.trim(),
-        is_internal_note: body.is_internal_note || false,
+        content: parsed.data.content.trim(),
+        is_internal_note: parsed.data.is_internal_note || false,
         attachments: body.attachments || [],
       })
       .select()
@@ -80,7 +98,7 @@ export async function POST(
 
     const ticketUpdate: Record<string, unknown> = {}
 
-    if (!body.is_internal_note) {
+    if (!parsed.data.is_internal_note) {
       if (!ticket?.first_response_at) {
         ticketUpdate.first_response_at = new Date().toISOString()
       }
@@ -94,7 +112,7 @@ export async function POST(
     }
 
     // Send email to customer for non-internal messages
-    if (!body.is_internal_note) {
+    if (!parsed.data.is_internal_note) {
       const admin = createAdminClient()
       const { data: ticketData } = await admin
         .from('tickets')
@@ -115,7 +133,7 @@ export async function POST(
           ticketCode: ticketData.ticket_code,
           accessToken: ticketData.access_token,
           senderName: agentData?.name || 'Agente',
-          preview: body.content.trim().substring(0, 200),
+          preview: parsed.data.content.trim().substring(0, 200),
         })
         sendEmail({
           to: customer.email,

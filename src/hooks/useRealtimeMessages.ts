@@ -9,9 +9,14 @@ interface UseRealtimeMessagesOptions {
   onNewMessage?: (message: Message) => void
 }
 
+const MAX_RETRIES = 5
+const RETRY_BASE_MS = 2000
+
 export function useRealtimeMessages({ ticketId, onNewMessage }: UseRealtimeMessagesOptions) {
   const supabase = useRef(createClient())
   const [isConnected, setIsConnected] = useState(false)
+  const retryCount = useRef(0)
+  const retryTimeout = useRef<NodeJS.Timeout>(undefined)
 
   const handleInsert = useCallback(
     (payload: { new: Message }) => {
@@ -23,23 +28,44 @@ export function useRealtimeMessages({ ticketId, onNewMessage }: UseRealtimeMessa
   useEffect(() => {
     if (!ticketId) return
 
-    const channel = supabase.current
-      .channel(`messages:${ticketId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
-          filter: `ticket_id=eq.${ticketId}`,
-        },
-        handleInsert
-      )
-      .subscribe((status) => {
-        setIsConnected(status === 'SUBSCRIBED')
-      })
+    let channel: ReturnType<typeof supabase.current.channel>
+
+    const subscribe = () => {
+      channel = supabase.current
+        .channel(`messages:${ticketId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'messages',
+            filter: `ticket_id=eq.${ticketId}`,
+          },
+          handleInsert
+        )
+        .subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            setIsConnected(true)
+            retryCount.current = 0
+          } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+            setIsConnected(false)
+            // Auto-retry with exponential backoff
+            if (retryCount.current < MAX_RETRIES) {
+              const delay = RETRY_BASE_MS * Math.pow(2, retryCount.current)
+              retryCount.current++
+              retryTimeout.current = setTimeout(() => {
+                supabase.current.removeChannel(channel)
+                subscribe()
+              }, delay)
+            }
+          }
+        })
+    }
+
+    subscribe()
 
     return () => {
+      if (retryTimeout.current) clearTimeout(retryTimeout.current)
       supabase.current.removeChannel(channel)
       setIsConnected(false)
     }

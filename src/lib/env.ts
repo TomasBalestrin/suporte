@@ -11,11 +11,15 @@ const requiredServerVars = [
 
 const optionalServerVars = [
   'OPENAI_API_KEY',
+  'OPENAI_MODEL',
+  'OPENAI_EMBEDDING_MODEL',
   'RESEND_API_KEY',
   'EMAIL_FROM',
   'CRON_SECRET',
   'NEXT_PUBLIC_SENTRY_DSN',
   'SENTRY_AUTH_TOKEN',
+  'UPSTASH_REDIS_REST_URL',
+  'UPSTASH_REDIS_REST_TOKEN',
 ] as const
 
 export function validateEnv() {

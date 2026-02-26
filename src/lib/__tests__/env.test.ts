@@ -57,11 +57,15 @@ describe('validateEnv', () => {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'anon-key'
     process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-key'
     process.env.OPENAI_API_KEY = 'key'
+    process.env.OPENAI_MODEL = 'gpt-4o-mini'
+    process.env.OPENAI_EMBEDDING_MODEL = 'text-embedding-3-small'
     process.env.RESEND_API_KEY = 'key'
     process.env.EMAIL_FROM = 'test@example.com'
     process.env.CRON_SECRET = 'secret'
     process.env.NEXT_PUBLIC_SENTRY_DSN = 'https://example@sentry.io/123'
     process.env.SENTRY_AUTH_TOKEN = 'sntrys_test'
+    process.env.UPSTASH_REDIS_REST_URL = 'https://example.upstash.io'
+    process.env.UPSTASH_REDIS_REST_TOKEN = 'token'
 
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
     validateEnv()

@@ -13,12 +13,13 @@ export function Header({ title, children }: HeaderProps) {
   const { toggleSidebar } = useUIStore()
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-border bg-background/80 px-6 backdrop-blur-lg">
+    <header role="banner" className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-border bg-background/80 px-6 backdrop-blur-lg">
       <Button
         variant="ghost"
         size="icon"
         className="lg:hidden"
         onClick={toggleSidebar}
+        aria-label="Abrir menu"
       >
         <Menu className="h-5 w-5" />
       </Button>

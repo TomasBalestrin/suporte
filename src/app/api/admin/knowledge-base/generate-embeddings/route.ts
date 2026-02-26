@@ -49,7 +49,7 @@ export async function POST() {
     for (const article of articles) {
       try {
         const embeddingRes = await openai.embeddings.create({
-          model: 'text-embedding-3-small',
+          model: process.env.OPENAI_EMBEDDING_MODEL || 'text-embedding-3-small',
           input: `${article.title}\n\n${article.content}`,
         })
         const embedding = embeddingRes.data[0].embedding

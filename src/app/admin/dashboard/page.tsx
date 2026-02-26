@@ -98,8 +98,8 @@ export default function DashboardPage() {
         const categoriesJson = await categoriesRes.json()
         if (productsJson.success) setProducts(productsJson.data || [])
         if (categoriesJson.success) setCategories(categoriesJson.data || [])
-      } catch {
-        // silent
+      } catch (err) {
+        console.error('[Dashboard] Failed to load filter options:', err)
       }
     }
     loadOptions()
@@ -120,8 +120,8 @@ export default function DashboardPage() {
       const res = await fetch(`/api/admin/analytics/overview${query ? `?${query}` : ''}`)
       const json = await res.json()
       if (json.success) setData(json.data)
-    } catch {
-      // handle error
+    } catch (err) {
+      console.error('[Dashboard] Failed to load overview data:', err)
     } finally {
       setIsLoading(false)
     }

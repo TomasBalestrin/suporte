@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { userUpdateSchema } from '@/lib/utils/validation'
 
 export async function PATCH(
   request: NextRequest,
@@ -28,11 +29,18 @@ export async function PATCH(
 
     const { id } = await params
     const body = await request.json()
+    const parsed = userUpdateSchema.safeParse(body)
+    if (!parsed.success) {
+      return NextResponse.json(
+        { success: false, error: parsed.error.issues[0]?.message || 'Dados invalidos' },
+        { status: 400 }
+      )
+    }
 
     const updateData: Record<string, unknown> = {}
-    if (body.name !== undefined) updateData.name = body.name
-    if (body.role !== undefined) updateData.role = body.role
-    if (body.is_active !== undefined) updateData.is_active = body.is_active
+    if (parsed.data.name !== undefined) updateData.name = parsed.data.name
+    if (parsed.data.role !== undefined) updateData.role = parsed.data.role
+    if (parsed.data.is_active !== undefined) updateData.is_active = parsed.data.is_active
 
     const { data, error } = await admin
       .from('users')

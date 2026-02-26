@@ -67,8 +67,8 @@ export default function TicketsPage() {
         setTotalPages(json.pagination.totalPages)
         setTotal(json.pagination.total)
       }
-    } catch {
-      // handle error
+    } catch (err) {
+      console.error('[Tickets] Failed to load tickets:', err)
     } finally {
       setIsLoading(false)
     }

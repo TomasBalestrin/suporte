@@ -80,8 +80,8 @@ export default function TicketDetailPage() {
       const res = await fetch(`/api/admin/tickets/${ticketId}`)
       const json = await res.json()
       if (json.success) setTicket(json.data)
-    } catch {
-      // handle error
+    } catch (err) {
+      console.error('[TicketDetail] Failed to load ticket:', err)
     }
   }, [ticketId])
 
@@ -90,8 +90,8 @@ export default function TicketDetailPage() {
       const res = await fetch(`/api/admin/tickets/${ticketId}/messages`)
       const json = await res.json()
       if (json.success) setMessages(json.data)
-    } catch {
-      // handle error
+    } catch (err) {
+      console.error('[TicketDetail] Failed to load messages:', err)
     }
   }, [ticketId])
 
@@ -121,12 +121,12 @@ export default function TicketDetailPage() {
       fetch('/api/admin/quick-replies')
         .then((r) => r.json())
         .then((j) => { if (j.success) setQuickReplies(j.data.filter((qr: QuickReply) => qr.is_active)) })
-        .catch(() => {})
+        .catch((err) => { console.error('[TicketDetail] Failed to load quick replies:', err) })
 
       fetch('/api/admin/users')
         .then((r) => r.json())
         .then((j) => { if (j.success) setAgents(j.data.filter((u: UserType) => u.is_active)) })
-        .catch(() => {})
+        .catch((err) => { console.error('[TicketDetail] Failed to load agents:', err) })
     }
     init()
 
@@ -147,7 +147,7 @@ export default function TicketDetailPage() {
       .then((j) => {
         if (j.success) setCustomerHistory(j.data.filter((t: Ticket) => t.id !== ticketId))
       })
-      .catch(() => {})
+      .catch((err) => { console.error('[TicketDetail] Failed to load customer history:', err) })
   }, [ticket?.customer_id, ticketId])
 
   async function handleSend() {
