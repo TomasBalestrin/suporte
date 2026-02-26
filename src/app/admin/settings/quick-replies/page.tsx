@@ -31,6 +31,7 @@ import { EmptyState } from '@/components/common/EmptyState'
 import { LoadingState } from '@/components/common/LoadingState'
 import { Plus, Pencil, Trash2, MessageSquareText, Loader2, Copy } from 'lucide-react'
 import { toast } from 'sonner'
+import { adminFetch } from '@/lib/fetch'
 import { useConfirmDialog } from '@/components/common/ConfirmDialog'
 import type { QuickReply } from '@/lib/supabase/types'
 
@@ -51,7 +52,7 @@ export default function QuickRepliesSettingsPage() {
 
   const loadReplies = useCallback(async () => {
     try {
-      const res = await fetch('/api/admin/quick-replies')
+      const res = await adminFetch('/api/admin/quick-replies')
       const json = await res.json()
       if (json.success) setReplies(json.data)
     } catch {
@@ -91,7 +92,7 @@ export default function QuickRepliesSettingsPage() {
         : '/api/admin/quick-replies'
       const method = editing ? 'PATCH' : 'POST'
 
-      const res = await fetch(url, {
+      const res = await adminFetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
@@ -118,7 +119,7 @@ export default function QuickRepliesSettingsPage() {
       variant: 'destructive',
       onConfirm: async () => {
         try {
-          const res = await fetch(`/api/admin/quick-replies/${id}`, { method: 'DELETE' })
+          const res = await adminFetch(`/api/admin/quick-replies/${id}`, { method: 'DELETE' })
           const json = await res.json()
           if (!json.success) throw new Error(json.error)
           toast.success('Resposta desativada')

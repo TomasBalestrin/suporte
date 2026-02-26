@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { adminFetch } from '@/lib/fetch'
 import { Header } from '@/components/layout/Header'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -69,7 +70,7 @@ export default function AnalyticsPage() {
     async function load() {
       setIsLoading(true)
       try {
-        const res = await fetch(`/api/admin/analytics/detailed?period=${period}`)
+        const res = await adminFetch(`/api/admin/analytics/detailed?period=${period}`)
         const json = await res.json()
         if (json.success) setData(json.data)
       } catch {

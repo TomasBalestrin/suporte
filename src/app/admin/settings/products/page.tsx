@@ -30,6 +30,7 @@ import { EmptyState } from '@/components/common/EmptyState'
 import { LoadingState } from '@/components/common/LoadingState'
 import { Plus, Pencil, Trash2, Package, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { adminFetch } from '@/lib/fetch'
 import { formatDate } from '@/lib/utils/format'
 import { useConfirmDialog } from '@/components/common/ConfirmDialog'
 import type { Product } from '@/lib/supabase/types'
@@ -50,7 +51,7 @@ export default function ProductsPage() {
 
   const loadProducts = useCallback(async () => {
     try {
-      const res = await fetch('/api/admin/products')
+      const res = await adminFetch('/api/admin/products')
       const json = await res.json()
       if (json.success) setProducts(json.data)
     } catch {
@@ -88,7 +89,7 @@ export default function ProductsPage() {
         : '/api/admin/products'
       const method = editingProduct ? 'PATCH' : 'POST'
 
-      const res = await fetch(url, {
+      const res = await adminFetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
@@ -115,7 +116,7 @@ export default function ProductsPage() {
       variant: 'destructive',
       onConfirm: async () => {
         try {
-          const res = await fetch(`/api/admin/products/${id}`, { method: 'DELETE' })
+          const res = await adminFetch(`/api/admin/products/${id}`, { method: 'DELETE' })
           const json = await res.json()
           if (!json.success) throw new Error(json.error)
           toast.success('Produto desativado')

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import { adminFetch } from '@/lib/fetch'
 import { Header } from '@/components/layout/Header'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -61,7 +62,7 @@ export default function TicketsPage() {
       if (priorityFilter !== 'all') params.set('priority', priorityFilter)
       if (search) params.set('search', search)
 
-      const res = await fetch(`/api/admin/tickets?${params}`)
+      const res = await adminFetch(`/api/admin/tickets?${params}`)
       const json = await res.json()
 
       if (json.success) {

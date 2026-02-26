@@ -35,6 +35,7 @@ import {
   RefreshCw,
 } from 'lucide-react'
 import { formatRelativeTime } from '@/lib/utils/format'
+import { adminFetch } from '@/lib/fetch'
 import { TICKET_STATUS_LABELS, TICKET_STATUS_COLORS } from '@/lib/utils/constants'
 
 interface DashboardData {
@@ -120,7 +121,7 @@ export default function DashboardPage() {
       if (priorityFilter !== 'all') params.set('priority', priorityFilter)
 
       const query = params.toString()
-      const res = await fetch(`/api/admin/analytics/overview${query ? `?${query}` : ''}`)
+      const res = await adminFetch(`/api/admin/analytics/overview${query ? `?${query}` : ''}`)
       const json = await res.json()
       if (json.success) setData(json.data)
       else setHasError(true)

@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { LoadingState } from '@/components/common/LoadingState'
 import { Clock, Loader2, Save } from 'lucide-react'
 import { toast } from 'sonner'
+import { adminFetch } from '@/lib/fetch'
 import { PRIORITY_LABELS } from '@/lib/utils/constants'
 import type { SlaConfig } from '@/lib/supabase/types'
 
@@ -40,7 +41,7 @@ export default function SLASettingsPage() {
 
   const loadConfigs = useCallback(async () => {
     try {
-      const res = await fetch('/api/admin/sla-configs')
+      const res = await adminFetch('/api/admin/sla-configs')
       const json = await res.json()
       if (json.success && json.data.length > 0) {
         const merged = DEFAULT_SLA.map((def) => {
@@ -76,7 +77,7 @@ export default function SLASettingsPage() {
   async function handleSave() {
     setIsSaving(true)
     try {
-      const res = await fetch('/api/admin/sla-configs', {
+      const res = await adminFetch('/api/admin/sla-configs', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ configs }),

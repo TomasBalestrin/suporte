@@ -12,6 +12,7 @@ import { Slider } from '@/components/ui/slider'
 import { LoadingState } from '@/components/common/LoadingState'
 import { Brain, Loader2, Save } from 'lucide-react'
 import { toast } from 'sonner'
+import { adminFetch } from '@/lib/fetch'
 
 export default function AISettingsPage() {
   const [config, setConfig] = useState<Record<string, string>>({})
@@ -19,7 +20,7 @@ export default function AISettingsPage() {
   const [isSaving, setIsSaving] = useState(false)
 
   useEffect(() => {
-    fetch('/api/admin/ai-config')
+    adminFetch('/api/admin/ai-config')
       .then((r) => r.json())
       .then((json) => {
         if (json.success) setConfig(json.data)
@@ -30,7 +31,7 @@ export default function AISettingsPage() {
   async function handleSave() {
     setIsSaving(true)
     try {
-      const res = await fetch('/api/admin/ai-config', {
+      const res = await adminFetch('/api/admin/ai-config', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(config),

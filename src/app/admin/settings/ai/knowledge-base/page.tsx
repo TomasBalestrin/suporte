@@ -42,6 +42,7 @@ import {
   BarChart3,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { adminFetch } from '@/lib/fetch'
 import { formatDate } from '@/lib/utils/format'
 import { useConfirmDialog } from '@/components/common/ConfirmDialog'
 import type { KnowledgeBaseArticle, Product } from '@/lib/supabase/types'
@@ -78,7 +79,7 @@ export default function KnowledgeBasePage() {
     try {
       const params = new URLSearchParams({ page: String(pagination.page) })
       if (search) params.set('search', search)
-      const res = await fetch(`/api/admin/knowledge-base?${params}`)
+      const res = await adminFetch(`/api/admin/knowledge-base?${params}`)
       const json = await res.json()
       if (json.success) {
         setArticles(json.data)
@@ -142,7 +143,7 @@ export default function KnowledgeBasePage() {
         : '/api/admin/knowledge-base'
       const method = editingId ? 'PATCH' : 'POST'
 
-      const res = await fetch(url, {
+      const res = await adminFetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -171,7 +172,7 @@ export default function KnowledgeBasePage() {
       variant: 'destructive',
       onConfirm: async () => {
         try {
-          const res = await fetch(`/api/admin/knowledge-base/${id}`, { method: 'DELETE' })
+          const res = await adminFetch(`/api/admin/knowledge-base/${id}`, { method: 'DELETE' })
           const json = await res.json()
           if (json.success) {
             toast.success('Artigo excluido')

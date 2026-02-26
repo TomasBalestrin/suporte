@@ -26,6 +26,7 @@ import { LoadingState } from '@/components/common/LoadingState'
 import { Plus, Zap, Loader2, Trash2, Pencil, Play, Pause } from 'lucide-react'
 import { useConfirmDialog } from '@/components/common/ConfirmDialog'
 import { toast } from 'sonner'
+import { adminFetch } from '@/lib/fetch'
 
 interface AutomationRule {
   id: string
@@ -73,7 +74,7 @@ export default function AutomationsSettingsPage() {
 
   const loadRules = useCallback(async () => {
     try {
-      const res = await fetch('/api/admin/automations')
+      const res = await adminFetch('/api/admin/automations')
       const json = await res.json()
       if (json.success) setRules(json.data || [])
     } catch {
@@ -127,7 +128,7 @@ export default function AutomationsSettingsPage() {
 
     try {
       if (editing) {
-        const res = await fetch(`/api/admin/automations/${editing.id}`, {
+        const res = await adminFetch(`/api/admin/automations/${editing.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -142,7 +143,7 @@ export default function AutomationsSettingsPage() {
         if (!json.success) throw new Error(json.error)
         toast.success('Automacao atualizada')
       } else {
-        const res = await fetch('/api/admin/automations', {
+        const res = await adminFetch('/api/admin/automations', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -169,7 +170,7 @@ export default function AutomationsSettingsPage() {
 
   async function toggleActive(rule: AutomationRule) {
     try {
-      const res = await fetch(`/api/admin/automations/${rule.id}`, {
+      const res = await adminFetch(`/api/admin/automations/${rule.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ is_active: !rule.is_active }),
@@ -193,7 +194,7 @@ export default function AutomationsSettingsPage() {
       variant: 'destructive',
       onConfirm: async () => {
         try {
-          const res = await fetch(`/api/admin/automations/${id}`, { method: 'DELETE' })
+          const res = await adminFetch(`/api/admin/automations/${id}`, { method: 'DELETE' })
           const json = await res.json()
           if (!json.success) throw new Error(json.error)
           toast.success('Automacao excluida')

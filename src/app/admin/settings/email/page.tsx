@@ -19,6 +19,7 @@ import { EmptyState } from '@/components/common/EmptyState'
 import { LoadingState } from '@/components/common/LoadingState'
 import { Mail, Send, CheckCircle2, XCircle, Clock, Loader2, ChevronLeft, ChevronRight } from 'lucide-react'
 import { toast } from 'sonner'
+import { adminFetch } from '@/lib/fetch'
 import { formatDate } from '@/lib/utils/format'
 
 interface NotificationLog {
@@ -60,7 +61,7 @@ export default function EmailSettingsPage() {
 
   const loadData = useCallback(async (p: number) => {
     try {
-      const res = await fetch(`/api/admin/email?page=${p}`)
+      const res = await adminFetch(`/api/admin/email?page=${p}`)
       const json = await res.json()
       if (json.success) {
         setLogs(json.data.logs)
@@ -83,7 +84,7 @@ export default function EmailSettingsPage() {
     if (!testEmail) return
     setIsSending(true)
     try {
-      const res = await fetch('/api/admin/email', {
+      const res = await adminFetch('/api/admin/email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ to: testEmail }),

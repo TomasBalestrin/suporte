@@ -18,6 +18,7 @@ import { LoadingState } from '@/components/common/LoadingState'
 import { EmptyState } from '@/components/common/EmptyState'
 import { HelpCircle, Check, Trash2, BookOpen } from 'lucide-react'
 import { toast } from 'sonner'
+import { adminFetch } from '@/lib/fetch'
 import { formatDate } from '@/lib/utils/format'
 import type { AiUnansweredQuestion } from '@/lib/supabase/types'
 
@@ -33,7 +34,7 @@ export default function UnansweredPage() {
         resolved: tab === 'resolved' ? 'true' : 'false',
         page: String(pagination.page),
       })
-      const res = await fetch(`/api/admin/unanswered?${params}`)
+      const res = await adminFetch(`/api/admin/unanswered?${params}`)
       const json = await res.json()
       if (json.success) {
         setQuestions(json.data)
@@ -53,7 +54,7 @@ export default function UnansweredPage() {
 
   async function markResolved(id: string) {
     try {
-      const res = await fetch(`/api/admin/unanswered/${id}`, {
+      const res = await adminFetch(`/api/admin/unanswered/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ resolved: true }),
@@ -70,7 +71,7 @@ export default function UnansweredPage() {
 
   async function handleDelete(id: string) {
     try {
-      const res = await fetch(`/api/admin/unanswered/${id}`, { method: 'DELETE' })
+      const res = await adminFetch(`/api/admin/unanswered/${id}`, { method: 'DELETE' })
       const json = await res.json()
       if (json.success) {
         toast.success('Pergunta removida')

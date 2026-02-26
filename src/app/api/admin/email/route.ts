@@ -38,21 +38,17 @@ export async function GET(request: NextRequest) {
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1)
 
-    // Stats
-    const { count: totalSent } = await admin
-      .from('notification_log')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'sent')
-
-    const { count: totalFailed } = await admin
-      .from('notification_log')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'failed')
-
-    const { count: last24h } = await admin
-      .from('notification_log')
-      .select('*', { count: 'exact', head: true })
-      .gte('created_at', new Date(Date.now() - 86400000).toISOString())
+    // Stats - run all count queries in parallel
+    const last24hDate = new Date(Date.now() - 86400000).toISOString()
+    const [
+      { count: totalSent },
+      { count: totalFailed },
+      { count: last24h },
+    ] = await Promise.all([
+      admin.from('notification_log').select('*', { count: 'exact', head: true }).eq('status', 'sent'),
+      admin.from('notification_log').select('*', { count: 'exact', head: true }).eq('status', 'failed'),
+      admin.from('notification_log').select('*', { count: 'exact', head: true }).gte('created_at', last24hDate),
+    ])
 
     return NextResponse.json({
       success: true,

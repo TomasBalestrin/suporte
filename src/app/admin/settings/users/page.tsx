@@ -34,6 +34,7 @@ import { EmptyState } from '@/components/common/EmptyState'
 import { LoadingState } from '@/components/common/LoadingState'
 import { Plus, Pencil, Trash2, Users, Loader2, Shield, ShieldCheck } from 'lucide-react'
 import { toast } from 'sonner'
+import { adminFetch } from '@/lib/fetch'
 import { formatDate } from '@/lib/utils/format'
 import { useConfirmDialog } from '@/components/common/ConfirmDialog'
 import type { User as UserType } from '@/lib/supabase/types'
@@ -56,7 +57,7 @@ export default function UsersSettingsPage() {
 
   const loadUsers = useCallback(async () => {
     try {
-      const res = await fetch('/api/admin/users')
+      const res = await adminFetch('/api/admin/users')
       const json = await res.json()
       if (json.success) setUsers(json.data)
     } catch {
@@ -96,7 +97,7 @@ export default function UsersSettingsPage() {
 
     try {
       if (editing) {
-        const res = await fetch(`/api/admin/users/${editing.id}`, {
+        const res = await adminFetch(`/api/admin/users/${editing.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name: formName, role: formRole, is_active: formActive }),
@@ -110,7 +111,7 @@ export default function UsersSettingsPage() {
           setIsSaving(false)
           return
         }
-        const res = await fetch('/api/admin/users', {
+        const res = await adminFetch('/api/admin/users', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -142,7 +143,7 @@ export default function UsersSettingsPage() {
       variant: 'destructive',
       onConfirm: async () => {
         try {
-          const res = await fetch(`/api/admin/users/${id}`, { method: 'DELETE' })
+          const res = await adminFetch(`/api/admin/users/${id}`, { method: 'DELETE' })
           const json = await res.json()
           if (!json.success) throw new Error(json.error)
           toast.success('Usuario desativado')

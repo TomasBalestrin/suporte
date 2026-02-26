@@ -53,6 +53,7 @@ import {
 import { formatDate, formatRelativeTime, formatPhone } from '@/lib/utils/format'
 import { SENDER_TYPE_LABELS, TICKET_STATUS_LABELS, PRIORITY_LABELS } from '@/lib/utils/constants'
 import { toast } from 'sonner'
+import { adminFetch } from '@/lib/fetch'
 import type { Message, TicketWithRelations, User as UserType, QuickReply, Ticket } from '@/lib/supabase/types'
 
 export default function TicketDetailPage() {
@@ -77,7 +78,7 @@ export default function TicketDetailPage() {
 
   const loadTicket = useCallback(async () => {
     try {
-      const res = await fetch(`/api/admin/tickets/${ticketId}`)
+      const res = await adminFetch(`/api/admin/tickets/${ticketId}`)
       const json = await res.json()
       if (json.success) setTicket(json.data)
     } catch (err) {
@@ -87,7 +88,7 @@ export default function TicketDetailPage() {
 
   const loadMessages = useCallback(async () => {
     try {
-      const res = await fetch(`/api/admin/tickets/${ticketId}/messages`)
+      const res = await adminFetch(`/api/admin/tickets/${ticketId}/messages`)
       const json = await res.json()
       if (json.success) setMessages(json.data)
     } catch (err) {
@@ -118,12 +119,12 @@ export default function TicketDetailPage() {
       setIsLoading(false)
 
       // Load quick replies and agents in background
-      fetch('/api/admin/quick-replies')
+      adminFetch('/api/admin/quick-replies')
         .then((r) => r.json())
         .then((j) => { if (j.success) setQuickReplies(j.data.filter((qr: QuickReply) => qr.is_active)) })
         .catch((err) => { console.error('[TicketDetail] Failed to load quick replies:', err) })
 
-      fetch('/api/admin/users')
+      adminFetch('/api/admin/users')
         .then((r) => r.json())
         .then((j) => { if (j.success) setAgents(j.data.filter((u: UserType) => u.is_active)) })
         .catch((err) => { console.error('[TicketDetail] Failed to load agents:', err) })
@@ -142,7 +143,7 @@ export default function TicketDetailPage() {
   // Load customer history when ticket is loaded
   useEffect(() => {
     if (!ticket?.customer_id) return
-    fetch(`/api/admin/tickets?customer_id=${ticket.customer_id}&limit=5`)
+    adminFetch(`/api/admin/tickets?customer_id=${ticket.customer_id}&limit=5`)
       .then((r) => r.json())
       .then((j) => {
         if (j.success) setCustomerHistory(j.data.filter((t: Ticket) => t.id !== ticketId))
@@ -155,7 +156,7 @@ export default function TicketDetailPage() {
     setIsSending(true)
 
     try {
-      const res = await fetch(`/api/admin/tickets/${ticketId}/messages`, {
+      const res = await adminFetch(`/api/admin/tickets/${ticketId}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -180,7 +181,7 @@ export default function TicketDetailPage() {
 
   async function updateTicket(field: string, value: string) {
     try {
-      const res = await fetch(`/api/admin/tickets/${ticketId}`, {
+      const res = await adminFetch(`/api/admin/tickets/${ticketId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ [field]: value }),
@@ -208,7 +209,7 @@ export default function TicketDetailPage() {
         return
       }
 
-      const res = await fetch('/api/admin/ai-suggest', {
+      const res = await adminFetch('/api/admin/ai-suggest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
