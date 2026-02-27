@@ -26,6 +26,7 @@ import { LoadingState } from '@/components/common/LoadingState'
 import { Plus, Zap, Loader2, Trash2, Pencil, Play, Pause } from 'lucide-react'
 import { useConfirmDialog } from '@/components/common/ConfirmDialog'
 import { toast } from 'sonner'
+import { adminFetch } from '@/lib/fetch'
 
 interface AutomationRule {
   id: string
@@ -42,7 +43,7 @@ const TRIGGER_TYPES: Record<string, string> = {
   ticket_created: 'Ticket criado',
   ticket_updated: 'Ticket atualizado',
   status_changed: 'Status alterado',
-  sla_approaching: 'SLA proximo',
+  sla_approaching: 'SLA próximo',
   sla_breached: 'SLA violado',
   no_response: 'Sem resposta',
 }
@@ -51,7 +52,7 @@ const ACTION_TYPES: Record<string, string> = {
   assign_agent: 'Atribuir agente',
   change_priority: 'Alterar prioridade',
   change_status: 'Alterar status',
-  send_notification: 'Enviar notificacao',
+  send_notification: 'Enviar notificação',
   add_tag: 'Adicionar tag',
 }
 
@@ -73,11 +74,11 @@ export default function AutomationsSettingsPage() {
 
   const loadRules = useCallback(async () => {
     try {
-      const res = await fetch('/api/admin/automations')
+      const res = await adminFetch('/api/admin/automations')
       const json = await res.json()
       if (json.success) setRules(json.data || [])
     } catch {
-      toast.error('Erro ao carregar automacoes')
+      toast.error('Erro ao carregar automações')
     } finally {
       setIsLoading(false)
     }
@@ -127,7 +128,7 @@ export default function AutomationsSettingsPage() {
 
     try {
       if (editing) {
-        const res = await fetch(`/api/admin/automations/${editing.id}`, {
+        const res = await adminFetch(`/api/admin/automations/${editing.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -140,9 +141,9 @@ export default function AutomationsSettingsPage() {
         })
         const json = await res.json()
         if (!json.success) throw new Error(json.error)
-        toast.success('Automacao atualizada')
+        toast.success('Automação atualizada')
       } else {
-        const res = await fetch('/api/admin/automations', {
+        const res = await adminFetch('/api/admin/automations', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -155,7 +156,7 @@ export default function AutomationsSettingsPage() {
         })
         const json = await res.json()
         if (!json.success) throw new Error(json.error)
-        toast.success('Automacao criada')
+        toast.success('Automação criada')
       }
 
       setDialogOpen(false)
@@ -169,7 +170,7 @@ export default function AutomationsSettingsPage() {
 
   async function toggleActive(rule: AutomationRule) {
     try {
-      const res = await fetch(`/api/admin/automations/${rule.id}`, {
+      const res = await adminFetch(`/api/admin/automations/${rule.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ is_active: !rule.is_active }),
@@ -179,7 +180,7 @@ export default function AutomationsSettingsPage() {
       setRules((prev) =>
         prev.map((r) => (r.id === rule.id ? { ...r, is_active: !r.is_active } : r))
       )
-      toast.success(rule.is_active ? 'Automacao desativada' : 'Automacao ativada')
+      toast.success(rule.is_active ? 'Automação desativada' : 'Automação ativada')
     } catch {
       toast.error('Erro ao alterar status')
     }
@@ -187,16 +188,16 @@ export default function AutomationsSettingsPage() {
 
   function handleDelete(id: string) {
     confirm({
-      title: 'Excluir automacao',
-      description: 'Tem certeza que deseja excluir esta automacao? Esta acao nao pode ser desfeita.',
+      title: 'Excluir automação',
+      description: 'Tem certeza que deseja excluir esta automação? Esta ação não pode ser desfeita.',
       confirmLabel: 'Excluir',
       variant: 'destructive',
       onConfirm: async () => {
         try {
-          const res = await fetch(`/api/admin/automations/${id}`, { method: 'DELETE' })
+          const res = await adminFetch(`/api/admin/automations/${id}`, { method: 'DELETE' })
           const json = await res.json()
           if (!json.success) throw new Error(json.error)
-          toast.success('Automacao excluida')
+          toast.success('Automação excluída')
           loadRules()
         } catch {
           toast.error('Erro ao excluir')
@@ -208,17 +209,17 @@ export default function AutomationsSettingsPage() {
   return (
     <>
       {confirmDialog}
-      <Header title="Automacoes" />
+      <Header title="Automações" />
       <div className="p-6">
         <Card className="border-border bg-card">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle className="flex items-center gap-2">
                 <Zap className="h-5 w-5 text-primary" />
-                Regras de Automacao
+                Regras de Automação
               </CardTitle>
               <p className="mt-1 text-sm text-muted-foreground">
-                Configure acoes automaticas baseadas em gatilhos
+                Configure ações automáticas baseadas em gatilhos
               </p>
             </div>
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -231,7 +232,7 @@ export default function AutomationsSettingsPage() {
               <DialogContent className="max-w-lg">
                 <DialogHeader>
                   <DialogTitle>
-                    {editing ? 'Editar Automacao' : 'Nova Automacao'}
+                    {editing ? 'Editar Automação' : 'Nova Automação'}
                   </DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4">
@@ -273,7 +274,7 @@ export default function AutomationsSettingsPage() {
                     </Select>
                   </div>
                   <div className="rounded-lg border border-border p-3 space-y-3">
-                    <p className="text-sm font-medium">Condicao (opcional)</p>
+                    <p className="text-sm font-medium">Condição (opcional)</p>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
                         <Label className="text-xs">Campo</Label>
@@ -296,7 +297,7 @@ export default function AutomationsSettingsPage() {
                     </div>
                   </div>
                   <div className="rounded-lg border border-border p-3 space-y-3">
-                    <p className="text-sm font-medium">Acao</p>
+                    <p className="text-sm font-medium">Ação</p>
                     <div className="space-y-2">
                       <Label className="text-xs">Tipo</Label>
                       <Select value={formActionType} onValueChange={setFormActionType}>
@@ -337,8 +338,8 @@ export default function AutomationsSettingsPage() {
             ) : rules.length === 0 ? (
               <EmptyState
                 icon={Zap}
-                title="Nenhuma automacao cadastrada"
-                description="Crie regras para automatizar acoes no sistema"
+                title="Nenhuma automação cadastrada"
+                description="Crie regras para automatizar ações no sistema"
               />
             ) : (
               <div className="space-y-4">
@@ -376,12 +377,12 @@ export default function AutomationsSettingsPage() {
                           </span>
                           {rule.actions && (rule.actions as Record<string, unknown>).type ? (
                             <span className="inline-flex items-center gap-1 rounded bg-secondary/10 px-2 py-1 text-xs text-secondary">
-                              Acao: {ACTION_TYPES[(rule.actions as Record<string, unknown>).type as string] || String((rule.actions as Record<string, unknown>).type)}
+                              Ação: {ACTION_TYPES[(rule.actions as Record<string, unknown>).type as string] || String((rule.actions as Record<string, unknown>).type)}
                             </span>
                           ) : null}
                           {rule.conditions && Object.keys(rule.conditions).length > 0 && (
                             <span className="inline-flex items-center gap-1 rounded bg-muted px-2 py-1 text-xs text-muted-foreground">
-                              Condicao: {Object.entries(rule.conditions).map(([k, v]) => `${k}=${v}`).join(', ')}
+                              Condição: {Object.entries(rule.conditions).map(([k, v]) => `${k}=${v}`).join(', ')}
                             </span>
                           )}
                         </div>

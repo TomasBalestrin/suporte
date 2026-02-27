@@ -1,11 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { rateLimit, getClientIp } from '@/lib/rate-limit'
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ token: string }> }
 ) {
   try {
+    const ip = getClientIp(request)
+    const { allowed } = rateLimit(`msg-read:${ip}`, { limit: 60, windowSeconds: 60 })
+    if (!allowed) {
+      return NextResponse.json(
+        { success: false, error: 'Muitas requisicoes. Aguarde um momento.' },
+        { status: 429 }
+      )
+    }
+
     const supabase = createAdminClient()
     const { token } = await params
 
@@ -51,11 +61,45 @@ export async function POST(
     const { token } = await params
     const body = await request.json()
 
+    const ip = getClientIp(request)
+    const { allowed } = rateLimit(`customer:${ip}`, { limit: 20, windowSeconds: 60 })
+    if (!allowed) {
+      return NextResponse.json(
+        { success: false, error: 'Muitas mensagens. Aguarde um momento.' },
+        { status: 429 }
+      )
+    }
+
     if (!body.content || body.content.trim().length === 0) {
       return NextResponse.json(
-        { success: false, error: 'Mensagem nao pode ser vazia' },
+        { success: false, error: 'Mensagem não pode ser vazia' },
         { status: 400 }
       )
+    }
+
+    if (body.content.length > 10000) {
+      return NextResponse.json(
+        { success: false, error: 'Mensagem muito longa (máximo 10.000 caracteres)' },
+        { status: 400 }
+      )
+    }
+
+    // Validate attachments if provided
+    if (body.attachments) {
+      if (!Array.isArray(body.attachments) || body.attachments.length > 10) {
+        return NextResponse.json(
+          { success: false, error: 'Anexos inválidos' },
+          { status: 400 }
+        )
+      }
+      for (const att of body.attachments) {
+        if (!att || typeof att.url !== 'string' || typeof att.name !== 'string') {
+          return NextResponse.json(
+            { success: false, error: 'Formato de anexo inválido' },
+            { status: 400 }
+          )
+        }
+      }
     }
 
     // Get ticket by access_token

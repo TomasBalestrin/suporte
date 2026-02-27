@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Header } from '@/components/layout/Header'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -33,8 +33,10 @@ import {
   Filter,
   X,
   RefreshCw,
+  Loader2,
 } from 'lucide-react'
 import { formatRelativeTime } from '@/lib/utils/format'
+import { adminFetch } from '@/lib/fetch'
 import { TICKET_STATUS_LABELS, TICKET_STATUS_COLORS } from '@/lib/utils/constants'
 
 interface DashboardData {
@@ -120,7 +122,7 @@ export default function DashboardPage() {
       if (priorityFilter !== 'all') params.set('priority', priorityFilter)
 
       const query = params.toString()
-      const res = await fetch(`/api/admin/analytics/overview${query ? `?${query}` : ''}`)
+      const res = await adminFetch(`/api/admin/analytics/overview${query ? `?${query}` : ''}`)
       const json = await res.json()
       if (json.success) setData(json.data)
       else setHasError(true)
@@ -132,11 +134,22 @@ export default function DashboardPage() {
     }
   }, [dateFrom, dateTo, productFilter, categoryFilter, statusFilter, priorityFilter])
 
+  const filterDebounceRef = useRef<ReturnType<typeof setTimeout>>(null)
   useEffect(() => {
-    loadData()
+    if (filterDebounceRef.current) clearTimeout(filterDebounceRef.current)
+    filterDebounceRef.current = setTimeout(() => loadData(), 300)
+    return () => { if (filterDebounceRef.current) clearTimeout(filterDebounceRef.current) }
   }, [loadData])
 
   const hasActiveFilters = dateFrom || dateTo || productFilter !== 'all' || categoryFilter !== 'all' || statusFilter !== 'all' || priorityFilter !== 'all'
+
+  const activeFilterCount = [
+    dateFrom || dateTo,
+    productFilter !== 'all',
+    categoryFilter !== 'all',
+    statusFilter !== 'all',
+    priorityFilter !== 'all',
+  ].filter(Boolean).length
 
   function clearFilters() {
     setDateFrom('')
@@ -208,7 +221,13 @@ export default function DashboardPage() {
   return (
     <>
       <Header title="Dashboard" />
-      <div className="p-6 space-y-6">
+      <div className="relative p-6 space-y-6">
+        {/* Loading overlay when filtering with existing data */}
+        {isLoading && data && (
+          <div className="absolute inset-0 z-10 flex items-start justify-center bg-background/50 pt-24">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        )}
         {/* Filters */}
         <Card className="border-border bg-card">
           <CardContent className="p-4">
@@ -221,9 +240,9 @@ export default function DashboardPage() {
               >
                 <Filter className="h-4 w-4" />
                 Filtros
-                {hasActiveFilters && (
+                {activeFilterCount > 0 && (
                   <span className="ml-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground">
-                    {[dateFrom || dateTo ? 1 : 0, productFilter !== 'all' ? 1 : 0, categoryFilter !== 'all' ? 1 : 0, statusFilter !== 'all' ? 1 : 0, priorityFilter !== 'all' ? 1 : 0].reduce((a, b) => a + b, 0)}
+                    {activeFilterCount}
                   </span>
                 )}
               </Button>
@@ -238,7 +257,7 @@ export default function DashboardPage() {
             {showFilters && (
               <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Data Inicio</Label>
+                  <Label className="text-xs text-muted-foreground">Data Início</Label>
                   <Input
                     type="date"
                     value={dateFrom}
@@ -307,7 +326,7 @@ export default function DashboardPage() {
                       <SelectItem value="all">Todas as Prioridades</SelectItem>
                       <SelectItem value="urgent">Urgente</SelectItem>
                       <SelectItem value="high">Alta</SelectItem>
-                      <SelectItem value="medium">Media</SelectItem>
+                      <SelectItem value="medium">Média</SelectItem>
                       <SelectItem value="low">Baixa</SelectItem>
                     </SelectContent>
                   </Select>
@@ -397,8 +416,11 @@ export default function DashboardPage() {
                     {data.recentTickets.map((ticket) => (
                       <TableRow
                         key={ticket.id}
-                        className="cursor-pointer hover:bg-muted/50"
+                        className="cursor-pointer hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
                         onClick={() => router.push(`/admin/tickets/${ticket.id}`)}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); router.push(`/admin/tickets/${ticket.id}`) } }}
+                        tabIndex={0}
+                        role="link"
                       >
                         <TableCell className="font-mono text-sm font-medium text-primary">
                           {ticket.ticket_code}

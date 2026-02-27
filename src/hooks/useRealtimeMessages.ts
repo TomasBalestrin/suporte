@@ -18,6 +18,7 @@ export function useRealtimeMessages({ ticketId, onNewMessage }: UseRealtimeMessa
   const [hasConnectionError, setHasConnectionError] = useState(false)
   const retryCount = useRef(0)
   const retryTimeout = useRef<NodeJS.Timeout>(undefined)
+  const [reconnectTrigger, setReconnectTrigger] = useState(0)
 
   const handleInsert = useCallback(
     (payload: { new: Message }) => {
@@ -73,11 +74,12 @@ export function useRealtimeMessages({ ticketId, onNewMessage }: UseRealtimeMessa
       supabase.current.removeChannel(channel)
       setIsConnected(false)
     }
-  }, [ticketId, handleInsert])
+  }, [ticketId, handleInsert, reconnectTrigger])
 
   const reconnect = useCallback(() => {
     retryCount.current = 0
     setHasConnectionError(false)
+    setReconnectTrigger((t) => t + 1)
   }, [])
 
   return { isConnected, hasConnectionError, reconnect }

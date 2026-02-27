@@ -18,7 +18,9 @@ import { LoadingState } from '@/components/common/LoadingState'
 import { EmptyState } from '@/components/common/EmptyState'
 import { HelpCircle, Check, Trash2, BookOpen } from 'lucide-react'
 import { toast } from 'sonner'
+import { adminFetch } from '@/lib/fetch'
 import { formatDate } from '@/lib/utils/format'
+import { useConfirmDialog } from '@/components/common/ConfirmDialog'
 import type { AiUnansweredQuestion } from '@/lib/supabase/types'
 
 export default function UnansweredPage() {
@@ -26,6 +28,7 @@ export default function UnansweredPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [tab, setTab] = useState<'pending' | 'resolved'>('pending')
   const [pagination, setPagination] = useState({ page: 1, pages: 1, total: 0 })
+  const { confirm, dialog: confirmDialog } = useConfirmDialog()
 
   const loadQuestions = useCallback(async () => {
     try {
@@ -33,7 +36,7 @@ export default function UnansweredPage() {
         resolved: tab === 'resolved' ? 'true' : 'false',
         page: String(pagination.page),
       })
-      const res = await fetch(`/api/admin/unanswered?${params}`)
+      const res = await adminFetch(`/api/admin/unanswered?${params}`)
       const json = await res.json()
       if (json.success) {
         setQuestions(json.data)
@@ -53,7 +56,7 @@ export default function UnansweredPage() {
 
   async function markResolved(id: string) {
     try {
-      const res = await fetch(`/api/admin/unanswered/${id}`, {
+      const res = await adminFetch(`/api/admin/unanswered/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ resolved: true }),
@@ -68,26 +71,35 @@ export default function UnansweredPage() {
     }
   }
 
-  async function handleDelete(id: string) {
-    try {
-      const res = await fetch(`/api/admin/unanswered/${id}`, { method: 'DELETE' })
-      const json = await res.json()
-      if (json.success) {
-        toast.success('Pergunta removida')
-        loadQuestions()
-      }
-    } catch {
-      toast.error('Erro ao excluir')
-    }
+  function handleDelete(id: string) {
+    confirm({
+      title: 'Excluir pergunta',
+      description: 'Tem certeza que deseja excluir esta pergunta? Esta ação não pode ser desfeita.',
+      confirmLabel: 'Excluir',
+      variant: 'destructive',
+      onConfirm: async () => {
+        try {
+          const res = await adminFetch(`/api/admin/unanswered/${id}`, { method: 'DELETE' })
+          const json = await res.json()
+          if (json.success) {
+            toast.success('Pergunta removida')
+            loadQuestions()
+          }
+        } catch {
+          toast.error('Erro ao excluir')
+        }
+      },
+    })
   }
 
   return (
     <>
+      {confirmDialog}
       <Header title="Perguntas Sem Resposta" />
       <div className="p-6">
         <div className="mb-6">
           <p className="mb-4 text-sm text-muted-foreground">
-            Perguntas que a IA nao conseguiu responder. Use-as para melhorar a base de conhecimento.
+            Perguntas que a IA não conseguiu responder. Use-as para melhorar a base de conhecimento.
           </p>
           <Tabs value={tab} onValueChange={(v) => {
             setTab(v as 'pending' | 'resolved')
@@ -110,8 +122,8 @@ export default function UnansweredPage() {
                 title={tab === 'pending' ? 'Nenhuma pergunta pendente' : 'Nenhuma pergunta resolvida'}
                 description={
                   tab === 'pending'
-                    ? 'Quando a IA nao conseguir responder, as perguntas aparecerao aqui.'
-                    : 'Perguntas marcadas como resolvidas aparecerao aqui.'
+                    ? 'Quando a IA não conseguir responder, as perguntas aparecerão aqui.'
+                    : 'Perguntas marcadas como resolvidas aparecerão aqui.'
                 }
               />
             </CardContent>
@@ -195,7 +207,7 @@ export default function UnansweredPage() {
                     Anterior
                   </Button>
                   <Button variant="outline" size="sm" disabled={pagination.page >= pagination.pages} onClick={() => setPagination((p) => ({ ...p, page: p.page + 1 }))}>
-                    Proximo
+                    Próximo
                   </Button>
                 </div>
               </div>

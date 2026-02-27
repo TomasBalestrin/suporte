@@ -32,6 +32,12 @@ export async function GET(request: NextRequest) {
     const priority = searchParams.get('priority')
 
     // Compute date bounds once
+    if (dateFrom && isNaN(Date.parse(dateFrom))) {
+      return NextResponse.json({ success: false, error: 'Data de inicio invalida' }, { status: 400 })
+    }
+    if (dateTo && isNaN(Date.parse(dateTo))) {
+      return NextResponse.json({ success: false, error: 'Data de fim invalida' }, { status: 400 })
+    }
     const dateFromISO = dateFrom ? new Date(dateFrom).toISOString() : null
     let dateToISO: string | null = null
     if (dateTo) {

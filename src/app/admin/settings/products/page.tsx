@@ -30,6 +30,7 @@ import { EmptyState } from '@/components/common/EmptyState'
 import { LoadingState } from '@/components/common/LoadingState'
 import { Plus, Pencil, Trash2, Package, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { adminFetch } from '@/lib/fetch'
 import { formatDate } from '@/lib/utils/format'
 import { useConfirmDialog } from '@/components/common/ConfirmDialog'
 import type { Product } from '@/lib/supabase/types'
@@ -43,14 +44,14 @@ export default function ProductsPage() {
 
   const { confirm, dialog: confirmDialog } = useConfirmDialog()
 
-  const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<ProductFormData>({
+  const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<ProductFormData>({
     resolver: zodResolver(productSchema),
     defaultValues: { is_active: true },
   })
 
   const loadProducts = useCallback(async () => {
     try {
-      const res = await fetch('/api/admin/products')
+      const res = await adminFetch('/api/admin/products')
       const json = await res.json()
       if (json.success) setProducts(json.data)
     } catch {
@@ -88,7 +89,7 @@ export default function ProductsPage() {
         : '/api/admin/products'
       const method = editingProduct ? 'PATCH' : 'POST'
 
-      const res = await fetch(url, {
+      const res = await adminFetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
@@ -110,12 +111,12 @@ export default function ProductsPage() {
   function handleDelete(id: string) {
     confirm({
       title: 'Desativar produto',
-      description: 'Tem certeza que deseja desativar este produto? Ele nao aparecera mais para selecao.',
+      description: 'Tem certeza que deseja desativar este produto? Ele não aparecerá mais para seleção.',
       confirmLabel: 'Desativar',
       variant: 'destructive',
       onConfirm: async () => {
         try {
-          const res = await fetch(`/api/admin/products/${id}`, { method: 'DELETE' })
+          const res = await adminFetch(`/api/admin/products/${id}`, { method: 'DELETE' })
           const json = await res.json()
           if (!json.success) throw new Error(json.error)
           toast.success('Produto desativado')
@@ -167,7 +168,7 @@ export default function ProductsPage() {
                   <div className="flex items-center gap-2">
                     <Switch
                       id="is_active"
-                      defaultChecked={editingProduct?.is_active ?? true}
+                      checked={watch('is_active') ?? true}
                       onCheckedChange={(v) => setValue('is_active', v)}
                     />
                     <Label htmlFor="is_active">Ativo</Label>
@@ -189,7 +190,7 @@ export default function ProductsPage() {
               <EmptyState
                 icon={Package}
                 title="Nenhum produto cadastrado"
-                description="Crie seu primeiro produto para comecar"
+                description="Crie seu primeiro produto para começar"
               />
             ) : (
               <Table>

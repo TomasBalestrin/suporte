@@ -1,6 +1,10 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendEmail } from '@/lib/email/send'
 
+function escapeHtml(str: string): string {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+
 interface AutomationRule {
   id: string
   name: string
@@ -52,7 +56,7 @@ function matchesConditions(
   data?: Record<string, unknown>
 ): boolean {
   if (!conditions || Object.keys(conditions).length === 0) return true
-  if (!data) return true
+  if (!data) return Object.keys(conditions).length === 0
 
   for (const [key, expected] of Object.entries(conditions)) {
     if (key === 'status' && data.status !== expected) return false
@@ -112,8 +116,8 @@ async function executeActions(
       const customer = ticket.customer as unknown as { name: string; email: string }
       await sendEmail({
         to: notif.to === 'customer' ? customer.email : notif.to,
-        subject: `[${ticket.ticket_code}] Atualizacao do seu ticket`,
-        html: `<p>Ola ${customer.name}, seu ticket "${ticket.title}" foi atualizado.</p>`,
+        subject: `[${ticket.ticket_code}] Atualização do seu ticket`,
+        html: `<p>Olá ${escapeHtml(customer.name)}, seu ticket &ldquo;${escapeHtml(ticket.title)}&rdquo; foi atualizado.</p>`,
         ticketId: context.ticket_id,
         template: 'automation_notification',
       })

@@ -20,18 +20,24 @@ export default function AdminLayout({
 
     async function loadUser() {
       setLoading(true)
-      const { data: { user: authUser } } = await supabase.auth.getUser()
+      try {
+        const { data: { user: authUser } } = await supabase.auth.getUser()
 
-      if (authUser) {
-        const { data: profile } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', authUser.id)
-          .single()
+        if (authUser) {
+          const { data: profile } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', authUser.id)
+            .single()
 
-        setUser(profile)
-      } else {
+          setUser(profile)
+        } else {
+          setUser(null)
+        }
+      } catch {
         setUser(null)
+      } finally {
+        setLoading(false)
       }
     }
 

@@ -34,9 +34,11 @@ import { EmptyState } from '@/components/common/EmptyState'
 import { LoadingState } from '@/components/common/LoadingState'
 import { Plus, Pencil, Trash2, Users, Loader2, Shield, ShieldCheck } from 'lucide-react'
 import { toast } from 'sonner'
+import { adminFetch } from '@/lib/fetch'
 import { formatDate } from '@/lib/utils/format'
 import { useConfirmDialog } from '@/components/common/ConfirmDialog'
 import type { User as UserType } from '@/lib/supabase/types'
+import { useAuthStore } from '@/stores/authStore'
 
 export default function UsersSettingsPage() {
   const [users, setUsers] = useState<UserType[]>([])
@@ -52,15 +54,16 @@ export default function UsersSettingsPage() {
   const [formRole, setFormRole] = useState<'admin' | 'agent'>('agent')
   const [formActive, setFormActive] = useState(true)
 
+  const currentUser = useAuthStore((s) => s.user)
   const { confirm, dialog: confirmDialog } = useConfirmDialog()
 
   const loadUsers = useCallback(async () => {
     try {
-      const res = await fetch('/api/admin/users')
+      const res = await adminFetch('/api/admin/users')
       const json = await res.json()
       if (json.success) setUsers(json.data)
     } catch {
-      toast.error('Erro ao carregar usuarios')
+      toast.error('Erro ao carregar usuários')
     } finally {
       setIsLoading(false)
     }
@@ -96,21 +99,21 @@ export default function UsersSettingsPage() {
 
     try {
       if (editing) {
-        const res = await fetch(`/api/admin/users/${editing.id}`, {
+        const res = await adminFetch(`/api/admin/users/${editing.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name: formName, role: formRole, is_active: formActive }),
         })
         const json = await res.json()
         if (!json.success) throw new Error(json.error)
-        toast.success('Usuario atualizado')
+        toast.success('Usuário atualizado')
       } else {
         if (!formPassword || formPassword.length < 6) {
           toast.error('Senha deve ter pelo menos 6 caracteres')
           setIsSaving(false)
           return
         }
-        const res = await fetch('/api/admin/users', {
+        const res = await adminFetch('/api/admin/users', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -122,7 +125,7 @@ export default function UsersSettingsPage() {
         })
         const json = await res.json()
         if (!json.success) throw new Error(json.error)
-        toast.success('Usuario criado')
+        toast.success('Usuário criado')
       }
 
       setDialogOpen(false)
@@ -135,17 +138,21 @@ export default function UsersSettingsPage() {
   }
 
   function handleDelete(id: string) {
+    if (id === currentUser?.id) {
+      toast.error('Você não pode desativar a si mesmo')
+      return
+    }
     confirm({
-      title: 'Desativar usuario',
-      description: 'Tem certeza que deseja desativar este usuario? Ele nao podera mais acessar o sistema.',
+      title: 'Desativar usuário',
+      description: 'Tem certeza que deseja desativar este usuário? Ele não poderá mais acessar o sistema.',
       confirmLabel: 'Desativar',
       variant: 'destructive',
       onConfirm: async () => {
         try {
-          const res = await fetch(`/api/admin/users/${id}`, { method: 'DELETE' })
+          const res = await adminFetch(`/api/admin/users/${id}`, { method: 'DELETE' })
           const json = await res.json()
           if (!json.success) throw new Error(json.error)
-          toast.success('Usuario desativado')
+          toast.success('Usuário desativado')
           loadUsers()
         } catch (err) {
           toast.error(err instanceof Error ? err.message : 'Erro ao desativar')
@@ -157,12 +164,12 @@ export default function UsersSettingsPage() {
   return (
     <>
       {confirmDialog}
-      <Header title="Usuarios" />
+      <Header title="Usuários" />
       <div className="p-6">
         <Card className="border-border bg-card">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
-              <CardTitle>Usuarios do Sistema</CardTitle>
+              <CardTitle>Usuários do Sistema</CardTitle>
               <p className="mt-1 text-sm text-muted-foreground">
                 Gerencie agentes e administradores
               </p>
@@ -171,13 +178,13 @@ export default function UsersSettingsPage() {
               <DialogTrigger asChild>
                 <Button onClick={openCreate}>
                   <Plus className="mr-2 h-4 w-4" />
-                  Novo Usuario
+                  Novo Usuário
                 </Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>
-                    {editing ? 'Editar Usuario' : 'Novo Usuario'}
+                    {editing ? 'Editar Usuário' : 'Novo Usuário'}
                   </DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleSubmitForm} className="space-y-4">
@@ -212,7 +219,7 @@ export default function UsersSettingsPage() {
                           value={formPassword}
                           onChange={(e) => setFormPassword(e.target.value)}
                           className="bg-muted"
-                          placeholder="Minimo 6 caracteres"
+                          placeholder="Mínimo 6 caracteres"
                           required
                         />
                       </div>
@@ -254,8 +261,8 @@ export default function UsersSettingsPage() {
             ) : users.length === 0 ? (
               <EmptyState
                 icon={Users}
-                title="Nenhum usuario cadastrado"
-                description="Crie o primeiro usuario do sistema"
+                title="Nenhum usuário cadastrado"
+                description="Crie o primeiro usuário do sistema"
               />
             ) : (
               <Table>

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import { adminFetch } from '@/lib/fetch'
 import { Header } from '@/components/layout/Header'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -47,7 +48,7 @@ export default function TicketsPage() {
   function handleSearchChange(value: string) {
     setSearchInput(value)
     if (debounceRef.current) clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(() => setSearch(value), 400)
+    debounceRef.current = setTimeout(() => { setSearch(value); setPage(1) }, 400)
   }
 
   const loadTickets = useCallback(async () => {
@@ -61,13 +62,15 @@ export default function TicketsPage() {
       if (priorityFilter !== 'all') params.set('priority', priorityFilter)
       if (search) params.set('search', search)
 
-      const res = await fetch(`/api/admin/tickets?${params}`)
+      const res = await adminFetch(`/api/admin/tickets?${params}`)
       const json = await res.json()
 
       if (json.success) {
         setTickets(json.data)
-        setTotalPages(json.pagination.totalPages)
-        setTotal(json.pagination.total)
+        if (json.pagination) {
+          setTotalPages(json.pagination.totalPages)
+          setTotal(json.pagination.total)
+        }
       } else {
         setHasError(true)
       }
@@ -83,9 +86,10 @@ export default function TicketsPage() {
     loadTickets()
   }, [loadTickets])
 
+  // Cleanup debounce on unmount
   useEffect(() => {
-    setPage(1)
-  }, [statusFilter, priorityFilter, search])
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
+  }, [])
 
   return (
     <>
@@ -110,7 +114,7 @@ export default function TicketsPage() {
                     className="bg-muted pl-9 w-[200px]"
                   />
                 </div>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1) }}>
                   <SelectTrigger className="w-[160px] bg-muted">
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
@@ -124,7 +128,7 @@ export default function TicketsPage() {
                     <SelectItem value="closed">Fechado</SelectItem>
                   </SelectContent>
                 </Select>
-                <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                <Select value={priorityFilter} onValueChange={(v) => { setPriorityFilter(v); setPage(1) }}>
                   <SelectTrigger className="w-[140px] bg-muted">
                     <SelectValue placeholder="Prioridade" />
                   </SelectTrigger>
@@ -132,7 +136,7 @@ export default function TicketsPage() {
                     <SelectItem value="all">Todas</SelectItem>
                     <SelectItem value="urgent">Urgente</SelectItem>
                     <SelectItem value="high">Alta</SelectItem>
-                    <SelectItem value="medium">Media</SelectItem>
+                    <SelectItem value="medium">Média</SelectItem>
                     <SelectItem value="low">Baixa</SelectItem>
                   </SelectContent>
                 </Select>
@@ -177,8 +181,11 @@ export default function TicketsPage() {
                       {tickets.map((ticket) => (
                         <TableRow
                           key={ticket.id}
-                          className="cursor-pointer hover:bg-muted/50"
+                          className="cursor-pointer hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
                           onClick={() => router.push(`/admin/tickets/${ticket.id}`)}
+                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); router.push(`/admin/tickets/${ticket.id}`) } }}
+                          tabIndex={0}
+                          role="link"
                         >
                           <TableCell className="font-mono text-sm font-medium text-primary">
                             {ticket.ticket_code}
@@ -200,7 +207,7 @@ export default function TicketsPage() {
                           </TableCell>
                           <TableCell className="text-muted-foreground">
                             {ticket.assigned_agent?.name || (
-                              <span className="text-yellow-400">Nao atribuido</span>
+                              <span className="text-yellow-400">Não atribuído</span>
                             )}
                           </TableCell>
                           <TableCell className="text-muted-foreground text-sm">

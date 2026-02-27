@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { LoadingState } from '@/components/common/LoadingState'
 import { Clock, Loader2, Save } from 'lucide-react'
 import { toast } from 'sonner'
+import { adminFetch } from '@/lib/fetch'
 import { PRIORITY_LABELS } from '@/lib/utils/constants'
 import type { SlaConfig } from '@/lib/supabase/types'
 
@@ -40,7 +41,7 @@ export default function SLASettingsPage() {
 
   const loadConfigs = useCallback(async () => {
     try {
-      const res = await fetch('/api/admin/sla-configs')
+      const res = await adminFetch('/api/admin/sla-configs')
       const json = await res.json()
       if (json.success && json.data.length > 0) {
         const merged = DEFAULT_SLA.map((def) => {
@@ -57,7 +58,7 @@ export default function SLASettingsPage() {
         setConfigs(merged)
       }
     } catch {
-      toast.error('Erro ao carregar configuracoes')
+      toast.error('Erro ao carregar configurações')
     } finally {
       setIsLoading(false)
     }
@@ -76,16 +77,16 @@ export default function SLASettingsPage() {
   async function handleSave() {
     setIsSaving(true)
     try {
-      const res = await fetch('/api/admin/sla-configs', {
+      const res = await adminFetch('/api/admin/sla-configs', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ configs }),
       })
       const json = await res.json()
       if (!json.success) throw new Error(json.error)
-      toast.success('Configuracoes de SLA salvas')
+      toast.success('Configurações de SLA salvas')
     } catch {
-      toast.error('Erro ao salvar configuracoes')
+      toast.error('Erro ao salvar configurações')
     } finally {
       setIsSaving(false)
     }
@@ -101,10 +102,10 @@ export default function SLASettingsPage() {
               <div>
                 <CardTitle className="flex items-center gap-2">
                   <Clock className="h-5 w-5 text-primary" />
-                  Configuracoes de SLA
+                  Configurações de SLA
                 </CardTitle>
                 <CardDescription className="mt-1">
-                  Defina os tempos de resposta e resolucao para cada prioridade
+                  Defina os tempos de resposta e resolução para cada prioridade
                 </CardDescription>
               </div>
               <Button onClick={handleSave} disabled={isSaving}>
@@ -166,7 +167,7 @@ export default function SLASettingsPage() {
                         </div>
                       </div>
                       <div className="space-y-2">
-                        <Label>Resolucao (minutos)</Label>
+                        <Label>Resolução (minutos)</Label>
                         <div className="flex items-center gap-3">
                           <Input
                             type="number"

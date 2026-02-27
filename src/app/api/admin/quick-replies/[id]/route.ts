@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { isAdmin } from '@/lib/supabase/guards'
+import { quickReplySchema } from '@/lib/utils/validation'
 
 export async function PATCH(
   request: NextRequest,
@@ -19,14 +20,12 @@ export async function PATCH(
 
     const { id } = await params
     const body = await request.json()
+    const parsed = quickReplySchema.partial().safeParse(body)
+    if (!parsed.success) {
+      return NextResponse.json({ success: false, error: parsed.error.issues[0]?.message || 'Dados invalidos' }, { status: 400 })
+    }
 
-    const updateData: Record<string, unknown> = {}
-    if (body.shortcut !== undefined) updateData.shortcut = body.shortcut
-    if (body.title !== undefined) updateData.title = body.title
-    if (body.content !== undefined) updateData.content = body.content
-    if (body.category !== undefined) updateData.category = body.category
-    if (body.is_active !== undefined) updateData.is_active = body.is_active
-
+    const updateData = parsed.data
     const admin = createAdminClient()
     const { data, error } = await admin
       .from('quick_replies')

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { isAdmin } from '@/lib/supabase/guards'
+import { isAdmin, isAgentOrAdmin } from '@/lib/supabase/guards'
 
 export async function GET(
   _request: NextRequest,
@@ -12,6 +12,9 @@ export async function GET(
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       return NextResponse.json({ success: false, error: 'Nao autorizado' }, { status: 401 })
+    }
+    if (!(await isAgentOrAdmin(user.id))) {
+      return NextResponse.json({ success: false, error: 'Acesso negado' }, { status: 403 })
     }
 
     const { id } = await params
@@ -58,13 +61,19 @@ export async function PATCH(
     const body = await request.json()
     const admin = createAdminClient()
 
+    const { knowledgeBaseSchema } = await import('@/lib/utils/validation')
+    const parsed = knowledgeBaseSchema.partial().safeParse(body)
+    if (!parsed.success) {
+      return NextResponse.json({ success: false, error: parsed.error.issues[0]?.message || 'Dados invalidos' }, { status: 400 })
+    }
+
     const updateData: Record<string, unknown> = {}
 
-    if (body.title !== undefined) updateData.title = body.title.trim()
-    if (body.content !== undefined) updateData.content = body.content.trim()
-    if (body.category !== undefined) updateData.category = body.category?.trim() || null
+    if (parsed.data.title !== undefined) updateData.title = parsed.data.title.trim()
+    if (parsed.data.content !== undefined) updateData.content = parsed.data.content.trim()
+    if (parsed.data.category !== undefined) updateData.category = parsed.data.category?.trim() || null
     if (body.product_id !== undefined) updateData.product_id = body.product_id || null
-    if (body.is_active !== undefined) updateData.is_active = body.is_active
+    if (parsed.data.is_active !== undefined) updateData.is_active = parsed.data.is_active
 
     // Regenerate embedding if title or content changed
     if ((body.title || body.content) && process.env.OPENAI_API_KEY) {

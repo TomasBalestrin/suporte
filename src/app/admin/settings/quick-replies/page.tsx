@@ -31,6 +31,7 @@ import { EmptyState } from '@/components/common/EmptyState'
 import { LoadingState } from '@/components/common/LoadingState'
 import { Plus, Pencil, Trash2, MessageSquareText, Loader2, Copy } from 'lucide-react'
 import { toast } from 'sonner'
+import { adminFetch } from '@/lib/fetch'
 import { useConfirmDialog } from '@/components/common/ConfirmDialog'
 import type { QuickReply } from '@/lib/supabase/types'
 
@@ -44,18 +45,18 @@ export default function QuickRepliesSettingsPage() {
 
   const { confirm, dialog: confirmDialog } = useConfirmDialog()
 
-  const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<QuickReplyFormData>({
+  const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<QuickReplyFormData>({
     resolver: zodResolver(quickReplySchema),
     defaultValues: { is_active: true },
   })
 
   const loadReplies = useCallback(async () => {
     try {
-      const res = await fetch('/api/admin/quick-replies')
+      const res = await adminFetch('/api/admin/quick-replies')
       const json = await res.json()
       if (json.success) setReplies(json.data)
     } catch {
-      toast.error('Erro ao carregar respostas rapidas')
+      toast.error('Erro ao carregar respostas rápidas')
     } finally {
       setIsLoading(false)
     }
@@ -91,7 +92,7 @@ export default function QuickRepliesSettingsPage() {
         : '/api/admin/quick-replies'
       const method = editing ? 'PATCH' : 'POST'
 
-      const res = await fetch(url, {
+      const res = await adminFetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
@@ -112,13 +113,13 @@ export default function QuickRepliesSettingsPage() {
 
   function handleDelete(id: string) {
     confirm({
-      title: 'Desativar resposta rapida',
-      description: 'Tem certeza que deseja desativar esta resposta rapida?',
+      title: 'Desativar resposta rápida',
+      description: 'Tem certeza que deseja desativar esta resposta rápida?',
       confirmLabel: 'Desativar',
       variant: 'destructive',
       onConfirm: async () => {
         try {
-          const res = await fetch(`/api/admin/quick-replies/${id}`, { method: 'DELETE' })
+          const res = await adminFetch(`/api/admin/quick-replies/${id}`, { method: 'DELETE' })
           const json = await res.json()
           if (!json.success) throw new Error(json.error)
           toast.success('Resposta desativada')
@@ -140,14 +141,14 @@ export default function QuickRepliesSettingsPage() {
   return (
     <>
       {confirmDialog}
-      <Header title="Respostas Rapidas" />
+      <Header title="Respostas Rápidas" />
       <div className="p-6">
         <Card className="border-border bg-card">
           <CardHeader className="flex flex-row items-center justify-between gap-4">
             <div>
-              <CardTitle>Respostas Rapidas</CardTitle>
+              <CardTitle>Respostas Rápidas</CardTitle>
               <p className="mt-1 text-sm text-muted-foreground">
-                Use o atalho <kbd className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono">/</kbd> no chat para inserir respostas rapidas
+                Use o atalho <kbd className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono">/</kbd> no chat para inserir respostas rápidas
               </p>
             </div>
             <div className="flex items-center gap-3">
@@ -167,14 +168,14 @@ export default function QuickRepliesSettingsPage() {
                 <DialogContent className="max-w-lg">
                   <DialogHeader>
                     <DialogTitle>
-                      {editing ? 'Editar Resposta Rapida' : 'Nova Resposta Rapida'}
+                      {editing ? 'Editar Resposta Rápida' : 'Nova Resposta Rápida'}
                     </DialogTitle>
                   </DialogHeader>
                   <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                     <div className="grid gap-4 md:grid-cols-2">
                       <div className="space-y-2">
                         <Label htmlFor="shortcut">Atalho (sem /)</Label>
-                        <Input id="shortcut" {...register('shortcut')} className="bg-muted font-mono" placeholder="saudacao" aria-describedby={errors.shortcut ? 'shortcut-error' : undefined} />
+                        <Input id="shortcut" {...register('shortcut')} className="bg-muted font-mono" placeholder="saudação" aria-describedby={errors.shortcut ? 'shortcut-error' : undefined} />
                         {errors.shortcut && (
                           <p id="shortcut-error" className="text-sm text-destructive">{errors.shortcut.message}</p>
                         )}
@@ -197,7 +198,7 @@ export default function QuickRepliesSettingsPage() {
                         id="content"
                         {...register('content')}
                         className="min-h-[120px] bg-muted"
-                        placeholder="Ola! Como posso te ajudar hoje?"
+                        placeholder="Olá! Como posso te ajudar hoje?"
                       />
                       {errors.content && (
                         <p id="content-error" className="text-sm text-destructive">{errors.content.message}</p>
@@ -206,7 +207,7 @@ export default function QuickRepliesSettingsPage() {
                     <div className="flex items-center gap-2">
                       <Switch
                         id="is_active"
-                        defaultChecked={editing?.is_active ?? true}
+                        checked={watch('is_active') ?? true}
                         onCheckedChange={(v) => setValue('is_active', v)}
                       />
                       <Label htmlFor="is_active">Ativa</Label>
@@ -227,7 +228,7 @@ export default function QuickRepliesSettingsPage() {
               <EmptyState
                 icon={MessageSquareText}
                 title={search ? 'Nenhuma resposta encontrada' : 'Nenhuma resposta cadastrada'}
-                description={search ? 'Tente outra busca' : 'Crie sua primeira resposta rapida'}
+                description={search ? 'Tente outra busca' : 'Crie sua primeira resposta rápida'}
               />
             ) : (
               <Table>
@@ -272,7 +273,7 @@ export default function QuickRepliesSettingsPage() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            title="Copiar conteudo"
+                            title="Copiar conteúdo"
                             onClick={() => {
                               navigator.clipboard.writeText(reply.content)
                               toast.success('Copiado!')

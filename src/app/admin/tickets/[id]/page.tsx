@@ -53,6 +53,7 @@ import {
 import { formatDate, formatRelativeTime, formatPhone } from '@/lib/utils/format'
 import { SENDER_TYPE_LABELS, TICKET_STATUS_LABELS, PRIORITY_LABELS } from '@/lib/utils/constants'
 import { toast } from 'sonner'
+import { adminFetch } from '@/lib/fetch'
 import type { Message, TicketWithRelations, User as UserType, QuickReply, Ticket } from '@/lib/supabase/types'
 
 export default function TicketDetailPage() {
@@ -77,7 +78,7 @@ export default function TicketDetailPage() {
 
   const loadTicket = useCallback(async () => {
     try {
-      const res = await fetch(`/api/admin/tickets/${ticketId}`)
+      const res = await adminFetch(`/api/admin/tickets/${ticketId}`)
       const json = await res.json()
       if (json.success) setTicket(json.data)
     } catch (err) {
@@ -87,7 +88,7 @@ export default function TicketDetailPage() {
 
   const loadMessages = useCallback(async () => {
     try {
-      const res = await fetch(`/api/admin/tickets/${ticketId}/messages`)
+      const res = await adminFetch(`/api/admin/tickets/${ticketId}/messages`)
       const json = await res.json()
       if (json.success) setMessages(json.data)
     } catch (err) {
@@ -118,12 +119,12 @@ export default function TicketDetailPage() {
       setIsLoading(false)
 
       // Load quick replies and agents in background
-      fetch('/api/admin/quick-replies')
+      adminFetch('/api/admin/quick-replies')
         .then((r) => r.json())
         .then((j) => { if (j.success) setQuickReplies(j.data.filter((qr: QuickReply) => qr.is_active)) })
         .catch((err) => { console.error('[TicketDetail] Failed to load quick replies:', err) })
 
-      fetch('/api/admin/users')
+      adminFetch('/api/admin/users')
         .then((r) => r.json())
         .then((j) => { if (j.success) setAgents(j.data.filter((u: UserType) => u.is_active)) })
         .catch((err) => { console.error('[TicketDetail] Failed to load agents:', err) })
@@ -135,14 +136,19 @@ export default function TicketDetailPage() {
     return () => clearInterval(interval)
   }, [loadTicket, loadMessages])
 
+  const scrollAreaRef = useRef<HTMLDivElement>(null)
+  const isNearBottomRef = useRef(true)
+
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    if (isNearBottomRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
   }, [messages])
 
   // Load customer history when ticket is loaded
   useEffect(() => {
     if (!ticket?.customer_id) return
-    fetch(`/api/admin/tickets?customer_id=${ticket.customer_id}&limit=5`)
+    adminFetch(`/api/admin/tickets?customer_id=${ticket.customer_id}&limit=5`)
       .then((r) => r.json())
       .then((j) => {
         if (j.success) setCustomerHistory(j.data.filter((t: Ticket) => t.id !== ticketId))
@@ -155,7 +161,7 @@ export default function TicketDetailPage() {
     setIsSending(true)
 
     try {
-      const res = await fetch(`/api/admin/tickets/${ticketId}/messages`, {
+      const res = await adminFetch(`/api/admin/tickets/${ticketId}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -170,6 +176,8 @@ export default function TicketDetailPage() {
         setAttachments([])
         if (!isConnected) loadMessages()
         loadTicket()
+      } else {
+        toast.error(json.error || 'Erro ao enviar mensagem')
       }
     } catch {
       toast.error('Erro ao enviar mensagem')
@@ -180,7 +188,7 @@ export default function TicketDetailPage() {
 
   async function updateTicket(field: string, value: string) {
     try {
-      const res = await fetch(`/api/admin/tickets/${ticketId}`, {
+      const res = await adminFetch(`/api/admin/tickets/${ticketId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ [field]: value }),
@@ -189,6 +197,8 @@ export default function TicketDetailPage() {
       if (json.success) {
         loadTicket()
         toast.success('Ticket atualizado')
+      } else {
+        toast.error(json.error || 'Erro ao atualizar ticket')
       }
     } catch {
       toast.error('Erro ao atualizar ticket')
@@ -208,7 +218,7 @@ export default function TicketDetailPage() {
         return
       }
 
-      const res = await fetch('/api/admin/ai-suggest', {
+      const res = await adminFetch('/api/admin/ai-suggest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -223,12 +233,12 @@ export default function TicketDetailPage() {
       const json = await res.json()
       if (json.success && json.data.suggestion) {
         setNewMessage(json.data.suggestion)
-        toast.success(`Sugestao gerada (${json.data.articles_count} artigos usados)`)
+        toast.success(`Sugestão gerada (${json.data.articles_count} artigos usados)`)
       } else {
-        toast.error(json.data?.message || json.error || 'Sem sugestao disponivel')
+        toast.error(json.data?.message || json.error || 'Sem sugestão disponível')
       }
     } catch {
-      toast.error('Erro ao gerar sugestao')
+      toast.error('Erro ao gerar sugestão')
     } finally {
       setIsSuggesting(false)
     }
@@ -263,7 +273,7 @@ export default function TicketDetailPage() {
       <>
         <Header title="Ticket" />
         <div className="flex flex-col items-center p-12">
-          <h2 className="text-xl font-bold">Ticket nao encontrado</h2>
+          <h2 className="text-xl font-bold">Ticket não encontrado</h2>
           <Button variant="outline" onClick={() => router.push('/admin/tickets')} className="mt-4">
             Voltar
           </Button>
@@ -279,7 +289,7 @@ export default function TicketDetailPage() {
       {/* Ticket Info */}
       <div>
         <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-          Informacoes
+          Informações
         </h3>
         <div className="space-y-3">
           <div>
@@ -343,7 +353,7 @@ export default function TicketDetailPage() {
           )}
           {ticket.satisfaction_rating && (
             <div className="rounded-lg border border-border bg-muted/30 p-3">
-              <Label className="text-xs text-muted-foreground">Avaliacao</Label>
+              <Label className="text-xs text-muted-foreground">Avaliação</Label>
               <div className="mt-1 flex gap-0.5">
                 {[1, 2, 3, 4, 5].map((s) => (
                   <Star
@@ -392,7 +402,7 @@ export default function TicketDetailPage() {
       {/* Agent Assignment */}
       <div>
         <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-          Agente Responsavel
+          Agente Responsável
         </h3>
         <Select
           value={ticket.assigned_agent_id || '_none'}
@@ -417,7 +427,7 @@ export default function TicketDetailPage() {
           <div>
             <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
               <History className="h-4 w-4" />
-              Historico do Cliente
+              Histórico do Cliente
             </h3>
             <div className="space-y-2">
               {customerHistory.map((t) => (
@@ -459,8 +469,8 @@ export default function TicketDetailPage() {
           <PriorityBadge priority={ticket.priority} />
           <div
             role="status"
-            aria-label={isConnected ? 'Tempo real ativo' : hasConnectionError ? 'Conexao perdida' : 'Reconectando...'}
-            title={isConnected ? 'Tempo real ativo' : hasConnectionError ? 'Conexao perdida — usando polling' : 'Reconectando...'}
+            aria-label={isConnected ? 'Tempo real ativo' : hasConnectionError ? 'Conexão perdida' : 'Reconectando...'}
+            title={isConnected ? 'Tempo real ativo' : hasConnectionError ? 'Conexão perdida — usando polling' : 'Reconectando...'}
             className="flex items-center gap-1"
           >
             {isConnected ? (
@@ -494,7 +504,14 @@ export default function TicketDetailPage() {
         {/* Main chat area */}
         <div className="flex flex-1 flex-col">
           {/* Messages */}
-          <ScrollArea className="flex-1 p-4">
+          <ScrollArea
+            className="flex-1 p-4"
+            onScrollCapture={(e) => {
+              const target = e.currentTarget.querySelector('[data-radix-scroll-area-viewport]') || e.currentTarget
+              const { scrollTop, scrollHeight, clientHeight } = target
+              isNearBottomRef.current = scrollHeight - scrollTop - clientHeight < 100
+            }}
+          >
             <div className="mx-auto max-w-3xl space-y-4" aria-live="polite" aria-relevant="additions">
               {/* Ticket description as first message */}
               <div className="rounded-lg border border-border bg-muted/30 p-4">
@@ -613,7 +630,7 @@ export default function TicketDetailPage() {
                     size="icon"
                     onClick={handleSuggest}
                     disabled={isSuggesting || isInternalNote}
-                    title="Sugestao da IA"
+                    title="Sugestão da IA"
                     className="text-primary hover:text-primary"
                   >
                     {isSuggesting ? (
@@ -636,6 +653,7 @@ export default function TicketDetailPage() {
                             key={qr.id}
                             type="button"
                             className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm hover:bg-muted transition-colors"
+                            onMouseDown={(e) => e.preventDefault()}
                             onClick={() => {
                               setNewMessage(qr.content)
                               setShowQuickReplies(false)
@@ -678,7 +696,7 @@ export default function TicketDetailPage() {
                         setShowQuickReplies(false)
                       }
                     }}
-                    onBlur={() => setTimeout(() => setShowQuickReplies(false), 200)}
+                    onBlur={() => setShowQuickReplies(false)}
                     className="min-h-[60px] max-h-[150px] resize-none bg-muted"
                     rows={2}
                   />

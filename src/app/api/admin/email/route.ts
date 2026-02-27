@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
 
     const admin = createAdminClient()
     const searchParams = request.nextUrl.searchParams
-    const page = parseInt(searchParams.get('page') || '1', 10)
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10))
     const limit = 20
     const offset = (page - 1) * limit
 
@@ -38,21 +38,17 @@ export async function GET(request: NextRequest) {
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1)
 
-    // Stats
-    const { count: totalSent } = await admin
-      .from('notification_log')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'sent')
-
-    const { count: totalFailed } = await admin
-      .from('notification_log')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'failed')
-
-    const { count: last24h } = await admin
-      .from('notification_log')
-      .select('*', { count: 'exact', head: true })
-      .gte('created_at', new Date(Date.now() - 86400000).toISOString())
+    // Stats - run all count queries in parallel
+    const last24hDate = new Date(Date.now() - 86400000).toISOString()
+    const [
+      { count: totalSent },
+      { count: totalFailed },
+      { count: last24h },
+    ] = await Promise.all([
+      admin.from('notification_log').select('*', { count: 'exact', head: true }).eq('status', 'sent'),
+      admin.from('notification_log').select('*', { count: 'exact', head: true }).eq('status', 'failed'),
+      admin.from('notification_log').select('*', { count: 'exact', head: true }).gte('created_at', last24hDate),
+    ])
 
     return NextResponse.json({
       success: true,
@@ -103,9 +99,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { to } = body
 
-    if (!to) {
+    if (!to || typeof to !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
       return NextResponse.json(
-        { success: false, error: 'Email de destino obrigatorio' },
+        { success: false, error: 'Email de destino invalido' },
         { status: 400 }
       )
     }

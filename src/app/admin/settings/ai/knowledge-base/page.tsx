@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Header } from '@/components/layout/Header'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -42,6 +42,7 @@ import {
   BarChart3,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { adminFetch } from '@/lib/fetch'
 import { formatDate } from '@/lib/utils/format'
 import { useConfirmDialog } from '@/components/common/ConfirmDialog'
 import type { KnowledgeBaseArticle, Product } from '@/lib/supabase/types'
@@ -66,7 +67,9 @@ export default function KnowledgeBasePage() {
   const [articles, setArticles] = useState<KnowledgeBaseArticle[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout>>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<ArticleForm>(emptyForm)
@@ -78,7 +81,7 @@ export default function KnowledgeBasePage() {
     try {
       const params = new URLSearchParams({ page: String(pagination.page) })
       if (search) params.set('search', search)
-      const res = await fetch(`/api/admin/knowledge-base?${params}`)
+      const res = await adminFetch(`/api/admin/knowledge-base?${params}`)
       const json = await res.json()
       if (json.success) {
         setArticles(json.data)
@@ -96,11 +99,16 @@ export default function KnowledgeBasePage() {
   }, [loadArticles])
 
   useEffect(() => {
+    return () => { if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current) }
+  }, [])
+
+  useEffect(() => {
     fetch('/api/products')
       .then((r) => r.json())
       .then((json) => {
         if (json.success) setProducts(json.data)
       })
+      .catch(() => {})
   }, [])
 
   function openNew() {
@@ -123,7 +131,7 @@ export default function KnowledgeBasePage() {
 
   async function handleSave() {
     if (!form.title.trim() || !form.content.trim()) {
-      toast.error('Titulo e conteudo sao obrigatorios')
+      toast.error('Título e conteúdo são obrigatórios')
       return
     }
 
@@ -142,7 +150,7 @@ export default function KnowledgeBasePage() {
         : '/api/admin/knowledge-base'
       const method = editingId ? 'PATCH' : 'POST'
 
-      const res = await fetch(url, {
+      const res = await adminFetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -166,15 +174,15 @@ export default function KnowledgeBasePage() {
   function handleDelete(id: string) {
     confirm({
       title: 'Excluir artigo',
-      description: 'Tem certeza que deseja excluir este artigo? A IA nao podera mais usa-lo nas respostas.',
+      description: 'Tem certeza que deseja excluir este artigo? A IA não poderá mais usá-lo nas respostas.',
       confirmLabel: 'Excluir',
       variant: 'destructive',
       onConfirm: async () => {
         try {
-          const res = await fetch(`/api/admin/knowledge-base/${id}`, { method: 'DELETE' })
+          const res = await adminFetch(`/api/admin/knowledge-base/${id}`, { method: 'DELETE' })
           const json = await res.json()
           if (json.success) {
-            toast.success('Artigo excluido')
+            toast.success('Artigo excluído')
             loadArticles()
           }
         } catch {
@@ -194,10 +202,14 @@ export default function KnowledgeBasePage() {
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Buscar artigos..."
-              value={search}
+              value={searchInput}
               onChange={(e) => {
-                setSearch(e.target.value)
-                setPagination((p) => ({ ...p, page: 1 }))
+                setSearchInput(e.target.value)
+                if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current)
+                searchDebounceRef.current = setTimeout(() => {
+                  setSearch(e.target.value)
+                  setPagination((p) => ({ ...p, page: 1 }))
+                }, 400)
               }}
               className="bg-muted pl-10"
             />
@@ -325,7 +337,7 @@ export default function KnowledgeBasePage() {
                     disabled={pagination.page >= pagination.pages}
                     onClick={() => setPagination((p) => ({ ...p, page: p.page + 1 }))}
                   >
-                    Proximo
+                    Próximo
                   </Button>
                 </div>
               </div>
@@ -357,7 +369,7 @@ export default function KnowledgeBasePage() {
               <Textarea
                 value={form.content}
                 onChange={(e) => setForm({ ...form, content: e.target.value })}
-                placeholder="Escreva o conteudo do artigo. Quanto mais detalhado, melhor sera a resposta da IA."
+                placeholder="Escreva o conteúdo do artigo. Quanto mais detalhado, melhor será a resposta da IA."
                 className="mt-1 min-h-[200px] bg-muted"
               />
             </div>

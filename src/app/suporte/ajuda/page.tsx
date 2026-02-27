@@ -37,6 +37,7 @@ export default function HelpPage() {
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [isLoadingData, setIsLoadingData] = useState(true)
+  const [loadDataError, setLoadDataError] = useState(false)
   const [aiMessages, setAiMessages] = useState<AiMessage[]>([])
   const [aiName, setAiName] = useState('Sofia')
   const [isAiLoading, setIsAiLoading] = useState(false)
@@ -81,7 +82,7 @@ export default function HelpPage() {
         }
         if (catJson.success) setCategories(catJson.data)
       } catch {
-        // Dados nao carregaram, selects ficarao vazios
+        setLoadDataError(true)
       } finally {
         setIsLoadingData(false)
       }
@@ -126,7 +127,7 @@ export default function HelpPage() {
           ...prev,
           {
             role: 'ai',
-            content: 'Nao encontrei uma resposta na base de conhecimento. Vou abrir um ticket para voce!',
+            content: 'Não encontrei uma resposta na base de conhecimento. Vou abrir um ticket para você!',
           },
         ])
       }
@@ -135,7 +136,7 @@ export default function HelpPage() {
         ...prev,
         {
           role: 'ai',
-          content: 'Desculpe, tive um problema ao buscar a resposta. Vou abrir um ticket para voce!',
+          content: 'Desculpe, tive um problema ao buscar a resposta. Vou abrir um ticket para você!',
         },
       ])
     } finally {
@@ -202,7 +203,7 @@ export default function HelpPage() {
       }
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Erro desconhecido'
-      setCreateError(`Nao foi possivel criar o ticket: ${errorMsg}`)
+      setCreateError(`Não foi possível criar o ticket: ${errorMsg}`)
       setStep('ai')
     } finally {
       setIsCreating(false)
@@ -217,11 +218,11 @@ export default function HelpPage() {
 
   const stepLabels = [
     { key: 'form', label: 'Dados' },
-    { key: 'ai', label: 'Analise' },
-    { key: 'done', label: 'Conclusao' },
+    { key: 'ai', label: 'Análise' },
+    { key: 'done', label: 'Conclusão' },
   ]
 
-  const currentStepIndex = step === 'form' ? 0 : step === 'ai' ? 1 : 2
+  const currentStepIndex = step === 'form' ? 0 : step === 'ai' || step === 'creating' ? 1 : 2
 
   return (
     <div className="min-h-screen bg-background">
@@ -279,7 +280,7 @@ export default function HelpPage() {
       </header>
 
       <main className="mx-auto max-w-2xl px-4 py-8">
-        {/* Erro de criacao de ticket */}
+        {/* Erro de criação de ticket */}
         <AnimatePresence>
           {createError && (
             <motion.div
@@ -318,6 +319,22 @@ export default function HelpPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
+                  {loadDataError && (
+                    <div className="mb-4 flex items-center gap-2 rounded-lg bg-destructive/10 p-3">
+                      <AlertCircle className="h-4 w-4 shrink-0 text-destructive" />
+                      <p className="flex-1 text-sm text-destructive">
+                        Erro ao carregar produtos e categorias. Verifique sua conexão.
+                      </p>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="shrink-0"
+                        onClick={() => window.location.reload()}
+                      >
+                        Recarregar
+                      </Button>
+                    </div>
+                  )}
                   <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-4">
                     <div className="grid gap-4 md:grid-cols-2">
                       <div className="space-y-2">
@@ -419,7 +436,7 @@ export default function HelpPage() {
                         id="description"
                         {...register('description')}
                         className="min-h-[120px] bg-muted"
-                        placeholder="Descreva com detalhes o que esta acontecendo..."
+                        placeholder="Descreva com detalhes o que está acontecendo..."
                       />
                       {errors.description && (
                         <p className="text-sm text-destructive">{errors.description.message}</p>
@@ -435,7 +452,7 @@ export default function HelpPage() {
                       ) : (
                         <>
                           <Send className="mr-2 h-4 w-4" />
-                          Buscar solucao
+                          Buscar solução
                         </>
                       )}
                     </Button>
@@ -495,7 +512,7 @@ export default function HelpPage() {
                             {aiName}
                             {msg.confidence != null && (
                               <span className={`ml-2 ${msg.confidence >= 80 ? 'text-green-600' : msg.confidence >= 60 ? 'text-yellow-600' : 'text-red-500'}`}>
-                                {msg.confidence >= 80 ? 'Alta confianca' : msg.confidence >= 60 ? 'Media confianca' : 'Baixa confianca'}
+                                {msg.confidence >= 80 ? 'Alta confiança' : msg.confidence >= 60 ? 'Média confiança' : 'Baixa confiança'}
                               </span>
                             )}
                           </p>
@@ -503,18 +520,18 @@ export default function HelpPage() {
                         <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
                         {msg.role === 'ai' && !feedbackGiven && i === aiMessages.length - 1 && !isAiLoading && (
                           <div className="mt-2 flex items-center gap-2 border-t border-border/50 pt-2">
-                            <span className="text-xs text-muted-foreground">Foi util?</span>
+                            <span className="text-xs text-muted-foreground">Foi útil?</span>
                             <button
                               onClick={() => sendFeedback(true)}
                               className="rounded p-1 text-muted-foreground hover:bg-green-100 hover:text-green-600 transition-colors"
-                              aria-label="Sim, foi util"
+                              aria-label="Sim, foi útil"
                             >
                               <ThumbsUp className="h-3.5 w-3.5" aria-hidden="true" />
                             </button>
                             <button
                               onClick={() => sendFeedback(false)}
                               className="rounded p-1 text-muted-foreground hover:bg-red-100 hover:text-red-500 transition-colors"
-                              aria-label="Nao foi util"
+                              aria-label="Não foi útil"
                             >
                               <ThumbsDown className="h-3.5 w-3.5" aria-hidden="true" />
                             </button>
@@ -567,7 +584,7 @@ export default function HelpPage() {
                         className="flex-1 border-destructive text-destructive hover:bg-destructive/10"
                       >
                         <XCircle className="mr-2 h-4 w-4" />
-                        Nao, preciso de ajuda
+                        Não, preciso de ajuda
                       </Button>
                     </div>
                   </CardContent>
@@ -607,10 +624,10 @@ export default function HelpPage() {
                     <>
                       <h2 className="mb-2 text-2xl font-bold">Ticket criado!</h2>
                       <p className="mb-4 text-muted-foreground">
-                        Seu ticket foi criado com sucesso. Voce recebera um email com os detalhes.
+                        Seu ticket foi criado com sucesso. Você receberá um email com os detalhes.
                       </p>
                       <div className="mb-6 rounded-lg bg-muted p-4">
-                        <p className="text-sm text-muted-foreground">Codigo do ticket</p>
+                        <p className="text-sm text-muted-foreground">Código do ticket</p>
                         <p className="text-2xl font-bold text-primary">
                           {ticketResult.ticket_code}
                         </p>
@@ -631,7 +648,7 @@ export default function HelpPage() {
                         Que bom que conseguimos ajudar. Se precisar de algo mais, estamos aqui!
                       </p>
                       <Button onClick={() => router.push('/suporte')} variant="outline">
-                        Voltar ao inicio
+                        Voltar ao início
                       </Button>
                     </>
                   )}
