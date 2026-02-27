@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { isAdmin } from '@/lib/supabase/guards'
+import { isAdmin, isAgentOrAdmin } from '@/lib/supabase/guards'
 
 export async function GET() {
   try {
@@ -9,6 +9,9 @@ export async function GET() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       return NextResponse.json({ success: false, error: 'Nao autorizado' }, { status: 401 })
+    }
+    if (!(await isAgentOrAdmin(user.id))) {
+      return NextResponse.json({ success: false, error: 'Acesso negado' }, { status: 403 })
     }
 
     const admin = createAdminClient()
@@ -51,10 +54,15 @@ export async function PUT(request: NextRequest) {
       )
     }
 
+    const { slaConfigSchema } = await import('@/lib/utils/validation')
     const admin = createAdminClient()
 
     for (const config of configs) {
-      const { priority, first_response_minutes, resolution_minutes, is_active } = config
+      const parsed = slaConfigSchema.safeParse(config)
+      if (!parsed.success) {
+        return NextResponse.json({ success: false, error: parsed.error.issues[0]?.message || 'Dados invalidos' }, { status: 400 })
+      }
+      const { priority, first_response_minutes, resolution_minutes, is_active } = parsed.data
 
       // Upsert — update if exists, insert if not
       const { data: existing } = await admin

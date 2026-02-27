@@ -3,10 +3,19 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ token: string }> }
 ) {
   try {
+    const ip = getClientIp(request)
+    const { allowed } = rateLimit(`msg-read:${ip}`, { limit: 60, windowSeconds: 60 })
+    if (!allowed) {
+      return NextResponse.json(
+        { success: false, error: 'Muitas requisicoes. Aguarde um momento.' },
+        { status: 429 }
+      )
+    }
+
     const supabase = createAdminClient()
     const { token } = await params
 

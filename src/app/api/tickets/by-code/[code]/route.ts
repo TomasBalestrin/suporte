@@ -1,11 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { rateLimit, getClientIp } from '@/lib/rate-limit'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ code: string }> }
 ) {
   try {
+    const ip = getClientIp(request)
+    const { allowed } = rateLimit(`ticket-code:${ip}`, { limit: 15, windowSeconds: 60 })
+    if (!allowed) {
+      return NextResponse.json(
+        { success: false, error: 'Muitas requisicoes. Aguarde um momento.' },
+        { status: 429 }
+      )
+    }
+
     const supabase = createAdminClient()
     const { code } = await params
     const email = request.nextUrl.searchParams.get('email')

@@ -1,6 +1,15 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendEmail } from '@/lib/email/send'
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+}
+
 interface SlaBreachResult {
   breached: number
   approaching: number
@@ -49,10 +58,10 @@ export async function checkSlaBreaches(): Promise<SlaBreachResult> {
         html: `
           <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #18181B; color: #E4E4E7; border-radius: 12px;">
             <h2 style="color: #EF4444;">SLA Violado</h2>
-            <p>O ticket <strong>${ticket.ticket_code}</strong> ultrapassou o prazo de resolucao do SLA.</p>
-            <p><strong>Titulo:</strong> ${ticket.title}</p>
-            <p><strong>Prioridade:</strong> ${ticket.priority}</p>
-            <p><strong>Status:</strong> ${ticket.status}</p>
+            <p>O ticket <strong>${escapeHtml(ticket.ticket_code)}</strong> ultrapassou o prazo de resolucao do SLA.</p>
+            <p><strong>Titulo:</strong> ${escapeHtml(ticket.title)}</p>
+            <p><strong>Prioridade:</strong> ${escapeHtml(ticket.priority)}</p>
+            <p><strong>Status:</strong> ${escapeHtml(ticket.status)}</p>
             <p style="margin-top: 16px;">
               <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/admin/tickets/${ticket.id}"
                  style="background: #00B8D9; color: #000; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: bold;">
@@ -81,10 +90,10 @@ export async function checkSlaBreaches(): Promise<SlaBreachResult> {
           html: `
             <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #18181B; color: #E4E4E7; border-radius: 12px;">
               <h2 style="color: #EF4444;">SLA Violado - Escalonamento</h2>
-              <p>O ticket <strong>${ticket.ticket_code}</strong> violou o SLA e requer atencao.</p>
-              <p><strong>Titulo:</strong> ${ticket.title}</p>
-              <p><strong>Prioridade:</strong> ${ticket.priority}</p>
-              <p><strong>Agente responsavel:</strong> ${agent?.name || 'Nao atribuido'}</p>
+              <p>O ticket <strong>${escapeHtml(ticket.ticket_code)}</strong> violou o SLA e requer atencao.</p>
+              <p><strong>Titulo:</strong> ${escapeHtml(ticket.title)}</p>
+              <p><strong>Prioridade:</strong> ${escapeHtml(ticket.priority)}</p>
+              <p><strong>Agente responsavel:</strong> ${escapeHtml(agent?.name || 'Nao atribuido')}</p>
               <p style="margin-top: 16px;">
                 <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/admin/tickets/${ticket.id}"
                    style="background: #EF4444; color: #fff; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: bold;">

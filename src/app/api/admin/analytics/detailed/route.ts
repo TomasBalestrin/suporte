@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     const period = searchParams.get('period') || '30' // days
     const productId = searchParams.get('product_id')
     const categoryId = searchParams.get('category_id')
-    const daysAgo = parseInt(period, 10)
+    const daysAgo = parseInt(period, 10) || 30
     const startDate = new Date()
     startDate.setDate(startDate.getDate() - daysAgo)
     const startDateISO = startDate.toISOString()

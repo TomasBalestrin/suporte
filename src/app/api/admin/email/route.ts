@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
 
     const admin = createAdminClient()
     const searchParams = request.nextUrl.searchParams
-    const page = parseInt(searchParams.get('page') || '1', 10)
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10))
     const limit = 20
     const offset = (page - 1) * limit
 
@@ -99,9 +99,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { to } = body
 
-    if (!to) {
+    if (!to || typeof to !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
       return NextResponse.json(
-        { success: false, error: 'Email de destino obrigatorio' },
+        { success: false, error: 'Email de destino invalido' },
         { status: 400 }
       )
     }

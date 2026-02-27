@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { isAdmin } from '@/lib/supabase/guards'
+import { tagSchema } from '@/lib/utils/validation'
 
 export async function PATCH(
   request: NextRequest,
@@ -19,11 +20,12 @@ export async function PATCH(
 
     const { id } = await params
     const body = await request.json()
+    const parsed = tagSchema.partial().safeParse(body)
+    if (!parsed.success) {
+      return NextResponse.json({ success: false, error: parsed.error.issues[0]?.message || 'Dados invalidos' }, { status: 400 })
+    }
 
-    const updateData: Record<string, unknown> = {}
-    if (body.name !== undefined) updateData.name = body.name
-    if (body.color !== undefined) updateData.color = body.color
-
+    const updateData = parsed.data
     const admin = createAdminClient()
     const { data, error } = await admin
       .from('tags')

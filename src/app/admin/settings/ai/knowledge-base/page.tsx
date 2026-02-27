@@ -99,11 +99,16 @@ export default function KnowledgeBasePage() {
   }, [loadArticles])
 
   useEffect(() => {
+    return () => { if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current) }
+  }, [])
+
+  useEffect(() => {
     fetch('/api/products')
       .then((r) => r.json())
       .then((json) => {
         if (json.success) setProducts(json.data)
       })
+      .catch(() => {})
   }, [])
 
   function openNew() {

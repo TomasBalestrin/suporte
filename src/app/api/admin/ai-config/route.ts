@@ -60,9 +60,12 @@ export async function PUT(request: NextRequest) {
     const body = await request.json()
     const admin = createAdminClient()
 
+    const ALLOWED_KEYS = Object.keys(DEFAULT_CONFIGS)
+
     // Upsert each config
     for (const [key, value] of Object.entries(body)) {
       if (typeof value !== 'string') continue
+      if (!ALLOWED_KEYS.includes(key)) continue
 
       const { data: existing } = await admin
         .from('ai_config')

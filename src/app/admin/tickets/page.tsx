@@ -67,8 +67,10 @@ export default function TicketsPage() {
 
       if (json.success) {
         setTickets(json.data)
-        setTotalPages(json.pagination.totalPages)
-        setTotal(json.pagination.total)
+        if (json.pagination) {
+          setTotalPages(json.pagination.totalPages)
+          setTotal(json.pagination.total)
+        }
       } else {
         setHasError(true)
       }
@@ -84,7 +86,10 @@ export default function TicketsPage() {
     loadTickets()
   }, [loadTickets])
 
-  // Reset page when filters change (called directly in handlers, no separate effect needed)
+  // Cleanup debounce on unmount
+  useEffect(() => {
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
+  }, [])
 
   return (
     <>

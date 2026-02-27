@@ -18,6 +18,7 @@ export function useRealtimeTicket({ ticketId, onUpdate }: UseRealtimeTicketOptio
   const [hasConnectionError, setHasConnectionError] = useState(false)
   const retryCount = useRef(0)
   const retryTimeout = useRef<NodeJS.Timeout>(undefined)
+  const [reconnectTrigger, setReconnectTrigger] = useState(0)
 
   const handleUpdate = useCallback(
     (payload: { new: Ticket }) => {
@@ -72,11 +73,12 @@ export function useRealtimeTicket({ ticketId, onUpdate }: UseRealtimeTicketOptio
       supabase.current.removeChannel(channel)
       setIsConnected(false)
     }
-  }, [ticketId, handleUpdate])
+  }, [ticketId, handleUpdate, reconnectTrigger])
 
   const reconnect = useCallback(() => {
     retryCount.current = 0
     setHasConnectionError(false)
+    setReconnectTrigger((t) => t + 1)
   }, [])
 
   return { isConnected, hasConnectionError, reconnect }

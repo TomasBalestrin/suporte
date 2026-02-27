@@ -25,6 +25,7 @@ export default function AISettingsPage() {
       .then((json) => {
         if (json.success) setConfig(json.data)
       })
+      .catch(() => toast.error('Erro ao carregar configuracoes'))
       .finally(() => setIsLoading(false))
   }, [])
 

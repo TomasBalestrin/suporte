@@ -56,7 +56,7 @@ function matchesConditions(
   data?: Record<string, unknown>
 ): boolean {
   if (!conditions || Object.keys(conditions).length === 0) return true
-  if (!data) return true
+  if (!data) return Object.keys(conditions).length === 0
 
   for (const [key, expected] of Object.entries(conditions)) {
     if (key === 'status' && data.status !== expected) return false
