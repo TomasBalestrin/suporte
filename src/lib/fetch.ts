@@ -36,7 +36,23 @@ export async function adminFetch(
     if (token) {
       headers.set('x-csrf-token', token)
     }
-    return fetch(input, { ...init, headers })
+    const response = await fetch(input, { ...init, headers })
+
+    // If CSRF token expired, refresh and retry once
+    if (response.status === 403) {
+      const body = await response.clone().json().catch(() => null)
+      if (body?.error?.toLowerCase().includes('csrf')) {
+        resetCsrfToken()
+        const newToken = await getCsrfToken()
+        const retryHeaders = new Headers(init?.headers)
+        if (newToken) {
+          retryHeaders.set('x-csrf-token', newToken)
+        }
+        return fetch(input, { ...init, headers: retryHeaders })
+      }
+    }
+
+    return response
   }
 
   return fetch(input, init)

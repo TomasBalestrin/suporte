@@ -63,7 +63,14 @@ export async function POST(
 
     if (!body.content || body.content.trim().length === 0) {
       return NextResponse.json(
-        { success: false, error: 'Mensagem nao pode ser vazia' },
+        { success: false, error: 'Mensagem não pode ser vazia' },
+        { status: 400 }
+      )
+    }
+
+    if (body.content.length > 10000) {
+      return NextResponse.json(
+        { success: false, error: 'Mensagem muito longa (máximo 10.000 caracteres)' },
         { status: 400 }
       )
     }

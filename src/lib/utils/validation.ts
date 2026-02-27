@@ -40,7 +40,7 @@ export const categorySchema = z.object({
 export type CategoryFormData = z.infer<typeof categorySchema>
 
 export const messageSchema = z.object({
-  content: z.string().min(1, 'Mensagem não pode ser vazia'),
+  content: z.string().min(1, 'Mensagem não pode ser vazia').max(10000, 'Mensagem muito longa (máximo 10.000 caracteres)'),
   is_internal_note: z.boolean().optional(),
 })
 

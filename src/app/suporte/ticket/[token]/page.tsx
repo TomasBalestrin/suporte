@@ -58,16 +58,17 @@ export default function TicketTrackingPage() {
       if (json.success) {
         setTicket(json.data)
         setLoadError(false)
-        if (
-          (json.data.status === 'resolved' || json.data.status === 'resolved_ia') &&
-          !json.data.satisfaction_rating
-        ) {
+        const isResolved = json.data.status === 'resolved' || json.data.status === 'resolved_ia'
+        if (isResolved && !json.data.satisfaction_rating) {
           if (!showRatingRef.current) {
             toast.info('Seu ticket foi resolvido! Avalie o atendimento acima.')
             window.scrollTo({ top: 0, behavior: 'smooth' })
           }
           showRatingRef.current = true
           setShowRating(true)
+        } else if (!isResolved) {
+          showRatingRef.current = false
+          setShowRating(false)
         }
       }
     } catch {
