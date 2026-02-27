@@ -133,7 +133,7 @@ export default function TicketsPage() {
                     <SelectItem value="all">Todas</SelectItem>
                     <SelectItem value="urgent">Urgente</SelectItem>
                     <SelectItem value="high">Alta</SelectItem>
-                    <SelectItem value="medium">Media</SelectItem>
+                    <SelectItem value="medium">Média</SelectItem>
                     <SelectItem value="low">Baixa</SelectItem>
                   </SelectContent>
                 </Select>
@@ -178,8 +178,11 @@ export default function TicketsPage() {
                       {tickets.map((ticket) => (
                         <TableRow
                           key={ticket.id}
-                          className="cursor-pointer hover:bg-muted/50"
+                          className="cursor-pointer hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
                           onClick={() => router.push(`/admin/tickets/${ticket.id}`)}
+                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); router.push(`/admin/tickets/${ticket.id}`) } }}
+                          tabIndex={0}
+                          role="link"
                         >
                           <TableCell className="font-mono text-sm font-medium text-primary">
                             {ticket.ticket_code}
@@ -201,7 +204,7 @@ export default function TicketsPage() {
                           </TableCell>
                           <TableCell className="text-muted-foreground">
                             {ticket.assigned_agent?.name || (
-                              <span className="text-yellow-400">Nao atribuido</span>
+                              <span className="text-yellow-400">Não atribuído</span>
                             )}
                           </TableCell>
                           <TableCell className="text-muted-foreground text-sm">

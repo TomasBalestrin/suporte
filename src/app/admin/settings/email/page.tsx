@@ -45,8 +45,8 @@ const TEMPLATE_LABELS: Record<string, string> = {
   ticket_created: 'Ticket criado',
   new_message: 'Nova mensagem',
   ticket_resolved: 'Ticket resolvido',
-  ticket_assigned: 'Ticket atribuido',
-  satisfaction_reminder: 'Pesquisa satisfacao',
+  ticket_assigned: 'Ticket atribuído',
+  satisfaction_reminder: 'Pesquisa satisfação',
   test: 'Teste',
 }
 
@@ -114,7 +114,7 @@ export default function EmailSettingsPage() {
                 <div>
                   <p className="text-sm text-muted-foreground">Resend API</p>
                   <p className="mt-1 text-lg font-bold">
-                    {isLoading ? '...' : stats?.resendConfigured ? 'Conectado' : 'Nao configurado'}
+                    {isLoading ? '...' : stats?.resendConfigured ? 'Conectado' : 'Não configurado'}
                   </p>
                 </div>
                 <div className={`flex h-10 w-10 items-center justify-center rounded-full ${
@@ -159,7 +159,7 @@ export default function EmailSettingsPage() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Ultimas 24h</p>
+                  <p className="text-sm text-muted-foreground">Últimas 24h</p>
                   <p className="mt-1 text-2xl font-bold">{isLoading ? '...' : stats?.last24h ?? 0}</p>
                 </div>
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary/20">
@@ -176,10 +176,10 @@ export default function EmailSettingsPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <Mail className="h-4 w-4 text-primary" />
-                Configuracao
+                Configuração
               </CardTitle>
               <CardDescription>
-                Configuracoes de email do sistema
+                Configurações de email do sistema
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -204,7 +204,7 @@ export default function EmailSettingsPage() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label className="text-muted-foreground">Templates disponiveis</Label>
+                <Label className="text-muted-foreground">Templates disponíveis</Label>
                 <div className="flex flex-wrap gap-1">
                   {Object.values(TEMPLATE_LABELS).filter(l => l !== 'Teste').map((label) => (
                     <Badge key={label} variant="outline" className="text-xs">
@@ -223,7 +223,7 @@ export default function EmailSettingsPage() {
                 Enviar Email de Teste
               </CardTitle>
               <CardDescription>
-                Verifique se a configuracao esta funcionando
+                Verifique se a configuração está funcionando
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -250,7 +250,7 @@ export default function EmailSettingsPage() {
                 </Button>
                 {!stats?.resendConfigured && !isLoading && (
                   <p className="text-xs text-muted-foreground">
-                    Configure a variavel RESEND_API_KEY para habilitar o envio de emails.
+                    Configure a variável RESEND_API_KEY para habilitar o envio de emails.
                   </p>
                 )}
               </form>
@@ -261,9 +261,9 @@ export default function EmailSettingsPage() {
         {/* Notification Logs */}
         <Card className="border-border bg-card">
           <CardHeader>
-            <CardTitle className="text-base">Historico de Emails</CardTitle>
+            <CardTitle className="text-base">Histórico de Emails</CardTitle>
             <CardDescription>
-              Ultimos emails enviados pelo sistema
+              Últimos emails enviados pelo sistema
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -273,14 +273,14 @@ export default function EmailSettingsPage() {
               <EmptyState
                 icon={Mail}
                 title="Nenhum email enviado"
-                description="O historico aparecera aqui quando emails forem enviados"
+                description="O histórico aparecerá aqui quando emails forem enviados"
               />
             ) : (
               <>
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Destinatario</TableHead>
+                      <TableHead>Destinatário</TableHead>
                       <TableHead>Assunto</TableHead>
                       <TableHead>Template</TableHead>
                       <TableHead>Status</TableHead>

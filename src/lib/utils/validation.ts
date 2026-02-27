@@ -2,20 +2,20 @@ import { z } from 'zod'
 
 export const ticketFormSchema = z.object({
   name: z.string().min(3, 'Nome deve ter pelo menos 3 caracteres'),
-  email: z.string().email('Email invalido'),
-  phone: z.string().regex(/^\(\d{2}\) \d{4,5}-\d{4}$/, 'Telefone invalido. Use o formato (XX) XXXXX-XXXX'),
+  email: z.string().email('E-mail inválido'),
+  phone: z.string().regex(/^\(\d{2}\) \d{4,5}-\d{4}$/, 'Telefone inválido. Use o formato (XX) XXXXX-XXXX'),
   product_id: z.string().min(1, 'Selecione um produto'),
   category_id: z.string().min(1, 'Selecione uma categoria'),
   description: z
     .string()
     .min(20, 'Descreva seu problema com pelo menos 20 caracteres')
-    .max(2000, 'Descricao muito longa (maximo 2000 caracteres)'),
+    .max(2000, 'Descrição muito longa (máximo 2000 caracteres)'),
 })
 
 export type TicketFormData = z.infer<typeof ticketFormSchema>
 
 export const loginSchema = z.object({
-  email: z.string().email('Email invalido'),
+  email: z.string().email('E-mail inválido'),
   password: z.string().min(6, 'Senha deve ter pelo menos 6 caracteres'),
 })
 
@@ -40,7 +40,7 @@ export const categorySchema = z.object({
 export type CategoryFormData = z.infer<typeof categorySchema>
 
 export const messageSchema = z.object({
-  content: z.string().min(1, 'Mensagem nao pode ser vazia'),
+  content: z.string().min(1, 'Mensagem não pode ser vazia'),
   is_internal_note: z.boolean().optional(),
 })
 
@@ -54,9 +54,9 @@ export const satisfactionSchema = z.object({
 export type SatisfactionFormData = z.infer<typeof satisfactionSchema>
 
 export const quickReplySchema = z.object({
-  shortcut: z.string().min(1, 'Atalho obrigatorio').max(20, 'Maximo 20 caracteres').regex(/^[a-z0-9_-]+$/, 'Apenas letras minusculas, numeros, _ e -'),
-  title: z.string().min(2, 'Titulo deve ter pelo menos 2 caracteres'),
-  content: z.string().min(5, 'Conteudo deve ter pelo menos 5 caracteres'),
+  shortcut: z.string().min(1, 'Atalho obrigatório').max(20, 'Máximo 20 caracteres').regex(/^[a-z0-9_-]+$/, 'Apenas letras minúsculas, números, _ e -'),
+  title: z.string().min(2, 'Título deve ter pelo menos 2 caracteres'),
+  content: z.string().min(5, 'Conteúdo deve ter pelo menos 5 caracteres'),
   category: z.string().optional(),
   is_active: z.boolean().optional(),
 })
@@ -64,16 +64,16 @@ export const quickReplySchema = z.object({
 export type QuickReplyFormData = z.infer<typeof quickReplySchema>
 
 export const tagSchema = z.object({
-  name: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres').max(30, 'Maximo 30 caracteres'),
-  color: z.string().min(4, 'Cor invalida').max(7),
+  name: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres').max(30, 'Máximo 30 caracteres'),
+  color: z.string().min(4, 'Cor inválida').max(7),
 })
 
 export type TagFormData = z.infer<typeof tagSchema>
 
 export const slaConfigSchema = z.object({
   priority: z.enum(['low', 'medium', 'high', 'urgent']),
-  first_response_minutes: z.number().min(1, 'Minimo 1 minuto'),
-  resolution_minutes: z.number().min(1, 'Minimo 1 minuto'),
+  first_response_minutes: z.number().min(1, 'Mínimo 1 minuto'),
+  resolution_minutes: z.number().min(1, 'Mínimo 1 minuto'),
   is_active: z.boolean().optional(),
 })
 
@@ -96,8 +96,8 @@ export const aiConfigSchema = z.object({
 export type AiConfigFormData = z.infer<typeof aiConfigSchema>
 
 export const knowledgeBaseSchema = z.object({
-  title: z.string().min(3, 'Titulo deve ter pelo menos 3 caracteres'),
-  content: z.string().min(10, 'Conteudo deve ter pelo menos 10 caracteres'),
+  title: z.string().min(3, 'Título deve ter pelo menos 3 caracteres'),
+  content: z.string().min(10, 'Conteúdo deve ter pelo menos 10 caracteres'),
   category: z.string().optional(),
   tags: z.array(z.string()).optional(),
   is_active: z.boolean().optional(),
@@ -106,7 +106,7 @@ export type KnowledgeBaseFormData = z.infer<typeof knowledgeBaseSchema>
 
 export const userSchema = z.object({
   name: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres'),
-  email: z.string().email('Email invalido'),
+  email: z.string().email('E-mail inválido'),
   role: z.enum(['admin', 'agent']),
   password: z.string().min(6, 'Senha deve ter pelo menos 6 caracteres'),
 })
@@ -133,7 +133,7 @@ export const aiFeedbackSchema = z.object({
 export type AiFeedbackFormData = z.infer<typeof aiFeedbackSchema>
 
 export const aiSuggestSchema = z.object({
-  customer_question: z.string().min(1, 'Pergunta do cliente obrigatoria'),
+  customer_question: z.string().min(1, 'Pergunta do cliente obrigatória'),
   ticket_description: z.string().optional(),
   messages: z.array(z.object({
     sender_type: z.string(),

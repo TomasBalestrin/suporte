@@ -38,12 +38,12 @@ export default function AISettingsPage() {
       })
       const json = await res.json()
       if (json.success) {
-        toast.success('Configuracoes salvas')
+        toast.success('Configurações salvas')
       } else {
         toast.error(json.error)
       }
     } catch {
-      toast.error('Erro ao salvar configuracoes')
+      toast.error('Erro ao salvar configurações')
     } finally {
       setIsSaving(false)
     }
@@ -56,9 +56,9 @@ export default function AISettingsPage() {
   if (isLoading) {
     return (
       <>
-        <Header title="Configuracoes de IA" />
+        <Header title="Configurações de IA" />
         <div className="p-6">
-          <LoadingState message="Carregando configuracoes..." />
+          <LoadingState message="Carregando configurações..." />
         </div>
       </>
     )
@@ -66,7 +66,7 @@ export default function AISettingsPage() {
 
   return (
     <>
-      <Header title="Configuracoes de IA" />
+      <Header title="Configurações de IA" />
       <div className="mx-auto max-w-3xl p-6 space-y-6">
         {/* General */}
         <Card className="border-border bg-card">
@@ -110,7 +110,7 @@ export default function AISettingsPage() {
             <Textarea
               value={config.system_prompt || ''}
               onChange={(e) => updateConfig('system_prompt', e.target.value)}
-              placeholder="Instrucoes para a IA..."
+              placeholder="Instruções para a IA..."
               className="min-h-[150px] bg-muted"
             />
             <p className="mt-2 text-xs text-muted-foreground">
@@ -122,7 +122,7 @@ export default function AISettingsPage() {
         {/* Parameters */}
         <Card className="border-border bg-card">
           <CardHeader>
-            <CardTitle className="text-lg">Parametros</CardTitle>
+            <CardTitle className="text-lg">Parâmetros</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
             <div>
@@ -147,7 +147,7 @@ export default function AISettingsPage() {
 
             <div>
               <div className="flex items-center justify-between">
-                <Label>Limiar de confianca</Label>
+                <Label>Limiar de confiança</Label>
                 <span className="text-sm font-mono text-primary">
                   {config.confidence_threshold || '0.7'}
                 </span>
@@ -161,7 +161,7 @@ export default function AISettingsPage() {
                 className="mt-2"
               />
               <p className="mt-1 text-xs text-muted-foreground">
-                Similaridade minima para considerar um artigo relevante (0.7 recomendado).
+                Similaridade mínima para considerar um artigo relevante (0.7 recomendado).
               </p>
             </div>
 
@@ -176,7 +176,7 @@ export default function AISettingsPage() {
                 max={2000}
               />
               <p className="mt-1 text-xs text-muted-foreground">
-                Tamanho maximo da resposta da IA (100-2000).
+                Tamanho máximo da resposta da IA (100-2000).
               </p>
             </div>
           </CardContent>
@@ -191,11 +191,11 @@ export default function AISettingsPage() {
             <Textarea
               value={config.fallback_message || ''}
               onChange={(e) => updateConfig('fallback_message', e.target.value)}
-              placeholder="Mensagem quando a IA nao encontra resposta..."
+              placeholder="Mensagem quando a IA não encontra resposta..."
               className="min-h-[80px] bg-muted"
             />
             <p className="mt-2 text-xs text-muted-foreground">
-              Exibida quando a IA nao encontra artigos relevantes na base.
+              Exibida quando a IA não encontra artigos relevantes na base.
             </p>
           </CardContent>
         </Card>
@@ -208,7 +208,7 @@ export default function AISettingsPage() {
             ) : (
               <Save className="mr-2 h-4 w-4" />
             )}
-            Salvar configuracoes
+            Salvar configurações
           </Button>
         </div>
       </div>

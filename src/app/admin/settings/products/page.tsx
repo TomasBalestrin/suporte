@@ -111,7 +111,7 @@ export default function ProductsPage() {
   function handleDelete(id: string) {
     confirm({
       title: 'Desativar produto',
-      description: 'Tem certeza que deseja desativar este produto? Ele nao aparecera mais para selecao.',
+      description: 'Tem certeza que deseja desativar este produto? Ele não aparecerá mais para seleção.',
       confirmLabel: 'Desativar',
       variant: 'destructive',
       onConfirm: async () => {
@@ -190,7 +190,7 @@ export default function ProductsPage() {
               <EmptyState
                 icon={Package}
                 title="Nenhum produto cadastrado"
-                description="Crie seu primeiro produto para comecar"
+                description="Crie seu primeiro produto para começar"
               />
             ) : (
               <Table>

@@ -224,12 +224,12 @@ export default function TicketDetailPage() {
       const json = await res.json()
       if (json.success && json.data.suggestion) {
         setNewMessage(json.data.suggestion)
-        toast.success(`Sugestao gerada (${json.data.articles_count} artigos usados)`)
+        toast.success(`Sugestão gerada (${json.data.articles_count} artigos usados)`)
       } else {
-        toast.error(json.data?.message || json.error || 'Sem sugestao disponivel')
+        toast.error(json.data?.message || json.error || 'Sem sugestão disponível')
       }
     } catch {
-      toast.error('Erro ao gerar sugestao')
+      toast.error('Erro ao gerar sugestão')
     } finally {
       setIsSuggesting(false)
     }
@@ -264,7 +264,7 @@ export default function TicketDetailPage() {
       <>
         <Header title="Ticket" />
         <div className="flex flex-col items-center p-12">
-          <h2 className="text-xl font-bold">Ticket nao encontrado</h2>
+          <h2 className="text-xl font-bold">Ticket não encontrado</h2>
           <Button variant="outline" onClick={() => router.push('/admin/tickets')} className="mt-4">
             Voltar
           </Button>
@@ -280,7 +280,7 @@ export default function TicketDetailPage() {
       {/* Ticket Info */}
       <div>
         <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-          Informacoes
+          Informações
         </h3>
         <div className="space-y-3">
           <div>
@@ -344,7 +344,7 @@ export default function TicketDetailPage() {
           )}
           {ticket.satisfaction_rating && (
             <div className="rounded-lg border border-border bg-muted/30 p-3">
-              <Label className="text-xs text-muted-foreground">Avaliacao</Label>
+              <Label className="text-xs text-muted-foreground">Avaliação</Label>
               <div className="mt-1 flex gap-0.5">
                 {[1, 2, 3, 4, 5].map((s) => (
                   <Star
@@ -393,7 +393,7 @@ export default function TicketDetailPage() {
       {/* Agent Assignment */}
       <div>
         <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-          Agente Responsavel
+          Agente Responsável
         </h3>
         <Select
           value={ticket.assigned_agent_id || '_none'}
@@ -418,7 +418,7 @@ export default function TicketDetailPage() {
           <div>
             <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
               <History className="h-4 w-4" />
-              Historico do Cliente
+              Histórico do Cliente
             </h3>
             <div className="space-y-2">
               {customerHistory.map((t) => (
@@ -460,8 +460,8 @@ export default function TicketDetailPage() {
           <PriorityBadge priority={ticket.priority} />
           <div
             role="status"
-            aria-label={isConnected ? 'Tempo real ativo' : hasConnectionError ? 'Conexao perdida' : 'Reconectando...'}
-            title={isConnected ? 'Tempo real ativo' : hasConnectionError ? 'Conexao perdida — usando polling' : 'Reconectando...'}
+            aria-label={isConnected ? 'Tempo real ativo' : hasConnectionError ? 'Conexão perdida' : 'Reconectando...'}
+            title={isConnected ? 'Tempo real ativo' : hasConnectionError ? 'Conexão perdida — usando polling' : 'Reconectando...'}
             className="flex items-center gap-1"
           >
             {isConnected ? (
@@ -614,7 +614,7 @@ export default function TicketDetailPage() {
                     size="icon"
                     onClick={handleSuggest}
                     disabled={isSuggesting || isInternalNote}
-                    title="Sugestao da IA"
+                    title="Sugestão da IA"
                     className="text-primary hover:text-primary"
                   >
                     {isSuggesting ? (
@@ -637,6 +637,7 @@ export default function TicketDetailPage() {
                             key={qr.id}
                             type="button"
                             className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm hover:bg-muted transition-colors"
+                            onMouseDown={(e) => e.preventDefault()}
                             onClick={() => {
                               setNewMessage(qr.content)
                               setShowQuickReplies(false)
@@ -679,7 +680,7 @@ export default function TicketDetailPage() {
                         setShowQuickReplies(false)
                       }
                     }}
-                    onBlur={() => setTimeout(() => setShowQuickReplies(false), 200)}
+                    onBlur={() => setShowQuickReplies(false)}
                     className="min-h-[60px] max-h-[150px] resize-none bg-muted"
                     rows={2}
                   />

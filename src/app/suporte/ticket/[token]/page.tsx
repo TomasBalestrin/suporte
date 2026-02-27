@@ -61,13 +61,17 @@ export default function TicketTrackingPage() {
           (json.data.status === 'resolved' || json.data.status === 'resolved_ia') &&
           !json.data.satisfaction_rating
         ) {
+          if (!showRating) {
+            toast.info('Seu ticket foi resolvido! Avalie o atendimento acima.')
+            window.scrollTo({ top: 0, behavior: 'smooth' })
+          }
           setShowRating(true)
         }
       }
     } catch {
       setLoadError(true)
     }
-  }, [token])
+  }, [token, showRating])
 
   const loadMessages = useCallback(async () => {
     try {
@@ -75,7 +79,7 @@ export default function TicketTrackingPage() {
       const json = await res.json()
       if (json.success) setMessages(json.data)
     } catch {
-      // polling silencioso - nao mostrar erro repetido
+      // polling silencioso - não mostrar erro repetido
     }
   }, [token])
 
@@ -141,7 +145,7 @@ export default function TicketTrackingPage() {
         toast.error('Erro ao enviar mensagem. Tente novamente.')
       }
     } catch {
-      toast.error('Erro de conexao. Verifique sua internet.')
+      toast.error('Erro de conexão. Verifique sua internet.')
     } finally {
       setIsSending(false)
     }
@@ -161,12 +165,12 @@ export default function TicketTrackingPage() {
       if (json.success) {
         setShowRating(false)
         loadTicket()
-        toast.success('Avaliacao enviada! Obrigado.')
+        toast.success('Avaliação enviada! Obrigado.')
       } else {
-        toast.error('Erro ao enviar avaliacao. Tente novamente.')
+        toast.error('Erro ao enviar avaliação. Tente novamente.')
       }
     } catch {
-      toast.error('Erro de conexao. Verifique sua internet.')
+      toast.error('Erro de conexão. Verifique sua internet.')
     } finally {
       setIsRating(false)
     }
@@ -201,9 +205,9 @@ export default function TicketTrackingPage() {
         </div>
         {loadError ? (
           <>
-            <h1 className="mb-2 text-2xl font-bold">Erro de conexao</h1>
+            <h1 className="mb-2 text-2xl font-bold">Erro de conexão</h1>
             <p className="mb-6 text-center text-muted-foreground">
-              Nao foi possivel carregar o ticket. Verifique sua internet e tente novamente.
+              Não foi possível carregar o ticket. Verifique sua internet e tente novamente.
             </p>
             <Button onClick={() => { setIsLoading(true); setLoadError(false); loadTicket().then(() => loadMessages()).finally(() => setIsLoading(false)) }}>
               Tentar novamente
@@ -211,16 +215,21 @@ export default function TicketTrackingPage() {
           </>
         ) : (
           <>
-            <h1 className="mb-2 text-2xl font-bold">Ticket nao encontrado</h1>
+            <h1 className="mb-2 text-2xl font-bold">Ticket não encontrado</h1>
             <p className="mb-1 text-center text-muted-foreground">
               O link pode estar incorreto ou ter expirado.
             </p>
             <p className="mb-6 text-center text-sm text-muted-foreground">
-              Tente buscar pelo codigo do ticket na pagina de suporte.
+              Verifique se o código e o e-mail estão corretos, ou busque seu ticket na página de suporte.
             </p>
-            <Link href="/suporte">
-              <Button variant="outline">Voltar ao suporte</Button>
-            </Link>
+            <div className="flex gap-3">
+              <Link href="/suporte">
+                <Button variant="outline">Voltar ao suporte</Button>
+              </Link>
+              <Link href="/suporte/ajuda">
+                <Button>Abrir novo ticket</Button>
+              </Link>
+            </div>
           </>
         )}
       </div>
@@ -248,8 +257,8 @@ export default function TicketTrackingPage() {
           </div>
           <div
             role="status"
-            aria-label={isConnected ? 'Conectado em tempo real' : hasConnectionError ? 'Conexao perdida' : 'Reconectando...'}
-            title={isConnected ? 'Conectado em tempo real' : hasConnectionError ? 'Conexao perdida — atualizando a cada 30s' : 'Reconectando...'}
+            aria-label={isConnected ? 'Conectado em tempo real' : hasConnectionError ? 'Conexão perdida' : 'Reconectando...'}
+            title={isConnected ? 'Conectado em tempo real' : hasConnectionError ? 'Conexão perdida — atualizando a cada 30s' : 'Reconectando...'}
           >
             {isConnected ? (
               <Wifi className="h-4 w-4 text-green-600" aria-hidden="true" />
@@ -298,7 +307,7 @@ export default function TicketTrackingPage() {
                   {rating > 0 && (
                     <>
                       <Input
-                        placeholder="Comentario (opcional)"
+                        placeholder="Comentário (opcional)"
                         value={ratingComment}
                         onChange={(e) => setRatingComment(e.target.value)}
                         className="mb-3 bg-muted"
@@ -311,7 +320,7 @@ export default function TicketTrackingPage() {
                         {isRating ? (
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         ) : null}
-                        Enviar avaliacao
+                        Enviar avaliação
                       </Button>
                     </>
                   )}
@@ -452,6 +461,9 @@ export default function TicketTrackingPage() {
                 )}
               </Button>
             </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Enter para enviar, Shift+Enter para nova linha
+            </p>
           </div>
         </div>
       )}

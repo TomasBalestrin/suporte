@@ -58,7 +58,7 @@ export default function SLASettingsPage() {
         setConfigs(merged)
       }
     } catch {
-      toast.error('Erro ao carregar configuracoes')
+      toast.error('Erro ao carregar configurações')
     } finally {
       setIsLoading(false)
     }
@@ -84,9 +84,9 @@ export default function SLASettingsPage() {
       })
       const json = await res.json()
       if (!json.success) throw new Error(json.error)
-      toast.success('Configuracoes de SLA salvas')
+      toast.success('Configurações de SLA salvas')
     } catch {
-      toast.error('Erro ao salvar configuracoes')
+      toast.error('Erro ao salvar configurações')
     } finally {
       setIsSaving(false)
     }
@@ -102,10 +102,10 @@ export default function SLASettingsPage() {
               <div>
                 <CardTitle className="flex items-center gap-2">
                   <Clock className="h-5 w-5 text-primary" />
-                  Configuracoes de SLA
+                  Configurações de SLA
                 </CardTitle>
                 <CardDescription className="mt-1">
-                  Defina os tempos de resposta e resolucao para cada prioridade
+                  Defina os tempos de resposta e resolução para cada prioridade
                 </CardDescription>
               </div>
               <Button onClick={handleSave} disabled={isSaving}>
@@ -167,7 +167,7 @@ export default function SLASettingsPage() {
                         </div>
                       </div>
                       <div className="space-y-2">
-                        <Label>Resolucao (minutos)</Label>
+                        <Label>Resolução (minutos)</Label>
                         <div className="flex items-center gap-3">
                           <Input
                             type="number"

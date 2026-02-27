@@ -124,7 +124,7 @@ export default function KnowledgeBasePage() {
 
   async function handleSave() {
     if (!form.title.trim() || !form.content.trim()) {
-      toast.error('Titulo e conteudo sao obrigatorios')
+      toast.error('Título e conteúdo são obrigatórios')
       return
     }
 
@@ -167,7 +167,7 @@ export default function KnowledgeBasePage() {
   function handleDelete(id: string) {
     confirm({
       title: 'Excluir artigo',
-      description: 'Tem certeza que deseja excluir este artigo? A IA nao podera mais usa-lo nas respostas.',
+      description: 'Tem certeza que deseja excluir este artigo? A IA não poderá mais usá-lo nas respostas.',
       confirmLabel: 'Excluir',
       variant: 'destructive',
       onConfirm: async () => {
@@ -175,7 +175,7 @@ export default function KnowledgeBasePage() {
           const res = await adminFetch(`/api/admin/knowledge-base/${id}`, { method: 'DELETE' })
           const json = await res.json()
           if (json.success) {
-            toast.success('Artigo excluido')
+            toast.success('Artigo excluído')
             loadArticles()
           }
         } catch {
@@ -326,7 +326,7 @@ export default function KnowledgeBasePage() {
                     disabled={pagination.page >= pagination.pages}
                     onClick={() => setPagination((p) => ({ ...p, page: p.page + 1 }))}
                   >
-                    Proximo
+                    Próximo
                   </Button>
                 </div>
               </div>
@@ -358,7 +358,7 @@ export default function KnowledgeBasePage() {
               <Textarea
                 value={form.content}
                 onChange={(e) => setForm({ ...form, content: e.target.value })}
-                placeholder="Escreva o conteudo do artigo. Quanto mais detalhado, melhor sera a resposta da IA."
+                placeholder="Escreva o conteúdo do artigo. Quanto mais detalhado, melhor será a resposta da IA."
                 className="mt-1 min-h-[200px] bg-muted"
               />
             </div>

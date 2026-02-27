@@ -30,6 +30,8 @@ import {
   Clock,
   Loader2,
   Download,
+  AlertTriangle,
+  RefreshCw,
 } from 'lucide-react'
 import { PRIORITY_LABELS } from '@/lib/utils/constants'
 
@@ -64,23 +66,27 @@ function formatMinutes(minutes: number): string {
 export default function AnalyticsPage() {
   const [data, setData] = useState<AnalyticsData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [hasError, setHasError] = useState(false)
   const [period, setPeriod] = useState('30')
+  const [retryCount, setRetryCount] = useState(0)
 
   useEffect(() => {
     async function load() {
       setIsLoading(true)
+      setHasError(false)
       try {
         const res = await adminFetch(`/api/admin/analytics/detailed?period=${period}`)
         const json = await res.json()
         if (json.success) setData(json.data)
+        else setHasError(true)
       } catch {
-        // handle error
+        setHasError(true)
       } finally {
         setIsLoading(false)
       }
     }
     load()
-  }, [period])
+  }, [period, retryCount])
 
   function exportCSV() {
     if (!data) return
@@ -103,22 +109,22 @@ export default function AnalyticsPage() {
       <Header title="Analytics" />
       <div className="p-6 space-y-6">
         {/* Header controls */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-2xl font-bold">Dashboard Analitico</h2>
+            <h2 className="text-2xl font-bold">Dashboard Analítico</h2>
             <p className="text-sm text-muted-foreground">
-              Metricas e performance do sistema de suporte
+              Métricas e performance do sistema de suporte
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <Select value={period} onValueChange={setPeriod}>
               <SelectTrigger className="w-40 bg-muted">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="7">Ultimos 7 dias</SelectItem>
-                <SelectItem value="30">Ultimos 30 dias</SelectItem>
-                <SelectItem value="90">Ultimos 90 dias</SelectItem>
+                <SelectItem value="7">Últimos 7 dias</SelectItem>
+                <SelectItem value="30">Últimos 30 dias</SelectItem>
+                <SelectItem value="90">Últimos 90 dias</SelectItem>
               </SelectContent>
             </Select>
             <Button variant="outline" onClick={exportCSV} disabled={!data}>
@@ -130,7 +136,16 @@ export default function AnalyticsPage() {
 
         {isLoading ? (
           <LoadingState />
-        ) : data ? (
+        ) : hasError || !data ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <AlertTriangle className="mb-4 h-10 w-10 text-muted-foreground" />
+            <p className="mb-4 text-muted-foreground">Erro ao carregar dados analíticos</p>
+            <Button variant="outline" onClick={() => setRetryCount((c) => c + 1)} className="gap-2">
+              <RefreshCw className="h-4 w-4" />
+              Tentar novamente
+            </Button>
+          </div>
+        ) : (
           <>
             {/* Top KPI Cards */}
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -155,7 +170,7 @@ export default function AnalyticsPage() {
                       <p className="text-sm text-muted-foreground">Resolvidos</p>
                       <p className="mt-1 text-3xl font-bold">{data.resolvedCount}</p>
                       <p className="text-xs text-muted-foreground">
-                        {data.totalTickets > 0 ? Math.round((data.resolvedCount / data.totalTickets) * 100) : 0}% taxa de resolucao
+                        {data.totalTickets > 0 ? Math.round((data.resolvedCount / data.totalTickets) * 100) : 0}% taxa de resolução
                       </p>
                     </div>
                     <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-green-500/10">
@@ -186,10 +201,10 @@ export default function AnalyticsPage() {
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-muted-foreground">CSAT Medio</p>
+                      <p className="text-sm text-muted-foreground">CSAT Médio</p>
                       <p className="mt-1 text-3xl font-bold">{data.csat.average || '-'}</p>
                       <p className="text-xs text-muted-foreground">
-                        {data.csat.total} avaliacoes
+                        {data.csat.total} avaliações
                       </p>
                     </div>
                     <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-yellow-500/10">
@@ -254,8 +269,8 @@ export default function AnalyticsPage() {
               {/* CSAT Distribution */}
               <Card className="border-border bg-card">
                 <CardHeader>
-                  <CardTitle className="text-base">Satisfacao do Cliente (CSAT)</CardTitle>
-                  <CardDescription>Distribuicao de avaliacoes</CardDescription>
+                  <CardTitle className="text-base">Satisfação do Cliente (CSAT)</CardTitle>
+                  <CardDescription>Distribuição de avaliações</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
@@ -288,7 +303,7 @@ export default function AnalyticsPage() {
                       {data.csat.average > 0 ? data.csat.average.toFixed(1) : '-'}
                       <span className="text-base text-muted-foreground"> / 5.0</span>
                     </p>
-                    <p className="text-sm text-muted-foreground">{data.csat.total} avaliacoes no periodo</p>
+                    <p className="text-sm text-muted-foreground">{data.csat.total} avaliações no período</p>
                   </div>
                 </CardContent>
               </Card>
@@ -296,7 +311,7 @@ export default function AnalyticsPage() {
               {/* Priority Distribution */}
               <Card className="border-border bg-card">
                 <CardHeader>
-                  <CardTitle className="text-base">Distribuicao por Prioridade</CardTitle>
+                  <CardTitle className="text-base">Distribuição por Prioridade</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 gap-4">
@@ -339,7 +354,7 @@ export default function AnalyticsPage() {
                 <CardContent>
                   {data.agentPerformance.length === 0 ? (
                     <p className="text-sm text-muted-foreground text-center py-4">
-                      Nenhum agente com tickets no periodo
+                      Nenhum agente com tickets no período
                     </p>
                   ) : (
                     <Table>
@@ -349,7 +364,7 @@ export default function AnalyticsPage() {
                           <TableHead className="text-center">Tickets</TableHead>
                           <TableHead className="text-center">Resolvidos</TableHead>
                           <TableHead className="text-center">Taxa</TableHead>
-                          <TableHead className="text-center">Tempo Medio</TableHead>
+                          <TableHead className="text-center">Tempo Médio</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -385,8 +400,6 @@ export default function AnalyticsPage() {
               </Card>
             </div>
           </>
-        ) : (
-          <p className="text-center text-muted-foreground">Erro ao carregar dados</p>
         )}
       </div>
     </>

@@ -88,7 +88,7 @@ export default function UnansweredPage() {
       <div className="p-6">
         <div className="mb-6">
           <p className="mb-4 text-sm text-muted-foreground">
-            Perguntas que a IA nao conseguiu responder. Use-as para melhorar a base de conhecimento.
+            Perguntas que a IA não conseguiu responder. Use-as para melhorar a base de conhecimento.
           </p>
           <Tabs value={tab} onValueChange={(v) => {
             setTab(v as 'pending' | 'resolved')
@@ -111,8 +111,8 @@ export default function UnansweredPage() {
                 title={tab === 'pending' ? 'Nenhuma pergunta pendente' : 'Nenhuma pergunta resolvida'}
                 description={
                   tab === 'pending'
-                    ? 'Quando a IA nao conseguir responder, as perguntas aparecerao aqui.'
-                    : 'Perguntas marcadas como resolvidas aparecerao aqui.'
+                    ? 'Quando a IA não conseguir responder, as perguntas aparecerão aqui.'
+                    : 'Perguntas marcadas como resolvidas aparecerão aqui.'
                 }
               />
             </CardContent>
@@ -196,7 +196,7 @@ export default function UnansweredPage() {
                     Anterior
                   </Button>
                   <Button variant="outline" size="sm" disabled={pagination.page >= pagination.pages} onClick={() => setPagination((p) => ({ ...p, page: p.page + 1 }))}>
-                    Proximo
+                    Próximo
                   </Button>
                 </div>
               </div>

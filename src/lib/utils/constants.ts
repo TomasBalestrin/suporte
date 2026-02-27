@@ -21,7 +21,7 @@ export const TICKET_STATUS_COLORS: Record<string, string> = {
 
 export const PRIORITY_LABELS: Record<string, string> = {
   low: 'Baixa',
-  medium: 'Media',
+  medium: 'Média',
   high: 'Alta',
   urgent: 'Urgente',
 }

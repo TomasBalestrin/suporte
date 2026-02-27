@@ -98,7 +98,7 @@ export default function TagsSettingsPage() {
   function handleDelete(id: string) {
     confirm({
       title: 'Excluir tag',
-      description: 'Tem certeza que deseja excluir esta tag? Ela sera removida de todos os tickets.',
+      description: 'Tem certeza que deseja excluir esta tag? Ela será removida de todos os tickets.',
       confirmLabel: 'Excluir',
       variant: 'destructive',
       onConfirm: async () => {
@@ -106,7 +106,7 @@ export default function TagsSettingsPage() {
           const res = await adminFetch(`/api/admin/tags/${id}`, { method: 'DELETE' })
           const json = await res.json()
           if (!json.success) throw new Error(json.error)
-          toast.success('Tag excluida')
+          toast.success('Tag excluída')
           loadTags()
         } catch {
           toast.error('Erro ao excluir tag')

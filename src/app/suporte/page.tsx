@@ -25,7 +25,7 @@ const quickTopics = [
   {
     icon: KeyRound,
     title: 'Acesso e Senha',
-    description: 'Login, senha padrao e plataforma de acesso',
+    description: 'Login, senha padrão e plataforma de acesso',
     color: 'text-blue-600 bg-blue-50',
     faqIndex: 0,
   },
@@ -38,15 +38,15 @@ const quickTopics = [
   },
   {
     icon: Clock,
-    title: 'Horario de Atendimento',
-    description: 'Segunda a sexta, 8h30 as 20h',
+    title: 'Horário de Atendimento',
+    description: 'Segunda a sexta, 8h30 às 20h',
     color: 'text-amber-600 bg-amber-50',
     faqIndex: 3,
   },
   {
     icon: HelpCircle,
     title: 'Como usar meu produto',
-    description: 'Duvidas sobre aplicacao do conteudo',
+    description: 'Dúvidas sobre aplicação do conteúdo',
     color: 'text-rose-600 bg-rose-50',
     faqIndex: 4,
   },
@@ -54,30 +54,30 @@ const quickTopics = [
 
 const faqItems = [
   {
-    question: 'Como acesso meu produto apos a compra?',
+    question: 'Como acesso meu produto após a compra?',
     answer:
-      'Depende do produto:\n\n• Produtos Julia Ottoni: juliaacademy.com.br (senha: ottoni123)\n• Produtos Cleiton: cleitonquerobin1.com.br/area-de-membros (senha: performance123)\n• 50 Scripts: scriptgo.app/login (senha: Script@123)\n• Couply: usecouply.app/login (senha: 12345678)\n\nUse sempre o e-mail da compra como login.',
+      'Depende do produto:\n\n• Produtos Julia Ottoni: juliaacademy.com.br\n• Produtos Cleiton: cleitonquerobin1.com.br/area-de-membros\n• 50 Scripts: scriptgo.app/login\n• Couply: usecouply.app/login\n\nUse o e-mail da compra como login. A senha padrão foi enviada no e-mail de confirmação da compra. Se não encontrar, abra um ticket.',
     tags: ['acesso', 'login', 'senha', 'produto', 'compra', 'plataforma'],
   },
   {
     question: 'Tem garantia? Como funciona o reembolso?',
-    answer: 'Sim! Voce tem 7 dias de garantia a partir da data da compra. Para solicitar o reembolso, entre em contato pela propria plataforma de compra (Hotmart ou Pagtrust).',
-    tags: ['garantia', 'reembolso', '7 dias', 'devolucao', 'devolver'],
+    answer: 'Sim! Você tem 7 dias de garantia a partir da data da compra. Para solicitar o reembolso, entre em contato pela própria plataforma de compra (Hotmart ou Pagtrust).',
+    tags: ['garantia', 'reembolso', '7 dias', 'devolução', 'devolver'],
   },
   {
-    question: 'Nao recebi o e-mail de confirmacao. E agora?',
-    answer: 'Verifique sua caixa de spam ou lixo eletronico. O produto tambem e enviado por WhatsApp, porem esse nao e um canal de suporte. Se nao encontrar, abra um ticket aqui na plataforma informando seu nome, e-mail de compra e nome do produto.',
-    tags: ['email', 'confirmacao', 'spam', 'nao recebi', 'whatsapp'],
+    question: 'Não recebi o e-mail de confirmação. E agora?',
+    answer: 'Verifique sua caixa de spam ou lixo eletrônico. O produto também é enviado por WhatsApp, porém esse não é um canal de suporte. Se não encontrar, abra um ticket aqui na plataforma informando seu nome, e-mail de compra e nome do produto.',
+    tags: ['email', 'confirmação', 'spam', 'não recebi', 'whatsapp'],
   },
   {
-    question: 'Qual o horario de atendimento?',
-    answer: 'Nosso atendimento funciona de segunda a sexta-feira, das 8h30 as 20h (horario de Brasilia). Fora desse horario voce pode abrir um ticket normalmente e responderemos assim que retornarmos.',
-    tags: ['horario', 'atendimento', 'funcionamento', 'segunda', 'sexta'],
+    question: 'Qual o horário de atendimento?',
+    answer: 'Nosso atendimento funciona de segunda a sexta-feira, das 8h30 às 20h (horário de Brasília). Fora desse horário você pode abrir um ticket normalmente e responderemos assim que retornarmos.',
+    tags: ['horário', 'atendimento', 'funcionamento', 'segunda', 'sexta'],
   },
   {
     question: 'Como usar meu produto?',
-    answer: 'Acesse a plataforma do seu produto usando o e-mail da compra e a senha padrao informada no e-mail de confirmacao. Se tiver duvidas sobre como aplicar o conteudo ou navegar na plataforma, abra um ticket e nossa equipe ira te orientar passo a passo.',
-    tags: ['usar', 'produto', 'conteudo', 'aplicar', 'duvida', 'plataforma'],
+    answer: 'Acesse a plataforma do seu produto usando o e-mail da compra e a senha padrão informada no e-mail de confirmação. Se tiver dúvidas sobre como aplicar o conteúdo ou navegar na plataforma, abra um ticket e nossa equipe irá te orientar passo a passo.',
+    tags: ['usar', 'produto', 'conteúdo', 'aplicar', 'dúvida', 'plataforma'],
   },
 ]
 
@@ -96,7 +96,7 @@ function isWithinSupportHours(): boolean {
   const minute = parseInt(parts.find((p) => p.type === 'minute')?.value || '0', 10)
   const timeInMinutes = hour * 60 + minute
   const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
-  // Seg-Sex, 8h30 (510min) as 20h (1200min)
+  // Seg-Sex, 8h30 (510min) às 20h (1200min)
   return weekdays.includes(weekday || '') && timeInMinutes >= 510 && timeInMinutes < 1200
 }
 
@@ -157,10 +157,10 @@ export default function SupportPage() {
       if (json.success && json.data) {
         router.push(`/suporte/ticket/${json.data.access_token}`)
       } else {
-        setLookupError('Ticket nao encontrado ou e-mail nao confere. Verifique os dados e tente novamente.')
+        setLookupError('Ticket não encontrado ou e-mail não confere. Verifique os dados e tente novamente.')
       }
     } catch {
-      setLookupError('Erro de conexao. Verifique sua internet e tente novamente.')
+      setLookupError('Erro de conexão. Verifique sua internet e tente novamente.')
     } finally {
       setIsSearching(false)
     }
@@ -178,11 +178,11 @@ export default function SupportPage() {
             <span className="text-lg font-bold text-foreground">Bethel Suporte</span>
           </div>
           <div className="flex items-center gap-3">
-            {/* Indicador de horario */}
+            {/* Indicador de horário */}
             <div className="hidden items-center gap-1.5 sm:flex">
               <div className={`h-2 w-2 rounded-full ${isOnline ? 'bg-green-500 animate-pulse motion-reduce:animate-none' : 'bg-muted-foreground/40'}`} />
               <span className="text-xs text-muted-foreground">
-                {isOnline ? 'Atendimento ativo' : 'Fora do horario'}
+                {isOnline ? 'Atendimento ativo' : 'Fora do horário'}
               </span>
             </div>
             <button
@@ -204,10 +204,10 @@ export default function SupportPage() {
           className="py-12 text-center md:py-16"
         >
           <h1 className="mb-3 text-3xl font-bold tracking-tight text-foreground md:text-4xl">
-            Ola! Como podemos te ajudar?
+            Olá! Como podemos te ajudar?
           </h1>
           <p className="mx-auto mb-8 max-w-lg text-base text-muted-foreground">
-            Tire suas duvidas rapidamente ou fale com nossa equipe de suporte
+            Tire suas dúvidas rapidamente ou fale com nossa equipe de suporte
           </p>
           <Button
             size="lg"
@@ -219,11 +219,11 @@ export default function SupportPage() {
             <ArrowRight className="ml-2 h-5 w-5" />
           </Button>
 
-          {/* Horario de atendimento no mobile */}
+          {/* Horário de atendimento no mobile */}
           <div className="mt-4 flex items-center justify-center gap-1.5 sm:hidden">
             <div className={`h-2 w-2 rounded-full ${isOnline ? 'bg-green-500 animate-pulse motion-reduce:animate-none' : 'bg-muted-foreground/40'}`} />
             <span className="text-xs text-muted-foreground">
-              {isOnline ? 'Atendimento ativo agora' : 'Fora do horario — Seg a Sex, 8h30 as 20h'}
+              {isOnline ? 'Atendimento ativo agora' : 'Fora do horário — Seg a Sex, 8h30 às 20h'}
             </span>
           </div>
         </motion.section>
@@ -244,7 +244,7 @@ export default function SupportPage() {
                   </h3>
                   <div className="space-y-2.5">
                     <Input
-                      placeholder="Codigo do ticket (ex: SUP-2026-0001)"
+                      placeholder="Código do ticket (ex: SUP-2026-0001)"
                       value={ticketCode}
                       onChange={(e) => {
                         setTicketCode(e.target.value.toUpperCase())
@@ -315,7 +315,7 @@ export default function SupportPage() {
           className="mb-12"
         >
           <h2 className="mb-6 text-center text-lg font-semibold text-foreground">
-            Topicos mais procurados
+            Tópicos mais procurados
           </h2>
           <div className="grid gap-3 sm:grid-cols-2">
             {quickTopics.map((topic, i) => {
@@ -449,10 +449,10 @@ export default function SupportPage() {
             <CardContent className="flex flex-col items-center gap-4 p-8 text-center md:flex-row md:text-left">
               <div className="flex-1">
                 <h3 className="mb-1 text-lg font-semibold text-foreground">
-                  Nao encontrou o que procurava?
+                  Não encontrou o que procurava?
                 </h3>
                 <p className="text-sm text-muted-foreground">
-                  Nossa equipe esta pronta para te ajudar de forma rapida e personalizada.
+                  Nossa equipe está pronta para te ajudar de forma rápida e personalizada.
                 </p>
               </div>
               <Button
@@ -479,7 +479,7 @@ export default function SupportPage() {
             </div>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Clock className="h-3.5 w-3.5" />
-              <p>Atendimento: Seg a Sex, 8h30 as 20h</p>
+              <p>Atendimento: Seg a Sex, 8h30 às 20h</p>
             </div>
           </div>
         </div>

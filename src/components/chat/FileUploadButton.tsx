@@ -33,12 +33,12 @@ export function FileUploadButton({ ticketId, accessToken, onUpload, disabled }: 
     if (inputRef.current) inputRef.current.value = ''
 
     if (file.size > MAX_FILE_SIZE) {
-      toast.error('Arquivo muito grande (maximo 5MB)')
+      toast.error('Arquivo muito grande (máximo 5MB)')
       return
     }
 
     if (!ALLOWED_FILE_TYPES.includes(file.type)) {
-      toast.error('Tipo de arquivo nao permitido')
+      toast.error('Tipo de arquivo não permitido')
       return
     }
 
@@ -81,7 +81,7 @@ export function FileUploadButton({ ticketId, accessToken, onUpload, disabled }: 
         size="icon"
         disabled={disabled || isUploading}
         onClick={() => inputRef.current?.click()}
-        aria-label={isUploading ? 'Enviando arquivo...' : 'Anexar arquivo (maximo 5MB)'}
+        aria-label={isUploading ? 'Enviando arquivo...' : 'Anexar arquivo (máximo 5MB)'}
       >
         {isUploading ? (
           <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
