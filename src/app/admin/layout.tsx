@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { useAuthStore } from '@/stores/authStore'
 import { createClient } from '@/lib/supabase/client'
@@ -13,6 +13,7 @@ export default function AdminLayout({
   children: React.ReactNode
 }) {
   const pathname = usePathname()
+  const router = useRouter()
   const { user, isLoading, setUser, setLoading } = useAuthStore()
 
   useEffect(() => {
@@ -30,7 +31,13 @@ export default function AdminLayout({
             .eq('id', authUser.id)
             .single()
 
-          setUser(profile)
+          if (profile) {
+            setUser(profile)
+          } else {
+            // Authenticated but no profile in users table
+            await supabase.auth.signOut()
+            setUser(null)
+          }
         } else {
           setUser(null)
         }
@@ -52,7 +59,7 @@ export default function AdminLayout({
             .eq('id', session.user.id)
             .single()
 
-          setUser(profile)
+          setUser(profile || null)
         } else {
           setUser(null)
         }
@@ -68,6 +75,16 @@ export default function AdminLayout({
   }
 
   if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
+  // No user after loading → redirect to login
+  if (!user) {
+    router.replace('/admin/login')
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

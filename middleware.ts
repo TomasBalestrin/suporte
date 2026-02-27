@@ -117,8 +117,11 @@ export async function middleware(request: NextRequest) {
       .single()
 
     if (!profile || !profile.is_active) {
+      // Sign out to prevent redirect loop (authenticated but no valid profile)
+      await supabase.auth.signOut()
       const url = request.nextUrl.clone()
       url.pathname = '/admin/login'
+      url.searchParams.set('error', 'profile_not_found')
       return NextResponse.redirect(url)
     }
 
@@ -130,11 +133,20 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Redirect logged-in users from login page
-  if (pathname === '/admin/login' && user) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/admin/dashboard'
-    return NextResponse.redirect(url)
+  // Redirect logged-in users from login page (only if no error to avoid loop)
+  if (pathname === '/admin/login' && user && !request.nextUrl.searchParams.has('error')) {
+    // Verify profile exists before redirecting to dashboard
+    const { data: loginProfile } = await supabase
+      .from('users')
+      .select('role, is_active')
+      .eq('id', user.id)
+      .single()
+
+    if (loginProfile && loginProfile.is_active) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/admin/dashboard'
+      return NextResponse.redirect(url)
+    }
   }
 
   return supabaseResponse
