@@ -73,6 +73,24 @@ export async function POST(
       )
     }
 
+    // Validate attachments if provided
+    if (body.attachments) {
+      if (!Array.isArray(body.attachments) || body.attachments.length > 10) {
+        return NextResponse.json(
+          { success: false, error: 'Anexos inválidos' },
+          { status: 400 }
+        )
+      }
+      for (const att of body.attachments) {
+        if (!att || typeof att.url !== 'string' || typeof att.name !== 'string') {
+          return NextResponse.json(
+            { success: false, error: 'Formato de anexo inválido' },
+            { status: 400 }
+          )
+        }
+      }
+    }
+
     // Insert message
     const { data: message, error } = await supabase
       .from('messages')

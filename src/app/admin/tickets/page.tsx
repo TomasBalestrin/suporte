@@ -48,7 +48,7 @@ export default function TicketsPage() {
   function handleSearchChange(value: string) {
     setSearchInput(value)
     if (debounceRef.current) clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(() => setSearch(value), 400)
+    debounceRef.current = setTimeout(() => { setSearch(value); setPage(1) }, 400)
   }
 
   const loadTickets = useCallback(async () => {
@@ -84,9 +84,7 @@ export default function TicketsPage() {
     loadTickets()
   }, [loadTickets])
 
-  useEffect(() => {
-    setPage(1)
-  }, [statusFilter, priorityFilter, search])
+  // Reset page when filters change (called directly in handlers, no separate effect needed)
 
   return (
     <>
@@ -111,7 +109,7 @@ export default function TicketsPage() {
                     className="bg-muted pl-9 w-[200px]"
                   />
                 </div>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1) }}>
                   <SelectTrigger className="w-[160px] bg-muted">
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
@@ -125,7 +123,7 @@ export default function TicketsPage() {
                     <SelectItem value="closed">Fechado</SelectItem>
                   </SelectContent>
                 </Select>
-                <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                <Select value={priorityFilter} onValueChange={(v) => { setPriorityFilter(v); setPage(1) }}>
                   <SelectTrigger className="w-[140px] bg-muted">
                     <SelectValue placeholder="Prioridade" />
                   </SelectTrigger>

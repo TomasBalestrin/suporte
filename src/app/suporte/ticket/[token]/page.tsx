@@ -49,6 +49,7 @@ export default function TicketTrackingPage() {
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const [loadError, setLoadError] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const showRatingRef = useRef(false)
 
   const loadTicket = useCallback(async () => {
     try {
@@ -61,17 +62,18 @@ export default function TicketTrackingPage() {
           (json.data.status === 'resolved' || json.data.status === 'resolved_ia') &&
           !json.data.satisfaction_rating
         ) {
-          if (!showRating) {
+          if (!showRatingRef.current) {
             toast.info('Seu ticket foi resolvido! Avalie o atendimento acima.')
             window.scrollTo({ top: 0, behavior: 'smooth' })
           }
+          showRatingRef.current = true
           setShowRating(true)
         }
       }
     } catch {
       setLoadError(true)
     }
-  }, [token, showRating])
+  }, [token])
 
   const loadMessages = useCallback(async () => {
     try {

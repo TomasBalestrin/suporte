@@ -38,6 +38,7 @@ import { adminFetch } from '@/lib/fetch'
 import { formatDate } from '@/lib/utils/format'
 import { useConfirmDialog } from '@/components/common/ConfirmDialog'
 import type { User as UserType } from '@/lib/supabase/types'
+import { useAuthStore } from '@/stores/authStore'
 
 export default function UsersSettingsPage() {
   const [users, setUsers] = useState<UserType[]>([])
@@ -53,6 +54,7 @@ export default function UsersSettingsPage() {
   const [formRole, setFormRole] = useState<'admin' | 'agent'>('agent')
   const [formActive, setFormActive] = useState(true)
 
+  const currentUser = useAuthStore((s) => s.user)
   const { confirm, dialog: confirmDialog } = useConfirmDialog()
 
   const loadUsers = useCallback(async () => {
@@ -136,6 +138,10 @@ export default function UsersSettingsPage() {
   }
 
   function handleDelete(id: string) {
+    if (id === currentUser?.id) {
+      toast.error('Você não pode desativar a si mesmo')
+      return
+    }
     confirm({
       title: 'Desativar usuário',
       description: 'Tem certeza que deseja desativar este usuário? Ele não poderá mais acessar o sistema.',

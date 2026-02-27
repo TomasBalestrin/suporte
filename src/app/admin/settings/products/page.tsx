@@ -44,7 +44,7 @@ export default function ProductsPage() {
 
   const { confirm, dialog: confirmDialog } = useConfirmDialog()
 
-  const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<ProductFormData>({
+  const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<ProductFormData>({
     resolver: zodResolver(productSchema),
     defaultValues: { is_active: true },
   })
@@ -168,7 +168,7 @@ export default function ProductsPage() {
                   <div className="flex items-center gap-2">
                     <Switch
                       id="is_active"
-                      defaultChecked={editingProduct?.is_active ?? true}
+                      checked={watch('is_active') ?? true}
                       onCheckedChange={(v) => setValue('is_active', v)}
                     />
                     <Label htmlFor="is_active">Ativo</Label>

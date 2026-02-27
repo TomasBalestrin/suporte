@@ -1,14 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { escapeIlike, isAdmin } from '@/lib/supabase/guards'
+import { escapeIlike, isAdmin, isAgentOrAdmin } from '@/lib/supabase/guards'
 
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createServerSupabaseClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
-      return NextResponse.json({ success: false, error: 'Nao autorizado' }, { status: 401 })
+      return NextResponse.json({ success: false, error: 'Não autorizado' }, { status: 401 })
+    }
+    if (!(await isAgentOrAdmin(user.id))) {
+      return NextResponse.json({ success: false, error: 'Acesso negado' }, { status: 403 })
     }
 
     const url = request.nextUrl

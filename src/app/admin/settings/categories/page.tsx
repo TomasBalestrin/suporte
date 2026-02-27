@@ -44,7 +44,7 @@ export default function CategoriesPage() {
 
   const { confirm, dialog: confirmDialog } = useConfirmDialog()
 
-  const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<CategoryFormData>({
+  const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<CategoryFormData>({
     resolver: zodResolver(categorySchema),
     defaultValues: { is_active: true },
   })
@@ -197,7 +197,7 @@ export default function CategoriesPage() {
                   <div className="flex items-center gap-2">
                     <Switch
                       id="is_active"
-                      defaultChecked={editingCategory?.is_active ?? true}
+                      checked={watch('is_active') ?? true}
                       onCheckedChange={(v) => setValue('is_active', v)}
                     />
                     <Label htmlFor="is_active">Ativa</Label>

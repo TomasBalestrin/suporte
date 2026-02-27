@@ -136,8 +136,13 @@ export default function TicketDetailPage() {
     return () => clearInterval(interval)
   }, [loadTicket, loadMessages])
 
+  const scrollAreaRef = useRef<HTMLDivElement>(null)
+  const isNearBottomRef = useRef(true)
+
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    if (isNearBottomRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
   }, [messages])
 
   // Load customer history when ticket is loaded
@@ -171,6 +176,8 @@ export default function TicketDetailPage() {
         setAttachments([])
         if (!isConnected) loadMessages()
         loadTicket()
+      } else {
+        toast.error(json.error || 'Erro ao enviar mensagem')
       }
     } catch {
       toast.error('Erro ao enviar mensagem')
@@ -190,6 +197,8 @@ export default function TicketDetailPage() {
       if (json.success) {
         loadTicket()
         toast.success('Ticket atualizado')
+      } else {
+        toast.error(json.error || 'Erro ao atualizar ticket')
       }
     } catch {
       toast.error('Erro ao atualizar ticket')
@@ -495,7 +504,14 @@ export default function TicketDetailPage() {
         {/* Main chat area */}
         <div className="flex flex-1 flex-col">
           {/* Messages */}
-          <ScrollArea className="flex-1 p-4">
+          <ScrollArea
+            className="flex-1 p-4"
+            onScrollCapture={(e) => {
+              const target = e.currentTarget.querySelector('[data-radix-scroll-area-viewport]') || e.currentTarget
+              const { scrollTop, scrollHeight, clientHeight } = target
+              isNearBottomRef.current = scrollHeight - scrollTop - clientHeight < 100
+            }}
+          >
             <div className="mx-auto max-w-3xl space-y-4" aria-live="polite" aria-relevant="additions">
               {/* Ticket description as first message */}
               <div className="rounded-lg border border-border bg-muted/30 p-4">

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Header } from '@/components/layout/Header'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -134,8 +134,11 @@ export default function DashboardPage() {
     }
   }, [dateFrom, dateTo, productFilter, categoryFilter, statusFilter, priorityFilter])
 
+  const filterDebounceRef = useRef<ReturnType<typeof setTimeout>>(null)
   useEffect(() => {
-    loadData()
+    if (filterDebounceRef.current) clearTimeout(filterDebounceRef.current)
+    filterDebounceRef.current = setTimeout(() => loadData(), 300)
+    return () => { if (filterDebounceRef.current) clearTimeout(filterDebounceRef.current) }
   }, [loadData])
 
   const hasActiveFilters = dateFrom || dateTo || productFilter !== 'all' || categoryFilter !== 'all' || statusFilter !== 'all' || priorityFilter !== 'all'

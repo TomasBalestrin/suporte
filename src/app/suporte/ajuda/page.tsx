@@ -37,6 +37,7 @@ export default function HelpPage() {
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [isLoadingData, setIsLoadingData] = useState(true)
+  const [loadDataError, setLoadDataError] = useState(false)
   const [aiMessages, setAiMessages] = useState<AiMessage[]>([])
   const [aiName, setAiName] = useState('Sofia')
   const [isAiLoading, setIsAiLoading] = useState(false)
@@ -81,7 +82,7 @@ export default function HelpPage() {
         }
         if (catJson.success) setCategories(catJson.data)
       } catch {
-        // Dados não carregaram, selects ficarão vazios
+        setLoadDataError(true)
       } finally {
         setIsLoadingData(false)
       }
@@ -221,7 +222,7 @@ export default function HelpPage() {
     { key: 'done', label: 'Conclusão' },
   ]
 
-  const currentStepIndex = step === 'form' ? 0 : step === 'ai' ? 1 : 2
+  const currentStepIndex = step === 'form' ? 0 : step === 'ai' || step === 'creating' ? 1 : 2
 
   return (
     <div className="min-h-screen bg-background">
@@ -318,6 +319,22 @@ export default function HelpPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
+                  {loadDataError && (
+                    <div className="mb-4 flex items-center gap-2 rounded-lg bg-destructive/10 p-3">
+                      <AlertCircle className="h-4 w-4 shrink-0 text-destructive" />
+                      <p className="flex-1 text-sm text-destructive">
+                        Erro ao carregar produtos e categorias. Verifique sua conexão.
+                      </p>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="shrink-0"
+                        onClick={() => window.location.reload()}
+                      >
+                        Recarregar
+                      </Button>
+                    </div>
+                  )}
                   <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-4">
                     <div className="grid gap-4 md:grid-cols-2">
                       <div className="space-y-2">

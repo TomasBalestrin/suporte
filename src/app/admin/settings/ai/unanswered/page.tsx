@@ -20,6 +20,7 @@ import { HelpCircle, Check, Trash2, BookOpen } from 'lucide-react'
 import { toast } from 'sonner'
 import { adminFetch } from '@/lib/fetch'
 import { formatDate } from '@/lib/utils/format'
+import { useConfirmDialog } from '@/components/common/ConfirmDialog'
 import type { AiUnansweredQuestion } from '@/lib/supabase/types'
 
 export default function UnansweredPage() {
@@ -27,6 +28,7 @@ export default function UnansweredPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [tab, setTab] = useState<'pending' | 'resolved'>('pending')
   const [pagination, setPagination] = useState({ page: 1, pages: 1, total: 0 })
+  const { confirm, dialog: confirmDialog } = useConfirmDialog()
 
   const loadQuestions = useCallback(async () => {
     try {
@@ -69,21 +71,30 @@ export default function UnansweredPage() {
     }
   }
 
-  async function handleDelete(id: string) {
-    try {
-      const res = await adminFetch(`/api/admin/unanswered/${id}`, { method: 'DELETE' })
-      const json = await res.json()
-      if (json.success) {
-        toast.success('Pergunta removida')
-        loadQuestions()
-      }
-    } catch {
-      toast.error('Erro ao excluir')
-    }
+  function handleDelete(id: string) {
+    confirm({
+      title: 'Excluir pergunta',
+      description: 'Tem certeza que deseja excluir esta pergunta? Esta ação não pode ser desfeita.',
+      confirmLabel: 'Excluir',
+      variant: 'destructive',
+      onConfirm: async () => {
+        try {
+          const res = await adminFetch(`/api/admin/unanswered/${id}`, { method: 'DELETE' })
+          const json = await res.json()
+          if (json.success) {
+            toast.success('Pergunta removida')
+            loadQuestions()
+          }
+        } catch {
+          toast.error('Erro ao excluir')
+        }
+      },
+    })
   }
 
   return (
     <>
+      {confirmDialog}
       <Header title="Perguntas Sem Resposta" />
       <div className="p-6">
         <div className="mb-6">

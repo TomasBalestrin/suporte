@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Header } from '@/components/layout/Header'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -67,7 +67,9 @@ export default function KnowledgeBasePage() {
   const [articles, setArticles] = useState<KnowledgeBaseArticle[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout>>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<ArticleForm>(emptyForm)
@@ -195,10 +197,14 @@ export default function KnowledgeBasePage() {
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Buscar artigos..."
-              value={search}
+              value={searchInput}
               onChange={(e) => {
-                setSearch(e.target.value)
-                setPagination((p) => ({ ...p, page: 1 }))
+                setSearchInput(e.target.value)
+                if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current)
+                searchDebounceRef.current = setTimeout(() => {
+                  setSearch(e.target.value)
+                  setPagination((p) => ({ ...p, page: 1 }))
+                }, 400)
               }}
               className="bg-muted pl-10"
             />
