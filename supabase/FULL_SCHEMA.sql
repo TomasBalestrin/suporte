@@ -541,15 +541,25 @@ VALUES (
 )
 ON CONFLICT (id) DO NOTHING;
 
+DROP POLICY IF EXISTS "Anyone can upload attachments" ON storage.objects;
 CREATE POLICY "Anyone can upload attachments" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'attachments');
+
+DROP POLICY IF EXISTS "Anyone can read attachments" ON storage.objects;
 CREATE POLICY "Anyone can read attachments" ON storage.objects FOR SELECT USING (bucket_id = 'attachments');
 
 -- ============================================
 -- REALTIME: Habilitar para mensagens e tickets
 -- ============================================
 
-ALTER PUBLICATION supabase_realtime ADD TABLE public.messages;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.tickets;
+DO $$ BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.messages;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.tickets;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- ============================================
 -- SEED DATA
