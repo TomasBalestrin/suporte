@@ -86,8 +86,10 @@ export async function middleware(request: NextRequest) {
   // For /admin routes: only check if auth cookies exist (NO network calls).
   // The client-side admin layout handles full auth + profile verification.
   // This avoids Vercel Edge middleware timeout (MIDDLEWARE_INVOCATION_TIMEOUT).
+  // Note: @supabase/ssr 0.5+ uses chunked cookies (e.g. sb-xxx-auth-token.0)
+  // so we match the base name with an optional chunk suffix.
   const hasAuthCookie = request.cookies.getAll().some(
-    (c) => c.name.startsWith('sb-') && c.name.endsWith('-auth-token')
+    (c) => c.name.startsWith('sb-') && /\-auth-token(\.\d+)?$/.test(c.name)
   )
 
   // Redirect unauthenticated users to login (except login page itself)
