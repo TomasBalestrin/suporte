@@ -34,33 +34,9 @@ export async function middleware(request: NextRequest) {
   })
   supabaseResponse.headers.set('x-request-id', requestId)
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll()
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            request.cookies.set(name, value)
-          )
-          supabaseResponse = NextResponse.next({ request })
-          supabaseResponse.headers.set('x-request-id', requestId)
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          )
-        },
-      },
-    }
-  )
-
-  const { data: { user } } = await supabase.auth.getUser()
-
   const pathname = request.nextUrl.pathname
 
-  // CORS headers for API routes
+  // CORS headers for API routes — no Supabase call needed
   if (pathname.startsWith('/api/')) {
     const origin = request.headers.get('origin')
     const allowedOrigins = [
@@ -99,26 +75,56 @@ export async function middleware(request: NextRequest) {
         )
       }
     }
+
+    return supabaseResponse
   }
 
-  // Admin routes require authentication
-  if (pathname.startsWith('/admin') && !pathname.startsWith('/admin/login')) {
-    if (!user) {
+  // Only create Supabase client for /admin routes (avoids network calls for API routes)
+  if (!pathname.startsWith('/admin')) {
+    return supabaseResponse
+  }
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll()
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) =>
+            request.cookies.set(name, value)
+          )
+          supabaseResponse = NextResponse.next({ request })
+          supabaseResponse.headers.set('x-request-id', requestId)
+          cookiesToSet.forEach(({ name, value, options }) =>
+            supabaseResponse.cookies.set(name, value, options)
+          )
+        },
+      },
+    }
+  )
+
+  // Use getSession() — reads JWT from cookie locally, no network call
+  const { data: { session } } = await supabase.auth.getSession()
+
+  // Admin routes (except login) require authentication
+  if (!pathname.startsWith('/admin/login')) {
+    if (!session) {
       const url = request.nextUrl.clone()
       url.pathname = '/admin/login'
       return NextResponse.redirect(url)
     }
 
-    // Check user role from the users table
+    // Check user profile/role from the users table (single DB query)
     const { data: profile } = await supabase
       .from('users')
       .select('role, is_active')
-      .eq('id', user.id)
+      .eq('id', session.user.id)
       .single()
 
     if (!profile || !profile.is_active) {
-      // Sign out to prevent redirect loop (authenticated but no valid profile)
-      await supabase.auth.signOut()
       const url = request.nextUrl.clone()
       url.pathname = '/admin/login'
       url.searchParams.set('error', 'profile_not_found')
@@ -133,20 +139,11 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Redirect logged-in users from login page (only if no error to avoid loop)
-  if (pathname === '/admin/login' && user && !request.nextUrl.searchParams.has('error')) {
-    // Verify profile exists before redirecting to dashboard
-    const { data: loginProfile } = await supabase
-      .from('users')
-      .select('role, is_active')
-      .eq('id', user.id)
-      .single()
-
-    if (loginProfile && loginProfile.is_active) {
-      const url = request.nextUrl.clone()
-      url.pathname = '/admin/dashboard'
-      return NextResponse.redirect(url)
-    }
+  // Redirect logged-in users from login page to dashboard
+  if (pathname === '/admin/login' && session && !request.nextUrl.searchParams.has('error')) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/admin/dashboard'
+    return NextResponse.redirect(url)
   }
 
   return supabaseResponse
