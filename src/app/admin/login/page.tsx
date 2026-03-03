@@ -53,7 +53,6 @@ export default function LoginPage() {
     useAuthStore.getState().setLoading(true)
 
     router.push('/admin/dashboard')
-    router.refresh()
   }
 
   return (

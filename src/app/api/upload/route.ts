@@ -57,7 +57,8 @@ export async function POST(request: NextRequest) {
       authorized = !!ticket
     } else {
       const supabase = await createServerSupabaseClient()
-      const { data: { user } } = await supabase.auth.getUser()
+      const { data: { session } } = await supabase.auth.getSession()
+      const user = session?.user ?? null
       authorized = !!user
     }
 

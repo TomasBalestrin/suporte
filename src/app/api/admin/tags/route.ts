@@ -6,7 +6,8 @@ import { isAdmin } from '@/lib/supabase/guards'
 export async function GET() {
   try {
     const supabase = await createServerSupabaseClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user ?? null
     if (!user) {
       return NextResponse.json({ success: false, error: 'Nao autorizado' }, { status: 401 })
     }
@@ -31,7 +32,8 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createServerSupabaseClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user ?? null
     if (!user) {
       return NextResponse.json({ success: false, error: 'Nao autorizado' }, { status: 401 })
     }
