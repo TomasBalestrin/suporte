@@ -390,6 +390,12 @@ export default function TicketDetailPage() {
             <Mail className="h-4 w-4" />
             <span>{customer?.email}</span>
           </div>
+          {customer?.cpf && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <User className="h-4 w-4" />
+              <span>CPF: {customer.cpf}</span>
+            </div>
+          )}
           {customer?.phone && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Phone className="h-4 w-4" />

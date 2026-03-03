@@ -9,6 +9,7 @@ import { z } from 'zod'
 const createTicketSchema = z.object({
   name: z.string().min(3),
   email: z.string().email(),
+  cpf: z.string().min(1),
   phone: z.string().optional(),
   product_id: z.string().min(1),
   category_id: z.string().min(1),
@@ -49,7 +50,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { name, email, phone, product_id, category_id, title, description, ai_messages } = parsed.data
+    const { name, email, cpf, phone, product_id, category_id, title, description, ai_messages } = parsed.data
 
     // Find or create customer
     let customerId: string
@@ -61,15 +62,15 @@ export async function POST(request: NextRequest) {
 
     if (existingCustomer) {
       customerId = existingCustomer.id
-      // Update name/phone if changed
+      // Update name/phone/cpf if changed
       await supabase
         .from('customers')
-        .update({ name, phone })
+        .update({ name, phone, cpf })
         .eq('id', customerId)
     } else {
       const { data: newCustomer, error: customerError } = await supabase
         .from('customers')
-        .insert({ name, email, phone })
+        .insert({ name, email, phone, cpf })
         .select('id')
         .single()
 

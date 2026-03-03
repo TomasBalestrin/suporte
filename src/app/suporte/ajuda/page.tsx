@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ticketFormSchema, type TicketFormData } from '@/lib/utils/validation'
-import { phoneMask } from '@/lib/utils/format'
+import { phoneMask, cpfMask } from '@/lib/utils/format'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -58,6 +58,7 @@ export default function HelpPage() {
   })
 
   const phoneValue = watch('phone')
+  const cpfValue = watch('cpf')
 
   useEffect(() => {
     async function loadData() {
@@ -182,6 +183,7 @@ export default function HelpPage() {
         body: JSON.stringify({
           name: formData.name,
           email: formData.email,
+          cpf: formData.cpf,
           phone: formData.phone,
           product_id: formData.product_id,
           category_id: formData.category_id,
@@ -364,19 +366,35 @@ export default function HelpPage() {
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="phone">Telefone *</Label>
-                      <Input
-                        id="phone"
-                        {...register('phone')}
-                        className="bg-muted"
-                        placeholder="(XX) XXXXX-XXXX"
-                        value={phoneValue || ''}
-                        onChange={(e) => setValue('phone', phoneMask(e.target.value))}
-                      />
-                      {errors.phone && (
-                        <p className="text-sm text-destructive">{errors.phone.message}</p>
-                      )}
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="cpf">CPF de compra *</Label>
+                        <Input
+                          id="cpf"
+                          {...register('cpf')}
+                          className="bg-muted"
+                          placeholder="XXX.XXX.XXX-XX"
+                          value={cpfValue || ''}
+                          onChange={(e) => setValue('cpf', cpfMask(e.target.value))}
+                        />
+                        {errors.cpf && (
+                          <p className="text-sm text-destructive">{errors.cpf.message}</p>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="phone">Telefone *</Label>
+                        <Input
+                          id="phone"
+                          {...register('phone')}
+                          className="bg-muted"
+                          placeholder="(XX) XXXXX-XXXX"
+                          value={phoneValue || ''}
+                          onChange={(e) => setValue('phone', phoneMask(e.target.value))}
+                        />
+                        {errors.phone && (
+                          <p className="text-sm text-destructive">{errors.phone.message}</p>
+                        )}
+                      </div>
                     </div>
 
                     <div className="grid gap-4 md:grid-cols-2">

@@ -21,6 +21,14 @@ export default function AdminLayout({
 
     async function loadUser() {
       setLoading(true)
+
+      // Timeout to prevent infinite loading if Supabase is unreachable
+      const timeout = setTimeout(() => {
+        console.warn('[Auth] Timeout loading user, redirecting to login')
+        setUser(null)
+        setLoading(false)
+      }, 10000)
+
       try {
         const { data: { user: authUser } } = await supabase.auth.getUser()
 
@@ -47,6 +55,7 @@ export default function AdminLayout({
         try { await supabase.auth.signOut() } catch { /* ignore */ }
         setUser(null)
       } finally {
+        clearTimeout(timeout)
         setLoading(false)
       }
     }
