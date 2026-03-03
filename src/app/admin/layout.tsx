@@ -78,6 +78,9 @@ export default function AdminLayout({
       async (_event, session) => {
         if (cancelled) return
         if (session?.user) {
+          // Set loading immediately to prevent the layout from redirecting
+          // to login while the profile query is still in-flight
+          setLoading(true)
           const { data: profile } = await supabase
             .from('users')
             .select('*')
