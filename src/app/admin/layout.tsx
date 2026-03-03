@@ -107,9 +107,17 @@ export default function AdminLayout({
           setLoading(true)
           try {
             const profile = await fetchProfile(session.user.id)
-            if (!cancelled) setUser(profile || null)
+            if (cancelled) return
+            if (profile) {
+              setUser(profile)
+            } else {
+              // Authenticated but no profile — sign out to clear stale cookies
+              await supabase.auth.signOut().catch(() => {})
+              if (!cancelled) setUser(null)
+            }
           } catch {
             if (!cancelled) {
+              await supabase.auth.signOut().catch(() => {})
               setUser(null)
               setLoading(false)
             }
