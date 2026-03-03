@@ -42,6 +42,9 @@ export default function AdminLayout({
           setUser(null)
         }
       } catch {
+        // Auth failed (e.g. Supabase unreachable) — clear stale cookies
+        // so the middleware won't redirect back from login page
+        try { await supabase.auth.signOut() } catch { /* ignore */ }
         setUser(null)
       } finally {
         setLoading(false)
@@ -83,8 +86,9 @@ export default function AdminLayout({
   }
 
   // No user after loading → redirect to login
+  // Use ?error= param so middleware allows access even if stale cookies remain
   if (!user) {
-    router.replace('/admin/login')
+    router.replace('/admin/login?error=session_expired')
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
