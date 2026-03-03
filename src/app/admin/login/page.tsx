@@ -19,8 +19,11 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
-    if (searchParams.get('error') === 'profile_not_found') {
+    const errorParam = searchParams.get('error')
+    if (errorParam === 'profile_not_found') {
       setError('Perfil não encontrado. Verifique se seu usuário está cadastrado na tabela de usuários do sistema.')
+    } else if (errorParam === 'session_expired') {
+      setError('Sessão expirada ou serviço indisponível. Faça login novamente.')
     }
   }, [searchParams])
 
