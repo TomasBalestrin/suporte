@@ -37,6 +37,14 @@ export function phoneMask(value: string): string {
   return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 7)}-${cleaned.slice(7)}`
 }
 
+export function cpfMask(value: string): string {
+  const cleaned = value.replace(/\D/g, '').slice(0, 11)
+  if (cleaned.length <= 3) return cleaned
+  if (cleaned.length <= 6) return `${cleaned.slice(0, 3)}.${cleaned.slice(3)}`
+  if (cleaned.length <= 9) return `${cleaned.slice(0, 3)}.${cleaned.slice(3, 6)}.${cleaned.slice(6)}`
+  return `${cleaned.slice(0, 3)}.${cleaned.slice(3, 6)}.${cleaned.slice(6, 9)}-${cleaned.slice(9)}`
+}
+
 export function formatMinutesToHuman(minutes: number): string {
   if (minutes < 60) return `${minutes}min`
   const hours = Math.floor(minutes / 60)

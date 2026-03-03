@@ -16,6 +16,7 @@ describe('ticketFormSchema', () => {
     const result = ticketFormSchema.safeParse({
       name: 'Joao Silva',
       email: 'joao@email.com',
+      cpf: '123.456.789-00',
       phone: '(11) 99999-9999',
       product_id: 'prod-123',
       category_id: 'cat-456',
@@ -28,6 +29,7 @@ describe('ticketFormSchema', () => {
     const result = ticketFormSchema.safeParse({
       name: 'Jo',
       email: 'joao@email.com',
+      cpf: '123.456.789-00',
       phone: '(11) 99999-9999',
       product_id: 'prod-123',
       category_id: 'cat-456',
@@ -40,6 +42,20 @@ describe('ticketFormSchema', () => {
     const result = ticketFormSchema.safeParse({
       name: 'Joao Silva',
       email: 'invalid-email',
+      cpf: '123.456.789-00',
+      phone: '(11) 99999-9999',
+      product_id: 'prod-123',
+      category_id: 'cat-456',
+      description: 'Preciso de ajuda com meu produto',
+    })
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects invalid cpf format', () => {
+    const result = ticketFormSchema.safeParse({
+      name: 'Joao Silva',
+      email: 'joao@email.com',
+      cpf: '12345678900',
       phone: '(11) 99999-9999',
       product_id: 'prod-123',
       category_id: 'cat-456',
@@ -52,6 +68,7 @@ describe('ticketFormSchema', () => {
     const result = ticketFormSchema.safeParse({
       name: 'Joao Silva',
       email: 'joao@email.com',
+      cpf: '123.456.789-00',
       phone: '11999999999',
       product_id: 'prod-123',
       category_id: 'cat-456',
@@ -64,6 +81,7 @@ describe('ticketFormSchema', () => {
     const result = ticketFormSchema.safeParse({
       name: 'Joao Silva',
       email: 'joao@email.com',
+      cpf: '123.456.789-00',
       phone: '(11) 99999-9999',
       product_id: 'prod-123',
       category_id: 'cat-456',
