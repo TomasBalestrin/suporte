@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { createClient } from '@/lib/supabase/client'
+import { useAuthStore } from '@/stores/authStore'
 import { loginSchema, type LoginFormData } from '@/lib/utils/validation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -46,6 +47,10 @@ export default function LoginPage() {
       setIsLoading(false)
       return
     }
+
+    // Signal the admin layout to show the loading spinner while the
+    // onAuthStateChange callback fetches the user profile
+    useAuthStore.getState().setLoading(true)
 
     router.push('/admin/dashboard')
     router.refresh()
