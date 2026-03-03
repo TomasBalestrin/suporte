@@ -119,6 +119,7 @@
    Portal Light Theme — Customer-facing pages
    ============================================ */
 .portal-light {
+  color: #1E293B;
   --background: #F8FAFC;
   --foreground: #1E293B;
   --card: #FFFFFF;
