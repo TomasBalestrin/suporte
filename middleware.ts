@@ -1,4 +1,3 @@
-import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 const CSRF_COOKIE = 'csrf_token'
@@ -79,68 +78,27 @@ export async function middleware(request: NextRequest) {
     return supabaseResponse
   }
 
-  // Only create Supabase client for /admin routes (avoids network calls for API routes)
+  // For non-admin routes, return immediately
   if (!pathname.startsWith('/admin')) {
     return supabaseResponse
   }
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll()
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
-          )
-          supabaseResponse = NextResponse.next({ request })
-          supabaseResponse.headers.set('x-request-id', requestId)
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          )
-        },
-      },
-    }
+  // For /admin routes: only check if auth cookies exist (NO network calls).
+  // The client-side admin layout handles full auth + profile verification.
+  // This avoids Vercel Edge middleware timeout (MIDDLEWARE_INVOCATION_TIMEOUT).
+  const hasAuthCookie = request.cookies.getAll().some(
+    (c) => c.name.startsWith('sb-') && c.name.endsWith('-auth-token')
   )
 
-  // Use getSession() — reads JWT from cookie locally, no network call
-  const { data: { session } } = await supabase.auth.getSession()
-
-  // Admin routes (except login) require authentication
-  if (!pathname.startsWith('/admin/login')) {
-    if (!session) {
-      const url = request.nextUrl.clone()
-      url.pathname = '/admin/login'
-      return NextResponse.redirect(url)
-    }
-
-    // Check user profile/role from the users table (single DB query)
-    const { data: profile } = await supabase
-      .from('users')
-      .select('role, is_active')
-      .eq('id', session.user.id)
-      .single()
-
-    if (!profile || !profile.is_active) {
-      const url = request.nextUrl.clone()
-      url.pathname = '/admin/login'
-      url.searchParams.set('error', 'profile_not_found')
-      return NextResponse.redirect(url)
-    }
-
-    // Settings routes require admin role
-    if (pathname.startsWith('/admin/settings') && profile.role !== 'admin') {
-      const url = request.nextUrl.clone()
-      url.pathname = '/admin/dashboard'
-      return NextResponse.redirect(url)
-    }
+  // Redirect unauthenticated users to login (except login page itself)
+  if (!pathname.startsWith('/admin/login') && !hasAuthCookie) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/admin/login'
+    return NextResponse.redirect(url)
   }
 
-  // Redirect logged-in users from login page to dashboard
-  if (pathname === '/admin/login' && session && !request.nextUrl.searchParams.has('error')) {
+  // Redirect authenticated users away from login page to dashboard
+  if (pathname === '/admin/login' && hasAuthCookie && !request.nextUrl.searchParams.has('error')) {
     const url = request.nextUrl.clone()
     url.pathname = '/admin/dashboard'
     return NextResponse.redirect(url)
