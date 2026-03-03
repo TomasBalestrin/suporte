@@ -7,7 +7,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { createClient } from '@/lib/supabase/client'
 import { Loader2 } from 'lucide-react'
 
-const AUTH_TIMEOUT_MS = 10_000
+const AUTH_TIMEOUT_MS = 15_000
 
 export default function AdminLayout({
   children,
@@ -23,6 +23,20 @@ export default function AdminLayout({
     const supabase = createClient()
     let cancelled = false
     let timeoutId: ReturnType<typeof setTimeout> | null = null
+
+    async function fetchProfile(userId: string) {
+      const { data: profile, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', userId)
+        .single()
+
+      if (error) {
+        console.error('[Auth] Error fetching profile:', error.message)
+        return null
+      }
+      return profile
+    }
 
     async function loadUser() {
       setLoading(true)
@@ -40,16 +54,21 @@ export default function AdminLayout({
       }, AUTH_TIMEOUT_MS)
 
       try {
-        const { data: { user: authUser } } = await supabase.auth.getUser()
+        // Use getSession() instead of getUser() — reads from cookie locally
+        // and avoids the network round-trip to the Supabase Auth server that
+        // can timeout on cold starts or slow connections.
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession()
         if (cancelled) return
 
-        if (authUser) {
-          const { data: profile } = await supabase
-            .from('users')
-            .select('*')
-            .eq('id', authUser.id)
-            .single()
+        if (sessionError) {
+          console.error('[Auth] Session error:', sessionError.message)
+          await supabase.auth.signOut().catch(() => {})
+          if (!cancelled) setUser(null)
+          return
+        }
 
+        if (session?.user) {
+          const profile = await fetchProfile(session.user.id)
           if (cancelled) return
 
           if (profile) {
@@ -62,7 +81,8 @@ export default function AdminLayout({
         } else {
           setUser(null)
         }
-      } catch {
+      } catch (err) {
+        console.error('[Auth] Unexpected error:', err)
         // On error, sign out to clear stale cookies and prevent redirect loop
         await supabase.auth.signOut().catch(() => {})
         if (!cancelled) setUser(null)
@@ -75,19 +95,25 @@ export default function AdminLayout({
     loadUser()
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      async (event, session) => {
         if (cancelled) return
+        // Skip INITIAL_SESSION — loadUser() handles the initial auth check.
+        // Processing it here would cause a redundant profile query race.
+        if (event === 'INITIAL_SESSION') return
+
         if (session?.user) {
           // Set loading immediately to prevent the layout from redirecting
           // to login while the profile query is still in-flight
           setLoading(true)
-          const { data: profile } = await supabase
-            .from('users')
-            .select('*')
-            .eq('id', session.user.id)
-            .single()
-
-          if (!cancelled) setUser(profile || null)
+          try {
+            const profile = await fetchProfile(session.user.id)
+            if (!cancelled) setUser(profile || null)
+          } catch {
+            if (!cancelled) {
+              setUser(null)
+              setLoading(false)
+            }
+          }
         } else {
           if (!cancelled) setUser(null)
         }
