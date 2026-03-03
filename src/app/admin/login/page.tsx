@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -15,17 +15,17 @@ import { Loader2, ShieldCheck } from 'lucide-react'
 export default function LoginPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [error, setError] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
-
-  useEffect(() => {
+  const [error, setError] = useState<string | null>(() => {
     const errorParam = searchParams.get('error')
     if (errorParam === 'profile_not_found') {
-      setError('Perfil não encontrado. Verifique se seu usuário está cadastrado na tabela de usuários do sistema.')
-    } else if (errorParam === 'session_expired') {
-      setError('Sessão expirada ou serviço indisponível. Faça login novamente.')
+      return 'Perfil não encontrado. Verifique se seu usuário está cadastrado na tabela de usuários do sistema.'
     }
-  }, [searchParams])
+    if (errorParam === 'session_expired') {
+      return 'Sua sessão expirou. Faça login novamente.'
+    }
+    return null
+  })
+  const [isLoading, setIsLoading] = useState(false)
 
   const { register, handleSubmit, formState: { errors } } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),

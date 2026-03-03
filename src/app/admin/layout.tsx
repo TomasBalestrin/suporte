@@ -1,11 +1,13 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { useAuthStore } from '@/stores/authStore'
 import { createClient } from '@/lib/supabase/client'
 import { Loader2 } from 'lucide-react'
+
+const AUTH_TIMEOUT_MS = 10_000
 
 export default function AdminLayout({
   children,
@@ -15,22 +17,31 @@ export default function AdminLayout({
   const pathname = usePathname()
   const router = useRouter()
   const { user, isLoading, setUser, setLoading } = useAuthStore()
+  const redirectingRef = useRef(false)
 
   useEffect(() => {
     const supabase = createClient()
+    let cancelled = false
+    let timeoutId: ReturnType<typeof setTimeout> | null = null
 
     async function loadUser() {
       setLoading(true)
+      redirectingRef.current = false
 
-      // Timeout to prevent infinite loading if Supabase is unreachable
-      const timeout = setTimeout(() => {
-        console.warn('[Auth] Timeout loading user, redirecting to login')
-        setUser(null)
-        setLoading(false)
-      }, 10000)
+      // Safety timeout: if auth takes too long, sign out and redirect
+      timeoutId = setTimeout(async () => {
+        if (cancelled) return
+        console.warn('[Auth] Timeout loading user, signing out')
+        await supabase.auth.signOut().catch(() => {})
+        if (!cancelled) {
+          setUser(null)
+          setLoading(false)
+        }
+      }, AUTH_TIMEOUT_MS)
 
       try {
         const { data: { user: authUser } } = await supabase.auth.getUser()
+        if (cancelled) return
 
         if (authUser) {
           const { data: profile } = await supabase
@@ -39,24 +50,25 @@ export default function AdminLayout({
             .eq('id', authUser.id)
             .single()
 
+          if (cancelled) return
+
           if (profile) {
             setUser(profile)
           } else {
             // Authenticated but no profile in users table
-            await supabase.auth.signOut()
-            setUser(null)
+            await supabase.auth.signOut().catch(() => {})
+            if (!cancelled) setUser(null)
           }
         } else {
           setUser(null)
         }
       } catch {
-        // Auth failed (e.g. Supabase unreachable) — clear stale cookies
-        // so the middleware won't redirect back from login page
-        try { await supabase.auth.signOut() } catch { /* ignore */ }
-        setUser(null)
+        // On error, sign out to clear stale cookies and prevent redirect loop
+        await supabase.auth.signOut().catch(() => {})
+        if (!cancelled) setUser(null)
       } finally {
-        clearTimeout(timeout)
-        setLoading(false)
+        if (timeoutId) clearTimeout(timeoutId)
+        if (!cancelled) setLoading(false)
       }
     }
 
@@ -64,6 +76,7 @@ export default function AdminLayout({
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
+        if (cancelled) return
         if (session?.user) {
           const { data: profile } = await supabase
             .from('users')
@@ -71,14 +84,18 @@ export default function AdminLayout({
             .eq('id', session.user.id)
             .single()
 
-          setUser(profile || null)
+          if (!cancelled) setUser(profile || null)
         } else {
-          setUser(null)
+          if (!cancelled) setUser(null)
         }
       }
     )
 
-    return () => subscription.unsubscribe()
+    return () => {
+      cancelled = true
+      if (timeoutId) clearTimeout(timeoutId)
+      subscription.unsubscribe()
+    }
   }, [setUser, setLoading])
 
   // Login page doesn't need the sidebar
@@ -94,10 +111,13 @@ export default function AdminLayout({
     )
   }
 
-  // No user after loading → redirect to login
-  // Use ?error= param so middleware allows access even if stale cookies remain
+  // No user after loading → redirect to login with error param to prevent
+  // middleware from redirecting back (which would cause an infinite loop)
   if (!user) {
-    router.replace('/admin/login?error=session_expired')
+    if (!redirectingRef.current) {
+      redirectingRef.current = true
+      router.replace('/admin/login?error=session_expired')
+    }
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
