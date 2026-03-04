@@ -101,8 +101,18 @@ export default function AdminLayout({
 
         if (session?.user) {
           setLoading(true)
+          let authChangeTimeout: ReturnType<typeof setTimeout> | null = null
           try {
-            const profile = await fetchProfile(session.user.id)
+            const profile = await Promise.race([
+              fetchProfile(session.user.id),
+              new Promise<null>((resolve) => {
+                authChangeTimeout = setTimeout(() => {
+                  console.warn('[Auth] Timeout fetching profile after auth change, forcing resolve')
+                  resolve(null)
+                }, AUTH_TIMEOUT_MS)
+              }),
+            ])
+            if (authChangeTimeout) clearTimeout(authChangeTimeout)
             if (cancelled) return
             if (profile) {
               setUser(profile)
@@ -111,6 +121,7 @@ export default function AdminLayout({
               supabase.auth.signOut().catch(() => {})
             }
           } catch {
+            if (authChangeTimeout) clearTimeout(authChangeTimeout)
             if (!cancelled) {
               setUser(null)
               setLoading(false)

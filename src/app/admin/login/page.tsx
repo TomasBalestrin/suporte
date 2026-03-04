@@ -37,22 +37,40 @@ export default function LoginPage() {
     setError(null)
 
     const supabase = createClient()
-    const { error: authError } = await supabase.auth.signInWithPassword({
-      email: data.email,
-      password: data.password,
-    })
 
-    if (authError) {
-      setError('Email ou senha incorretos')
+    try {
+      // Wrap signInWithPassword in a timeout to avoid hanging forever
+      // when Supabase is slow or unreachable
+      const LOGIN_TIMEOUT_MS = 10_000
+      const result = await Promise.race([
+        supabase.auth.signInWithPassword({
+          email: data.email,
+          password: data.password,
+        }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('LOGIN_TIMEOUT')), LOGIN_TIMEOUT_MS)
+        ),
+      ])
+
+      if (result.error) {
+        setError('Email ou senha incorretos')
+        setIsLoading(false)
+        return
+      }
+
+      // Signal the admin layout to show the loading spinner while the
+      // onAuthStateChange callback fetches the user profile
+      useAuthStore.getState().setLoading(true)
+
+      router.push('/admin/dashboard')
+    } catch (err) {
+      if (err instanceof Error && err.message === 'LOGIN_TIMEOUT') {
+        setError('Servidor demorou para responder. Verifique sua conexão e tente novamente.')
+      } else {
+        setError('Erro inesperado ao tentar entrar. Tente novamente.')
+      }
       setIsLoading(false)
-      return
     }
-
-    // Signal the admin layout to show the loading spinner while the
-    // onAuthStateChange callback fetches the user profile
-    useAuthStore.getState().setLoading(true)
-
-    router.push('/admin/dashboard')
   }
 
   return (
