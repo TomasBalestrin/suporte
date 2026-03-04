@@ -7,7 +7,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { createClient } from '@/lib/supabase/client'
 import { Loader2 } from 'lucide-react'
 
-const AUTH_TIMEOUT_MS = 15_000
+const AUTH_TIMEOUT_MS = 5_000
 
 export default function AdminLayout({
   children,
@@ -42,28 +42,28 @@ export default function AdminLayout({
       setLoading(true)
       redirectingRef.current = false
 
-      // Safety timeout: if auth takes too long, sign out and redirect
-      timeoutId = setTimeout(async () => {
+      // Safety timeout: if auth takes too long, force-resolve the loading
+      // state. Set state BEFORE signOut() because signOut() also makes a
+      // network call and can hang if the network is the problem.
+      timeoutId = setTimeout(() => {
         if (cancelled) return
-        console.warn('[Auth] Timeout loading user, signing out')
-        await supabase.auth.signOut().catch(() => {})
-        if (!cancelled) {
-          setUser(null)
-          setLoading(false)
-        }
+        console.warn('[Auth] Timeout loading user, forcing resolve')
+        setUser(null)
+        setLoading(false)
+        // Fire-and-forget signOut to clean cookies if possible
+        supabase.auth.signOut().catch(() => {})
       }, AUTH_TIMEOUT_MS)
 
       try {
-        // Use getSession() instead of getUser() — reads from cookie locally
-        // and avoids the network round-trip to the Supabase Auth server that
-        // can timeout on cold starts or slow connections.
+        // Use getSession() — reads from cookie locally, avoids network
+        // round-trip to the Supabase Auth server that can timeout.
         const { data: { session }, error: sessionError } = await supabase.auth.getSession()
         if (cancelled) return
 
         if (sessionError) {
           console.error('[Auth] Session error:', sessionError.message)
-          await supabase.auth.signOut().catch(() => {})
-          if (!cancelled) setUser(null)
+          setUser(null)
+          supabase.auth.signOut().catch(() => {})
           return
         }
 
@@ -75,17 +75,16 @@ export default function AdminLayout({
             setUser(profile)
           } else {
             // Authenticated but no profile in users table
-            await supabase.auth.signOut().catch(() => {})
-            if (!cancelled) setUser(null)
+            setUser(null)
+            supabase.auth.signOut().catch(() => {})
           }
         } else {
           setUser(null)
         }
       } catch (err) {
         console.error('[Auth] Unexpected error:', err)
-        // On error, sign out to clear stale cookies and prevent redirect loop
-        await supabase.auth.signOut().catch(() => {})
         if (!cancelled) setUser(null)
+        supabase.auth.signOut().catch(() => {})
       } finally {
         if (timeoutId) clearTimeout(timeoutId)
         if (!cancelled) setLoading(false)
@@ -98,12 +97,9 @@ export default function AdminLayout({
       async (event, session) => {
         if (cancelled) return
         // Skip INITIAL_SESSION — loadUser() handles the initial auth check.
-        // Processing it here would cause a redundant profile query race.
         if (event === 'INITIAL_SESSION') return
 
         if (session?.user) {
-          // Set loading immediately to prevent the layout from redirecting
-          // to login while the profile query is still in-flight
           setLoading(true)
           try {
             const profile = await fetchProfile(session.user.id)
@@ -111,16 +107,15 @@ export default function AdminLayout({
             if (profile) {
               setUser(profile)
             } else {
-              // Authenticated but no profile — sign out to clear stale cookies
-              await supabase.auth.signOut().catch(() => {})
-              if (!cancelled) setUser(null)
+              setUser(null)
+              supabase.auth.signOut().catch(() => {})
             }
           } catch {
             if (!cancelled) {
-              await supabase.auth.signOut().catch(() => {})
               setUser(null)
               setLoading(false)
             }
+            supabase.auth.signOut().catch(() => {})
           }
         } else {
           if (!cancelled) setUser(null)
