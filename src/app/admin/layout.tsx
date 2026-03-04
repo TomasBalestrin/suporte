@@ -124,12 +124,16 @@ export default function AdminLayout({
             if (authChangeTimeout) clearTimeout(authChangeTimeout)
             if (!cancelled) {
               setUser(null)
-              setLoading(false)
             }
             supabase.auth.signOut().catch(() => {})
+          } finally {
+            if (!cancelled) setLoading(false)
           }
         } else {
-          if (!cancelled) setUser(null)
+          if (!cancelled) {
+            setUser(null)
+            setLoading(false)
+          }
         }
       }
     )
