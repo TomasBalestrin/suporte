@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { isAgentOrAdmin } from '@/lib/supabase/guards'
+import { isAdmin, isAgentOrAdmin } from '@/lib/supabase/guards'
 import { userSchema } from '@/lib/utils/validation'
 
 export async function GET() {
@@ -43,15 +43,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Nao autorizado' }, { status: 401 })
     }
 
-    // Check if current user is admin
-    const admin = createAdminClient()
-    const { data: currentUser } = await admin
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single()
-
-    if (currentUser?.role !== 'admin') {
+    if (!(await isAdmin(user.id))) {
       return NextResponse.json({ success: false, error: 'Apenas admins podem criar usuarios' }, { status: 403 })
     }
 
@@ -65,6 +57,8 @@ export async function POST(request: NextRequest) {
     }
 
     const { name, email, role, password } = parsed.data
+
+    const admin = createAdminClient()
 
     // Create auth user via Supabase Admin
     const { data: authData, error: authError } = await admin.auth.admin.createUser({

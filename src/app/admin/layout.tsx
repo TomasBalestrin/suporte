@@ -47,6 +47,7 @@ export default function AdminLayout({
       // network call and can hang if the network is the problem.
       timeoutId = setTimeout(() => {
         if (cancelled) return
+        cancelled = true
         console.warn('[Auth] Timeout loading user, forcing resolve')
         setUser(null)
         setLoading(false)
@@ -71,10 +72,10 @@ export default function AdminLayout({
           const profile = await fetchProfile(session.user.id)
           if (cancelled) return
 
-          if (profile) {
+          if (profile && profile.is_active && (profile.role === 'admin' || profile.role === 'agent')) {
             setUser(profile)
           } else {
-            // Authenticated but no profile in users table
+            // Authenticated but no valid/active admin or agent profile
             setUser(null)
             supabase.auth.signOut().catch(() => {})
           }
@@ -114,7 +115,7 @@ export default function AdminLayout({
             ])
             if (authChangeTimeout) clearTimeout(authChangeTimeout)
             if (cancelled) return
-            if (profile) {
+            if (profile && profile.is_active && (profile.role === 'admin' || profile.role === 'agent')) {
               setUser(profile)
             } else {
               setUser(null)

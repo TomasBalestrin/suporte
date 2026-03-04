@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { isAdmin } from '@/lib/supabase/guards'
 import { userUpdateSchema } from '@/lib/utils/validation'
 
 export async function PATCH(
@@ -15,16 +16,7 @@ export async function PATCH(
       return NextResponse.json({ success: false, error: 'Nao autorizado' }, { status: 401 })
     }
 
-    const admin = createAdminClient()
-
-    // Check if current user is admin
-    const { data: currentUser } = await admin
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single()
-
-    if (currentUser?.role !== 'admin') {
+    if (!(await isAdmin(user.id))) {
       return NextResponse.json({ success: false, error: 'Apenas admins podem editar usuarios' }, { status: 403 })
     }
 
@@ -38,10 +30,22 @@ export async function PATCH(
       )
     }
 
+    // Prevent admin from demoting or deactivating themselves
+    if (id === user.id) {
+      if (parsed.data.role !== undefined && parsed.data.role !== 'admin') {
+        return NextResponse.json({ success: false, error: 'Voce nao pode rebaixar sua propria conta' }, { status: 400 })
+      }
+      if (parsed.data.is_active === false) {
+        return NextResponse.json({ success: false, error: 'Voce nao pode desativar sua propria conta' }, { status: 400 })
+      }
+    }
+
     const updateData: Record<string, unknown> = {}
     if (parsed.data.name !== undefined) updateData.name = parsed.data.name
     if (parsed.data.role !== undefined) updateData.role = parsed.data.role
     if (parsed.data.is_active !== undefined) updateData.is_active = parsed.data.is_active
+
+    const admin = createAdminClient()
 
     const { data, error } = await admin
       .from('users')
@@ -74,15 +78,7 @@ export async function DELETE(
       return NextResponse.json({ success: false, error: 'Nao autorizado' }, { status: 401 })
     }
 
-    const admin = createAdminClient()
-
-    const { data: currentUser } = await admin
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single()
-
-    if (currentUser?.role !== 'admin') {
+    if (!(await isAdmin(user.id))) {
       return NextResponse.json({ success: false, error: 'Apenas admins podem desativar usuarios' }, { status: 403 })
     }
 
@@ -93,6 +89,7 @@ export async function DELETE(
       return NextResponse.json({ success: false, error: 'Voce nao pode desativar sua propria conta' }, { status: 400 })
     }
 
+    const admin = createAdminClient()
     const { error } = await admin
       .from('users')
       .update({ is_active: false })

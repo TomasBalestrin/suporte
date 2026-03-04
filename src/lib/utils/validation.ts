@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 export const ticketFormSchema = z.object({
-  name: z.string().min(3, 'Nome deve ter pelo menos 3 caracteres'),
+  name: z.string().min(3, 'Nome deve ter pelo menos 3 caracteres').max(200, 'Nome muito longo (máximo 200 caracteres)'),
   email: z.string().email('E-mail inválido'),
   cpf: z.string().regex(/^\d{3}\.\d{3}\.\d{3}-\d{2}$/, 'CPF inválido. Use o formato XXX.XXX.XXX-XX'),
   phone: z.string().regex(/^\(\d{2}\) \d{4,5}-\d{4}$/, 'Telefone inválido. Use o formato (XX) XXXXX-XXXX'),
@@ -66,7 +66,7 @@ export type QuickReplyFormData = z.infer<typeof quickReplySchema>
 
 export const tagSchema = z.object({
   name: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres').max(30, 'Máximo 30 caracteres'),
-  color: z.string().min(4, 'Cor inválida').max(7),
+  color: z.string().regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/, 'Cor inválida. Use formato hex (#FFF ou #FFFFFF)'),
 })
 
 export type TagFormData = z.infer<typeof tagSchema>
@@ -92,7 +92,7 @@ export type AutomationFormData = z.infer<typeof automationSchema>
 
 export const aiConfigSchema = z.object({
   config_key: z.string().min(1),
-  config_value: z.string(),
+  config_value: z.string().max(10000, 'Valor muito longo'),
 })
 export type AiConfigFormData = z.infer<typeof aiConfigSchema>
 

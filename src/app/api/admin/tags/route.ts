@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { tagSchema } from '@/lib/utils/validation'
-import { isAdmin } from '@/lib/supabase/guards'
+import { isAdmin, isAgentOrAdmin } from '@/lib/supabase/guards'
 
 export async function GET() {
   try {
@@ -10,6 +10,9 @@ export async function GET() {
     const user = session?.user ?? null
     if (!user) {
       return NextResponse.json({ success: false, error: 'Nao autorizado' }, { status: 401 })
+    }
+    if (!(await isAgentOrAdmin(user.id))) {
+      return NextResponse.json({ success: false, error: 'Acesso negado' }, { status: 403 })
     }
 
     const { data, error } = await supabase
@@ -46,7 +49,7 @@ export async function POST(request: NextRequest) {
     const parsed = tagSchema.safeParse(body)
     if (!parsed.success) {
       return NextResponse.json(
-        { success: false, error: parsed.error.message },
+        { success: false, error: parsed.error.issues[0]?.message || 'Dados invalidos' },
         { status: 400 }
       )
     }

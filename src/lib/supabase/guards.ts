@@ -8,11 +8,11 @@ export async function isAdmin(userId: string): Promise<boolean> {
   const admin = createAdminClient()
   const { data } = await admin
     .from('users')
-    .select('role')
+    .select('role, is_active')
     .eq('id', userId)
     .single()
 
-  return data?.role === 'admin'
+  return !!data && data.is_active && data.role === 'admin'
 }
 
 /**
