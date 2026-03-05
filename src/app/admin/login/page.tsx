@@ -58,9 +58,17 @@ export default function LoginPage() {
         return
       }
 
-      // Signal the admin layout to show the loading spinner while the
-      // onAuthStateChange callback fetches the user profile
-      useAuthStore.getState().setLoading(true)
+      // Query profile directly from Supabase — session is already active,
+      // so RLS allows reading the user's own row without a server round-trip
+      const { data: profile } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', result.data.user.id)
+        .single()
+
+      if (profile) {
+        useAuthStore.getState().setUser(profile)
+      }
 
       router.push('/admin/dashboard')
     } catch (err) {

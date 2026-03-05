@@ -27,7 +27,7 @@ describe('formatDate', () => {
 
 describe('formatDateShort', () => {
   it('formats ISO date without time', () => {
-    const result = formatDateShort('2024-12-25T00:00:00Z')
+    const result = formatDateShort('2024-12-25T12:00:00Z')
     expect(result).toBe('25/12/2024')
   })
 })

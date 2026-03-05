@@ -7,7 +7,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { createClient } from '@/lib/supabase/client'
 import { Loader2 } from 'lucide-react'
 
-const AUTH_TIMEOUT_MS = 5_000
+const AUTH_TIMEOUT_MS = 10_000
 
 export default function AdminLayout({
   children,
@@ -24,67 +24,48 @@ export default function AdminLayout({
     let cancelled = false
     let timeoutId: ReturnType<typeof setTimeout> | null = null
 
-    async function fetchProfile(userId: string) {
-      const { data: profile, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', userId)
-        .single()
-
-      if (error) {
-        console.error('[Auth] Error fetching profile:', error.message)
-        return null
-      }
-      return profile
+    async function fetchProfile() {
+      const res = await fetch('/api/admin/me')
+      if (!res.ok) return null
+      const json = await res.json()
+      return json.success ? json.data : null
     }
 
     async function loadUser() {
+      // Login page: user isn't logged in yet, nothing to load
+      if (pathname === '/admin/login') {
+        setLoading(false)
+        return
+      }
+
+      // Skip network fetch if user is already set in the store (e.g. just logged in)
+      if (useAuthStore.getState().user) {
+        setLoading(false)
+        return
+      }
+
       setLoading(true)
       redirectingRef.current = false
 
-      // Safety timeout: if auth takes too long, force-resolve the loading
-      // state. Set state BEFORE signOut() because signOut() also makes a
-      // network call and can hang if the network is the problem.
       timeoutId = setTimeout(() => {
         if (cancelled) return
         console.warn('[Auth] Timeout loading user, forcing resolve')
         setUser(null)
         setLoading(false)
-        // Fire-and-forget signOut to clean cookies if possible
-        supabase.auth.signOut().catch(() => {})
       }, AUTH_TIMEOUT_MS)
 
       try {
-        // Use getSession() — reads from cookie locally, avoids network
-        // round-trip to the Supabase Auth server that can timeout.
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+        const profile = await fetchProfile()
         if (cancelled) return
 
-        if (sessionError) {
-          console.error('[Auth] Session error:', sessionError.message)
-          setUser(null)
-          supabase.auth.signOut().catch(() => {})
-          return
-        }
-
-        if (session?.user) {
-          const profile = await fetchProfile(session.user.id)
-          if (cancelled) return
-
-          if (profile) {
-            setUser(profile)
-          } else {
-            // Authenticated but no profile in users table
-            setUser(null)
-            supabase.auth.signOut().catch(() => {})
-          }
+        if (profile) {
+          setUser(profile)
         } else {
           setUser(null)
         }
       } catch (err) {
         console.error('[Auth] Unexpected error:', err)
         if (!cancelled) setUser(null)
-        supabase.auth.signOut().catch(() => {})
       } finally {
         if (timeoutId) clearTimeout(timeoutId)
         if (!cancelled) setLoading(false)
@@ -96,23 +77,15 @@ export default function AdminLayout({
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (cancelled) return
-        // Skip INITIAL_SESSION — loadUser() handles the initial auth check.
         if (event === 'INITIAL_SESSION') return
 
         if (session?.user) {
+          // Skip re-fetch if we already have this user's profile in the store
+          if (useAuthStore.getState().user?.id === session.user.id) return
+
           setLoading(true)
-          let authChangeTimeout: ReturnType<typeof setTimeout> | null = null
           try {
-            const profile = await Promise.race([
-              fetchProfile(session.user.id),
-              new Promise<null>((resolve) => {
-                authChangeTimeout = setTimeout(() => {
-                  console.warn('[Auth] Timeout fetching profile after auth change, forcing resolve')
-                  resolve(null)
-                }, AUTH_TIMEOUT_MS)
-              }),
-            ])
-            if (authChangeTimeout) clearTimeout(authChangeTimeout)
+            const profile = await fetchProfile()
             if (cancelled) return
             if (profile) {
               setUser(profile)
@@ -121,11 +94,7 @@ export default function AdminLayout({
               supabase.auth.signOut().catch(() => {})
             }
           } catch {
-            if (authChangeTimeout) clearTimeout(authChangeTimeout)
-            if (!cancelled) {
-              setUser(null)
-            }
-            supabase.auth.signOut().catch(() => {})
+            if (!cancelled) setUser(null)
           } finally {
             if (!cancelled) setLoading(false)
           }
@@ -143,7 +112,7 @@ export default function AdminLayout({
       if (timeoutId) clearTimeout(timeoutId)
       subscription.unsubscribe()
     }
-  }, [setUser, setLoading])
+  }, [pathname, setUser, setLoading])
 
   // Login page doesn't need the sidebar
   if (pathname === '/admin/login') {
