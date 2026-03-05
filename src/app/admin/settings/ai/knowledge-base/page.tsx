@@ -40,6 +40,7 @@ import {
   BookOpen,
   Loader2,
   BarChart3,
+  Zap,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { adminFetch } from '@/lib/fetch'
@@ -76,6 +77,25 @@ export default function KnowledgeBasePage() {
   const [isSaving, setIsSaving] = useState(false)
   const { confirm, dialog: confirmDialog } = useConfirmDialog()
   const [pagination, setPagination] = useState({ page: 1, pages: 1, total: 0 })
+  const [isGeneratingEmbeddings, setIsGeneratingEmbeddings] = useState(false)
+
+  async function handleGenerateEmbeddings() {
+    setIsGeneratingEmbeddings(true)
+    try {
+      const res = await adminFetch('/api/admin/knowledge-base/generate-embeddings', { method: 'POST' })
+      const json = await res.json()
+      if (json.success) {
+        toast.success(`Embeddings gerados: ${json.updated ?? 0} artigos atualizados`)
+        loadArticles()
+      } else {
+        toast.error(json.error || 'Erro ao gerar embeddings')
+      }
+    } catch {
+      toast.error('Erro ao gerar embeddings')
+    } finally {
+      setIsGeneratingEmbeddings(false)
+    }
+  }
 
   const loadArticles = useCallback(async () => {
     try {
@@ -214,6 +234,18 @@ export default function KnowledgeBasePage() {
               className="bg-muted pl-10"
             />
           </div>
+          <Button
+            variant="outline"
+            onClick={handleGenerateEmbeddings}
+            disabled={isGeneratingEmbeddings}
+          >
+            {isGeneratingEmbeddings ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Zap className="mr-2 h-4 w-4" />
+            )}
+            Gerar Embeddings IA
+          </Button>
           <Button onClick={openNew}>
             <Plus className="mr-2 h-4 w-4" />
             Novo artigo
