@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
-import { aiFeedbackSchema } from '@/lib/utils/validation'
+import { z } from 'zod'
+
+const feedbackSchema = z.object({
+  query: z.string().min(1),
+  helpful: z.boolean(),
+})
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,7 +20,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const parsed = aiFeedbackSchema.safeParse(body)
+    const parsed = feedbackSchema.safeParse(body)
     if (!parsed.success) {
       return NextResponse.json(
         { success: false, error: parsed.error.issues[0]?.message || 'Dados invalidos' },
@@ -23,15 +28,24 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { usage_stat_id, was_helpful } = parsed.data
-
+    const { query, helpful } = parsed.data
     const supabase = createAdminClient()
 
-    // Update the stat by ID
-    await supabase
+    // Find the most recent stat for this query and update was_helpful
+    const { data: stat } = await supabase
       .from('ai_usage_stats')
-      .update({ was_helpful })
-      .eq('id', usage_stat_id)
+      .select('id')
+      .eq('query', query)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single()
+
+    if (stat) {
+      await supabase
+        .from('ai_usage_stats')
+        .update({ was_helpful: helpful })
+        .eq('id', stat.id)
+    }
 
     return NextResponse.json({ success: true })
   } catch (error) {
