@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(netstat -ano)",
+      "Bash(ss -tlnp)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:50934/suporte)",
+      "Bash(curl -s http://localhost:50934/)",
+      "Bash(curl -s \"https://zeocxcfiyhzsztwjllvl.supabase.co/auth/v1/admin/users\" -H \"apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inplb2N4Y2ZpeWh6c3p0d2psbHZsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NTM5MzUyNywiZXhwIjoyMDgwOTY5NTI3fQ.u_zzNwUUCy0wm4XO9m4x3new01MLCPVE7SwIvG4jCeA\" -H \"Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inplb2N4Y2ZpeWh6c3p0d2psbHZsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NTM5MzUyNywiZXhwIjoyMDgwOTY5NTI3fQ.u_zzNwUUCy0wm4XO9m4x3new01MLCPVE7SwIvG4jCeA\")",
+      "Bash(curl -s \"https://zeocxcfiyhzsztwjllvl.supabase.co/rest/v1/users?id=eq.1b139952-f3fd-4148-9a9e-2f6392236bdf\" -H \"apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inplb2N4Y2ZpeWh6c3p0d2psbHZsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NTM5MzUyNywiZXhwIjoyMDgwOTY5NTI3fQ.u_zzNwUUCy0wm4XO9m4x3new01MLCPVE7SwIvG4jCeA\" -H \"Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inplb2N4Y2ZpeWh6c3p0d2psbHZsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NTM5MzUyNywiZXhwIjoyMDgwOTY5NTI3fQ.u_zzNwUUCy0wm4XO9m4x3new01MLCPVE7SwIvG4jCeA\")",
+      "Bash(npx supabase status)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000/api/admin/me)",
+      "Bash(curl -s \"https://zeocxcfiyhzsztwjllvl.supabase.co/rest/v1/ai_config?select=config_key,config_value\" -H \"apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inplb2N4Y2ZpeWh6c3p0d2psbHZsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NTM5MzUyNywiZXhwIjoyMDgwOTY5NTI3fQ.u_zzNwUUCy0wm4XO9m4x3new01MLCPVE7SwIvG4jCeA\" -H \"Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inplb2N4Y2ZpeWh6c3p0d2psbHZsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NTM5MzUyNywiZXhwIjoyMDgwOTY5NTI3fQ.u_zzNwUUCy0wm4XO9m4x3new01MLCPVE7SwIvG4jCeA\")",
+      "Bash(npm run dev)",
+      "Bash(taskkill /PID 33376 /F)",
+      "Bash(cmd /c \"taskkill /PID 33376 /F\")",
+      "Bash(cmd /c \"netstat -ano | findstr :3000\")"
+    ]
+  }
+}
