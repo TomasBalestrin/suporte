@@ -13,7 +13,14 @@
       "Bash(npm run dev)",
       "Bash(taskkill /PID 33376 /F)",
       "Bash(cmd /c \"taskkill /PID 33376 /F\")",
-      "Bash(cmd /c \"netstat -ano | findstr :3000\")"
+      "Bash(cmd /c \"netstat -ano | findstr :3000\")",
+      "Bash(npx supabase db push --linked)",
+      "Bash(npx supabase migration repair --status applied 20250101000001)",
+      "Bash(npx supabase migration repair 001 --status applied)",
+      "Bash(for m in 003 004 005 006 007 008)",
+      "Bash(do npx supabase migration repair $m --status applied)",
+      "Bash(done)",
+      "Bash(npx supabase migration list --linked)"
     ]
   }
 }
