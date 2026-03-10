@@ -33,6 +33,7 @@ import { useAuthStore } from '@/stores/authStore'
 const mainNav = [
   { title: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
   { title: 'Tickets', href: '/admin/tickets', icon: Ticket },
+  { title: 'Clientes', href: '/admin/customers', icon: Users },
   { title: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
 ]
 

@@ -101,6 +101,9 @@ export async function GET(request: NextRequest) {
       { count: totalTickets },
       { data: allTickets },
       { data: recentTickets },
+      { data: categoryTickets },
+      { data: resolvedForAvg },
+      { data: categoriesList },
     ] = await Promise.all([
       applyFilters(
         supabase.from('tickets').select('*', { count: 'exact', head: true })
@@ -120,12 +123,65 @@ export async function GET(request: NextRequest) {
       totalQuery,
       applyFilters(supabase.from('tickets').select('status')),
       recentQuery,
+      // Tickets by category for kanban
+      applyFilters(supabase.from('tickets').select('category_id, status')),
+      // Resolved tickets for avg resolution time
+      applyFilters(
+        supabase.from('tickets').select('created_at, resolved_at')
+          .in('status', ['resolved', 'resolved_ia'])
+          .not('resolved_at', 'is', null)
+      ),
+      // Category names
+      supabase.from('categories').select('id, name'),
     ])
 
     const statusCounts: Record<string, number> = {}
     ;(allTickets as { status: string }[] | null)?.forEach((t) => {
       statusCounts[t.status] = (statusCounts[t.status] || 0) + 1
     })
+
+    // Build category kanban data
+    const categoryMap = new Map<string, Record<string, number>>()
+    const categoryNames = new Map<string, string>()
+    ;(categoriesList || []).forEach((c: { id: string; name: string }) => {
+      categoryNames.set(c.id, c.name)
+    })
+    ;(categoryTickets as { category_id: string | null; status: string }[] | null)?.forEach((t) => {
+      const catId = t.category_id || '_uncategorized'
+      if (!categoryMap.has(catId)) {
+        categoryMap.set(catId, { total: 0, open: 0, in_progress: 0, awaiting_customer: 0, resolved: 0, resolved_ia: 0, closed: 0 })
+      }
+      const counts = categoryMap.get(catId)!
+      counts.total++
+      if (counts[t.status] !== undefined) counts[t.status]++
+    })
+
+    const topCategories = Array.from(categoryMap.entries())
+      .map(([id, counts]) => ({
+        id,
+        name: id === '_uncategorized' ? 'Sem Categoria' : (categoryNames.get(id) || 'Desconhecida'),
+        total: counts.total,
+        open: counts.open,
+        in_progress: counts.in_progress,
+        awaiting_customer: counts.awaiting_customer,
+        resolved: counts.resolved,
+        resolved_ia: counts.resolved_ia,
+        closed: counts.closed,
+      }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 6)
+
+    // Calculate avg resolution time in minutes
+    let avgResolutionMinutes: number | null = null
+    const resolvedArr = resolvedForAvg as { created_at: string; resolved_at: string }[] | null
+    if (resolvedArr && resolvedArr.length > 0) {
+      let totalMinutes = 0
+      for (const t of resolvedArr) {
+        const diff = new Date(t.resolved_at).getTime() - new Date(t.created_at).getTime()
+        totalMinutes += diff / (1000 * 60)
+      }
+      avgResolutionMinutes = Math.round(totalMinutes / resolvedArr.length)
+    }
 
     return NextResponse.json({
       success: true,
@@ -138,6 +194,8 @@ export async function GET(request: NextRequest) {
         totalTickets: totalTickets || 0,
         statusCounts,
         recentTickets: recentTickets || [],
+        topCategories,
+        avgResolutionMinutes,
       },
     })
   } catch (error) {

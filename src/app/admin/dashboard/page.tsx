@@ -34,10 +34,24 @@ import {
   X,
   RefreshCw,
   Loader2,
+  Clock,
+  FolderOpen,
 } from 'lucide-react'
-import { formatRelativeTime } from '@/lib/utils/format'
+import { formatRelativeTime, formatMinutesToHuman } from '@/lib/utils/format'
 import { adminFetch } from '@/lib/fetch'
 import { TICKET_STATUS_LABELS, TICKET_STATUS_COLORS } from '@/lib/utils/constants'
+
+interface CategoryData {
+  id: string
+  name: string
+  total: number
+  open: number
+  in_progress: number
+  awaiting_customer: number
+  resolved: number
+  resolved_ia: number
+  closed: number
+}
 
 interface DashboardData {
   openTickets: number
@@ -59,6 +73,8 @@ interface DashboardData {
     product?: { name: string }
     assigned_agent?: { name: string }
   }>
+  topCategories?: CategoryData[]
+  avgResolutionMinutes?: number | null
 }
 
 interface Product {
@@ -337,7 +353,7 @@ export default function DashboardPage() {
         </Card>
 
         {/* KPI Cards */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           {kpiCards.map((card) => (
             <Card key={card.title} className="border-border bg-card">
               <CardContent className="p-6">
@@ -353,7 +369,80 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
           ))}
+          {/* Avg Resolution Time KPI */}
+          <Card className="border-border bg-card">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Tempo Médio Resolução</p>
+                  <p className="mt-1 text-3xl font-bold">
+                    {data.avgResolutionMinutes != null
+                      ? formatMinutesToHuman(data.avgResolutionMinutes)
+                      : '-'}
+                  </p>
+                </div>
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-violet-500/10">
+                  <Clock className="h-6 w-6 text-violet-400" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
+
+        {/* Top Categories - Kanban */}
+        {data.topCategories && data.topCategories.length > 0 && (
+          <Card className="border-border bg-card">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <FolderOpen className="h-5 w-5 text-muted-foreground" />
+                Problemas Mais Comuns
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {data.topCategories.map((cat) => {
+                  const statusSegments = [
+                    { key: 'open', label: 'Aberto', count: cat.open, color: 'bg-blue-500' },
+                    { key: 'in_progress', label: 'Em Andamento', count: cat.in_progress, color: 'bg-cyan-500' },
+                    { key: 'awaiting_customer', label: 'Aguardando', count: cat.awaiting_customer, color: 'bg-yellow-500' },
+                    { key: 'resolved', label: 'Resolvido', count: cat.resolved, color: 'bg-green-500' },
+                    { key: 'resolved_ia', label: 'Resolvido IA', count: cat.resolved_ia, color: 'bg-emerald-500' },
+                    { key: 'closed', label: 'Fechado', count: cat.closed, color: 'bg-zinc-500' },
+                  ].filter((s) => s.count > 0)
+
+                  return (
+                    <div key={cat.id} className="rounded-xl border border-border p-4">
+                      <div className="mb-3 flex items-center justify-between">
+                        <h4 className="text-sm font-semibold text-foreground">{cat.name}</h4>
+                        <span className="text-lg font-bold text-foreground">{cat.total}</span>
+                      </div>
+                      {/* Stacked bar */}
+                      <div className="mb-3 flex h-3 overflow-hidden rounded-full bg-muted">
+                        {statusSegments.map((seg) => (
+                          <div
+                            key={seg.key}
+                            className={`${seg.color} transition-all`}
+                            style={{ width: `${(seg.count / cat.total) * 100}%` }}
+                            title={`${seg.label}: ${seg.count}`}
+                          />
+                        ))}
+                      </div>
+                      {/* Legend */}
+                      <div className="flex flex-wrap gap-x-3 gap-y-1">
+                        {statusSegments.map((seg) => (
+                          <span key={seg.key} className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <span className={`inline-block h-2 w-2 rounded-full ${seg.color}`} />
+                            {seg.count}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Status Distribution */}
         <div className="grid gap-4 lg:grid-cols-3">

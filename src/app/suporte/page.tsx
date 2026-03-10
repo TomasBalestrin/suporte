@@ -186,6 +186,13 @@ export default function SupportPage() {
               </span>
             </div>
             <button
+              onClick={() => router.push('/suporte/meus-tickets')}
+              className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <Search className="h-4 w-4" />
+              Meus Tickets
+            </button>
+            <button
               onClick={() => setShowTicketLookup(!showTicketLookup)}
               className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >

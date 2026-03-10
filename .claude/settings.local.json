@@ -20,7 +20,10 @@
       "Bash(for m in 003 004 005 006 007 008)",
       "Bash(do npx supabase migration repair $m --status applied)",
       "Bash(done)",
-      "Bash(npx supabase migration list --linked)"
+      "Bash(npx supabase migration list --linked)",
+      "Bash(npx next build)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3001/suporte/meus-tickets)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000/suporte/meus-tickets)"
     ]
   }
 }
