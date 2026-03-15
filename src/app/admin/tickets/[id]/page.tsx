@@ -49,6 +49,7 @@ import {
   Sparkles,
   History,
   PanelRight,
+  MessageSquarePlus,
 } from 'lucide-react'
 import { formatDate, formatRelativeTime, formatPhone } from '@/lib/utils/format'
 import { SENDER_TYPE_LABELS, TICKET_STATUS_LABELS, PRIORITY_LABELS } from '@/lib/utils/constants'
@@ -644,6 +645,18 @@ export default function TicketDetailPage() {
                     ) : (
                       <Sparkles className="h-4 w-4" />
                     )}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      setShowQuickReplies(!showQuickReplies)
+                      setQrFilter('')
+                    }}
+                    title="Respostas prontas"
+                    className={showQuickReplies ? 'text-primary bg-primary/10 hover:text-primary' : 'text-muted-foreground hover:text-foreground'}
+                  >
+                    <MessageSquarePlus className="h-4 w-4" />
                   </Button>
                 </div>
                 <div className="relative flex-1">

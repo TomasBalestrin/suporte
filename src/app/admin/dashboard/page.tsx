@@ -36,6 +36,9 @@ import {
   Loader2,
   Clock,
   FolderOpen,
+  Users,
+  Zap,
+  MessageSquareText,
 } from 'lucide-react'
 import { formatRelativeTime, formatMinutesToHuman } from '@/lib/utils/format'
 import { adminFetch } from '@/lib/fetch'
@@ -77,6 +80,14 @@ interface DashboardData {
   avgResolutionMinutes?: number | null
 }
 
+interface AgentPerformance {
+  name: string
+  total: number
+  resolved: number
+  resolutionRate: number
+  avgResponseMinutes: number
+}
+
 interface Product {
   id: string
   name: string
@@ -90,6 +101,7 @@ interface Category {
 export default function DashboardPage() {
   const router = useRouter()
   const [data, setData] = useState<DashboardData | null>(null)
+  const [agentData, setAgentData] = useState<AgentPerformance[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [hasError, setHasError] = useState(false)
 
@@ -138,10 +150,31 @@ export default function DashboardPage() {
       if (priorityFilter !== 'all') params.set('priority', priorityFilter)
 
       const query = params.toString()
-      const res = await adminFetch(`/api/admin/analytics/overview${query ? `?${query}` : ''}`)
-      const json = await res.json()
-      if (json.success) setData(json.data)
+
+      // Build detailed params for agent performance
+      const detailedParams = new URLSearchParams()
+      if (productFilter !== 'all') detailedParams.set('product_id', productFilter)
+      if (categoryFilter !== 'all') detailedParams.set('category_id', categoryFilter)
+      if (dateFrom && dateTo) {
+        const diffDays = Math.ceil((new Date(dateTo).getTime() - new Date(dateFrom).getTime()) / (1000 * 60 * 60 * 24))
+        detailedParams.set('period', String(Math.max(diffDays, 1)))
+      }
+      const detailedQuery = detailedParams.toString()
+
+      const [overviewRes, detailedRes] = await Promise.all([
+        adminFetch(`/api/admin/analytics/overview${query ? `?${query}` : ''}`),
+        adminFetch(`/api/admin/analytics/detailed${detailedQuery ? `?${detailedQuery}` : ''}`),
+      ])
+
+      const [overviewJson, detailedJson] = await Promise.all([
+        overviewRes.json(),
+        detailedRes.json(),
+      ])
+
+      if (overviewJson.success) setData(overviewJson.data)
       else setHasError(true)
+
+      if (detailedJson.success) setAgentData(detailedJson.data.agentPerformance || [])
     } catch (err) {
       console.error('[Dashboard] Failed to load overview data:', err)
       setHasError(true)
@@ -439,6 +472,69 @@ export default function DashboardPage() {
                     </div>
                   )
                 })}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Agent Performance */}
+        {agentData.length > 0 && (
+          <Card className="border-border bg-card">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Users className="h-5 w-5 text-muted-foreground" />
+                Performance dos Agentes
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {agentData.map((agent) => (
+                  <div key={agent.name} className="rounded-xl border border-border p-4">
+                    <div className="mb-3 flex items-center gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/20 text-sm font-bold text-primary">
+                        {agent.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <h4 className="truncate text-sm font-semibold text-foreground">{agent.name}</h4>
+                        <p className="text-xs text-muted-foreground">{agent.total} tickets atribuídos</p>
+                      </div>
+                    </div>
+                    {/* Stats grid */}
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="rounded-lg bg-muted/50 p-2 text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          <CheckCircle className="h-3 w-3 text-green-500" />
+                          <span className="text-sm font-bold">{agent.resolved}</span>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground">Resolvidos</p>
+                      </div>
+                      <div className="rounded-lg bg-muted/50 p-2 text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          <Zap className="h-3 w-3 text-amber-500" />
+                          <span className="text-sm font-bold">{agent.resolutionRate}%</span>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground">Taxa</p>
+                      </div>
+                      <div className="rounded-lg bg-muted/50 p-2 text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          <MessageSquareText className="h-3 w-3 text-blue-500" />
+                          <span className="text-sm font-bold">{agent.avgResponseMinutes > 0 ? formatMinutesToHuman(agent.avgResponseMinutes) : '-'}</span>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground">Resposta</p>
+                      </div>
+                    </div>
+                    {/* Resolution bar */}
+                    <div className="mt-3">
+                      <div className="flex h-2 overflow-hidden rounded-full bg-muted">
+                        <div
+                          className="bg-green-500 transition-all"
+                          style={{ width: `${agent.resolutionRate}%` }}
+                          title={`Taxa de resolução: ${agent.resolutionRate}%`}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </CardContent>
           </Card>
