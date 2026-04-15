@@ -153,13 +153,39 @@ export async function POST(request: NextRequest) {
     }
 
     let enrichedQuestion = question
+    let productName: string | null = null
+    let categoryName: string | null = null
     if (product_id) {
       const { data: product } = await supabase.from('products').select('name').eq('id', product_id).single()
-      if (product) enrichedQuestion = `[Produto: ${product.name}] ${enrichedQuestion}`
+      if (product) {
+        productName = product.name
+        enrichedQuestion = `[Produto: ${product.name}] ${enrichedQuestion}`
+      }
     }
     if (category_id) {
       const { data: category } = await supabase.from('categories').select('name').eq('id', category_id).single()
-      if (category) enrichedQuestion = `[Categoria: ${category.name}] ${enrichedQuestion}`
+      if (category) {
+        categoryName = category.name
+        enrichedQuestion = `[Categoria: ${category.name}] ${enrichedQuestion}`
+      }
+    }
+
+    // Detectar mismatch: cliente selecionou produto X mas Fluxon retornou compras de produto(s) diferente(s)
+    let mismatchInfo: string | null = null
+    if (productName && fluxonData?.compras?.length > 0) {
+      const norm = (s: string) => s.toUpperCase().replace(/[ÁÀÂÃ]/g, 'A').replace(/[ÉÊ]/g, 'E').replace(/[ÍÎ]/g, 'I').replace(/[ÓÔÕ]/g, 'O').replace(/[ÚÛ]/g, 'U').replace(/[Ç]/g, 'C').replace(/\s+/g, ' ').trim()
+      const selectedNorm = norm(productName)
+      const matched = fluxonData.compras.some((c: any) => norm(c.produto).includes(selectedNorm) || selectedNorm.includes(norm(c.produto)))
+      if (!matched) {
+        const comprasStr = fluxonData.compras.map((c: any) => c.produto).join(', ')
+        mismatchInfo = `ATENCAO - MISMATCH DE PRODUTO: O cliente selecionou "${productName}" no formulario, mas em nosso sistema a compra registrada deste cliente foi de "${comprasStr}" (produto diferente).
+
+VOCE DEVE OBRIGATORIAMENTE:
+1. NAO fornecer link, login ou senha de NENHUM produto (nem do "${productName}", nem do que esta no sistema).
+2. Informar com clareza que houve uma divergencia entre o produto que o cliente selecionou ("${productName}") e o que consta em nosso sistema ("${comprasStr}").
+3. PERGUNTAR DIRETAMENTE ao cliente: "Poderia confirmar qual produto voce realmente comprou? Voce comprou '${productName}' ou '${comprasStr}'? Se voce comprou '${productName}', pode ter sido com outro email ou CPF — nesse caso, por favor me informe qual email/CPF foi usado na compra."
+4. Aguardar a resposta do cliente antes de agir. Nao assuma que a resposta e uma ou outra opcao.`
+      }
     }
 
     const embeddingRes = await openai.embeddings.create({
@@ -220,11 +246,15 @@ export async function POST(request: NextRequest) {
 
 Use tools apenas quando fizer sentido. Perguntas genericas cobertas pela KB = responda direto.`
 
-    const fullSystemPrompt = `Voce se chama ${aiName}. ${systemPrompt}\n\nIMPORTANTE: Responda com base nas informacoes fornecidas. Nunca invente.${toneInstrucao}${fluxonInstrucao}${toolsInstrucao}`
+    const mismatchSystem = mismatchInfo ? `\n\n${mismatchInfo}` : ''
+    const fullSystemPrompt = `Voce se chama ${aiName}. ${systemPrompt}\n\nIMPORTANTE: Responda com base nas informacoes fornecidas. Nunca invente.${toneInstrucao}${fluxonInstrucao}${toolsInstrucao}${mismatchSystem}`
 
     const userContent = [
+      mismatchInfo ? mismatchInfo : null,
       fluxonContext ? `Dados do cliente (Fluxon):\n${fluxonContext}` : null,
       `Artigos da base de conhecimento:\n${context}`,
+      productName ? `Produto selecionado pelo cliente no formulario: ${productName}` : null,
+      categoryName ? `Categoria do ticket: ${categoryName}` : null,
       `Pergunta atual do cliente: ${question}`,
     ].filter(Boolean).join('\n\n')
 
