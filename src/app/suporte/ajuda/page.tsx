@@ -106,8 +106,14 @@ export default function HelpPage() {
           question: data.description,
           product_id: data.product_id,
           category_id: data.category_id,
+          customer: {
+            email: data.email,
+            cpf: data.cpf,
+            telefone: data.phone,
+          },
         }),
       })
+ 
       const json = await res.json()
 
       if (json.success && json.data?.ai_name) {

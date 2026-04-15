@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { question, product_id, category_id } = body
+    const { question, product_id, category_id, customer } = body
 
     if (!question || typeof question !== 'string' || question.trim().length === 0) {
       return NextResponse.json(
@@ -76,6 +76,36 @@ export async function POST(request: NextRequest) {
     const OpenAI = (await import('openai')).default
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
+    // ─── Consultar Fluxon para dados do cliente (perfil 360) ───
+    let fluxonContext: string | null = null
+
+    if (customer && (customer.cpf || customer.email || customer.telefone) && process.env.FLUXON_SUPPORT_API_KEY && process.env.FLUXON_BASE_URL) {
+      try {
+        const params = new URLSearchParams()
+        if (customer.cpf) params.set('cpf', String(customer.cpf))
+        if (customer.email) params.set('email', String(customer.email))
+        if (customer.telefone) params.set('telefone', String(customer.telefone))
+
+        const flRes = await fetch(`${process.env.FLUXON_BASE_URL}/api/support/lead?${params.toString()}`, {
+          headers: { 'X-API-Key': process.env.FLUXON_SUPPORT_API_KEY },
+          signal: AbortSignal.timeout(8000),
+        })
+        if (flRes.ok) {
+          const fl = await flRes.json()
+          const parts: string[] = [fl.diagnostico_resumido || '']
+          if (Array.isArray(fl.compras) && fl.compras.length > 0) {
+            parts.push(`\nHistorico de compras (${fl.compras.length}):`)
+            for (const c of fl.compras) {
+              parts.push(`- ${c.produto} (${c.plataforma}, ha ${c.dias_desde_compra} dia(s)) | WhatsApp: ${c.whatsapp_entrega?.delivery_status || 'sem status'} | Link: ${c.link_acesso || '(sem link)'} | Login: ${c.login_instrucao || '(sem instrucao)'}`)
+            }
+          }
+          fluxonContext = parts.filter(Boolean).join('\n')
+        }
+      } catch (err) {
+        console.error('[ai/chat] Falha ao consultar Fluxon:', err)
+      }
+    }
+
     // Build enriched question with product/category context
     let enrichedQuestion = question
     if (product_id) {
@@ -114,8 +144,8 @@ export async function POST(request: NextRequest) {
       ? (articles[0] as { similarity?: number }).similarity || 0
       : 0
 
-    if (!articles || articles.length === 0) {
-      // No relevant articles found — log unanswered
+    if ((!articles || articles.length === 0) && !fluxonContext) {
+      // No relevant articles found e sem dados do Fluxon — log unanswered
       await supabase.from('ai_unanswered_questions').insert({
         question,
         similarity_score: 0,
@@ -135,27 +165,38 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    // Se chegou aqui sem KB mas com Fluxon, garante array vazio para o resto do codigo
+    const articlesArr = articles || []
+
     // Build context from articles
-    const context = articles
+    const context = articlesArr
       .map((a: { title: string; content: string; similarity?: number }) =>
         `## ${a.title} (relevancia: ${((a.similarity || 0) * 100).toFixed(0)}%)\n${a.content}`
       )
-      .join('\n\n')
+      .join('\n\n') || '(sem artigos relevantes)'
 
-    // Enhanced system prompt with AI name
-    const fullSystemPrompt = `Voce se chama ${aiName}. ${systemPrompt}\n\nIMPORTANTE: Responda APENAS com base nas informacoes fornecidas no contexto. Se o contexto nao cobrir completamente a pergunta, informe ao cliente que nao tem certeza e sugira abrir um ticket. Nunca invente informacoes.`
+    // Enhanced system prompt with AI name + dados operacionais do Fluxon (se houver)
+    const fluxonInstrucao = fluxonContext
+      ? `\n\nIMPORTANTE: Voce tem acesso aos dados REAIS de compra e entrega deste cliente no Fluxon. Priorize esses dados sobre a base de conhecimento quando o cliente reclamar de acesso, login, link, entrega, reembolso ou status da compra. Se o cliente ja tem o link de acesso e login nos dados abaixo, forneca diretamente. Se nao encontrou compra no Fluxon e o cliente afirma ter comprado, pergunte pelos dados exatos (email da compra ou CPF) antes de abrir ticket.`
+      : ''
+
+    const fullSystemPrompt = `Voce se chama ${aiName}. ${systemPrompt}\n\nIMPORTANTE: Responda APENAS com base nas informacoes fornecidas no contexto. Se o contexto nao cobrir completamente a pergunta, informe ao cliente que nao tem certeza e sugira abrir um ticket. Nunca invente informacoes.${fluxonInstrucao}`
+
+    const userContent = [
+      fluxonContext ? `Dados operacionais do cliente (Fluxon):\n${fluxonContext}` : null,
+      `Artigos da base de conhecimento:\n${context}`,
+      `Pergunta do cliente: ${question}`,
+      'Responda de forma clara e objetiva com base nos dados acima.',
+    ].filter(Boolean).join('\n\n')
 
     // Call GPT-4o Mini
     const chatRes = await openai.chat.completions.create({
-      model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+      model: typeof process !== "undefined" && process.env.OPENAI_MODEL ? process.env.OPENAI_MODEL : 'gpt-4o-mini',
       temperature,
       max_tokens: maxTokens,
       messages: [
         { role: 'system', content: fullSystemPrompt },
-        {
-          role: 'user',
-          content: `Contexto dos artigos da base de conhecimento:\n${context}\n\nPergunta do cliente: ${question}\n\nResponda de forma clara e objetiva com base no contexto.`,
-        },
+        { role: 'user', content: userContent },
       ],
     })
 
@@ -174,7 +215,8 @@ export async function POST(request: NextRequest) {
     const now = new Date().toISOString()
     try {
       await Promise.all(
-        articles.map((article: { id: string }) =>
+        articlesArr.map((article: { id: string }) =>
+   
           supabase.rpc('increment_usage_count', {
             article_id: article.id,
             used_at: now,
@@ -196,7 +238,7 @@ export async function POST(request: NextRequest) {
       await supabase.from('ai_usage_stats').insert({
         query: question,
         response: answer,
-        articles_found: articles.length,
+        articles_found: articlesArr.length,
         confidence_score: bestSimilarity,
         was_helpful: null,
       })
