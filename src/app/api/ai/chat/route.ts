@@ -202,12 +202,12 @@ export async function POST(request: NextRequest) {
 
     const answer = chatRes.choices[0]?.message?.content || fallbackMessage
 
-    // Low confidence — also log as potentially unanswered
-    if (bestSimilarity < threshold + 0.1) {
+    // Low confidence — also log as potentially unanswered (apenas se houver artigo)
+    if (bestSimilarity < threshold + 0.1 && articlesArr.length > 0) {
       await supabase.from('ai_unanswered_questions').insert({
         question,
         similarity_score: bestSimilarity,
-        context: `Melhor artigo: ${(articles[0] as { title: string }).title}`,
+        context: `Melhor artigo: ${(articlesArr[0] as { title: string }).title}`,
       })
     }
 
@@ -251,7 +251,7 @@ export async function POST(request: NextRequest) {
       data: {
         answer,
         requires_ticket: false,
-        articles_used: articles.length,
+        articles_used: articlesArr.length,
         confidence: Math.round(bestSimilarity * 100),
         ai_name: aiName,
       },
