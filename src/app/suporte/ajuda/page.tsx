@@ -21,6 +21,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { ArrowLeft, Send, Loader2, Bot, User, CheckCircle, XCircle, ThumbsUp, ThumbsDown, AlertCircle } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import type { Product, Category } from '@/lib/supabase/types'
+import { MessageContent } from '@/components/chat/MessageContent'
 import Link from 'next/link'
 
 type Step = 'form' | 'ai' | 'creating' | 'done'
@@ -541,7 +542,7 @@ export default function HelpPage() {
                             )}
                           </p>
                         )}
-                        <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                        <MessageContent content={msg.content} />
                         {msg.role === 'ai' && !feedbackGiven && i === aiMessages.length - 1 && !isAiLoading && (
                           <div className="mt-2 flex items-center gap-2 border-t border-border/50 pt-2">
                             <span className="text-xs text-muted-foreground">Foi útil?</span>
