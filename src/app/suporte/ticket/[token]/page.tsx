@@ -11,6 +11,7 @@ import { StatusBadge } from '@/components/common/StatusBadge'
 import { LoadingState } from '@/components/common/LoadingState'
 import { FileUploadButton, AttachmentPreview, MessageAttachments } from '@/components/chat/FileUploadButton'
 import type { Attachment } from '@/components/chat/FileUploadButton'
+import { MessageContent } from '@/components/chat/MessageContent'
 import { useRealtimeMessages } from '@/hooks/useRealtimeMessages'
 import {
   ArrowLeft,
@@ -381,7 +382,7 @@ export default function TicketTrackingPage() {
                         {msg.sender_type === 'ai' ? 'IA Sofia' : SENDER_TYPE_LABELS[msg.sender_type]}
                       </p>
                     )}
-                    <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                    <MessageContent content={msg.content} />
                     <MessageAttachments attachments={msgAttachments} />
                     <p
                       className={`mt-1 text-right text-xs ${

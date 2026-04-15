@@ -30,6 +30,7 @@ import { PriorityBadge } from '@/components/common/PriorityBadge'
 import { LoadingState } from '@/components/common/LoadingState'
 import { FileUploadButton, AttachmentPreview, MessageAttachments } from '@/components/chat/FileUploadButton'
 import type { Attachment } from '@/components/chat/FileUploadButton'
+import { MessageContent } from '@/components/chat/MessageContent'
 import { useRealtimeMessages } from '@/hooks/useRealtimeMessages'
 import {
   Send,
@@ -627,7 +628,7 @@ export default function TicketDetailPage() {
                           </Badge>
                         )}
                       </div>
-                      <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                      <MessageContent content={msg.content} />
                       <MessageAttachments attachments={msgAttachments} />
                       <p className={`mt-1 text-right text-xs ${isAgent && !isInternal ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
                         {formatRelativeTime(msg.created_at)}
