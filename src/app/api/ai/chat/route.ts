@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { question, product_id, category_id, customer, conversation_id: clientConvId } = body
+    const { question, product_id, category_id, customer, conversation_id: clientConvId, ticket_id: ticketId } = body
 
     if (!question || typeof question !== 'string' || question.trim().length === 0) {
       return NextResponse.json(
@@ -70,6 +70,18 @@ export async function POST(request: NextRequest) {
     let conversationId: string | null = clientConvId || null
     let priorMessages: Array<{ role: 'user' | 'assistant' | 'tool'; content: string; tool_name?: string | null }> = []
 
+    // Prioriza conversa vinculada ao ticket — memoria estavel durante toda a vida do ticket
+    if (!conversationId && ticketId) {
+      const { data: existingByTicket } = await supabase
+        .from('ai_conversations')
+        .select('id')
+        .eq('ticket_id', ticketId)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (existingByTicket) conversationId = existingByTicket.id
+    }
+
     if (!conversationId && customer && (customer.cpf || customer.email || customer.telefone)) {
       const orClauses = [
         customer.cpf ? `customer_cpf.eq.${String(customer.cpf).replace(/\D/g, '')}` : null,
@@ -101,6 +113,7 @@ export async function POST(request: NextRequest) {
             customer_telefone: customer.telefone || null,
             product_id: product_id || null,
             category_id: category_id || null,
+            ticket_id: ticketId || null,
           })
           .select('id')
           .single()
@@ -275,7 +288,13 @@ VOCE DEVE OBRIGATORIAMENTE:
 Use tools apenas quando fizer sentido. Perguntas genericas cobertas pela KB = responda direto.`
 
     const mismatchSystem = mismatchInfo ? `\n\n${mismatchInfo}` : ''
-    const fullSystemPrompt = `Voce se chama ${aiName}. ${systemPrompt}\n\nIMPORTANTE: Responda com base nas informacoes fornecidas. Nunca invente.${toneInstrucao}${fluxonInstrucao}${siteForaDoArInstrucao}${toolsInstrucao}${mismatchSystem}`
+
+    // Regra critica que o modelo mais ignora — colocada no TOPO em CAIXA ALTA
+    const regraCriticaDados = dadosJaFornecidos.length > 0
+      ? `\n\n⚠️ REGRA CRITICA — LEIA ANTES DE RESPONDER ⚠️\nO cliente JA FORNECEU estes dados no formulario inicial: ${dadosLista}.\n- NUNCA, JAMAIS peca nome, email, CPF ou telefone novamente. Eles ja estao aqui.\n- Se esta pensando em escrever "poderia me informar seu nome/email/CPF" — PARE. Esses dados ja estao disponiveis.\n- Se precisar de algo mais, peca APENAS dados ESPECIFICOS que nao estao listados acima (ex: data da compra, numero do pedido, plataforma).\n- Se a compra nao foi encontrada, sugira que talvez tenha sido feita com email/CPF DIFERENTES — nao peca os mesmos dados de novo.`
+      : ''
+
+    const fullSystemPrompt = `Voce se chama ${aiName}. ${systemPrompt}${regraCriticaDados}\n\nIMPORTANTE: Responda com base nas informacoes fornecidas. Nunca invente.${toneInstrucao}${fluxonInstrucao}${siteForaDoArInstrucao}${toolsInstrucao}${mismatchSystem}`
 
     const userContent = [
       mismatchInfo ? mismatchInfo : null,

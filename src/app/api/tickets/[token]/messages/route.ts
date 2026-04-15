@@ -168,20 +168,49 @@ async function disparaAutoReply(
   ticket: { id: string; customer_id: string; product_id: string | null; category_id: string | null; description: string | null },
   customerQuestion: string
 ): Promise<void> {
-  // Debounce: se a IA ja respondeu nos ultimos 30s, nao responde de novo.
-  const agora = Date.now()
-  const { data: ultimaIA } = await supabase
+  // Debounce curto (8s) so para dedup de bursts — aguarda o cliente terminar de mandar
+  // varias msgs em sequencia antes de disparar uma unica resposta agregada.
+  await new Promise(r => setTimeout(r, 8000))
+
+  // Apos o debounce, verifica se outra execucao (de msg posterior) ja pegou a vez.
+  // Se a ultima msg do cliente foi DEPOIS desta execucao comecar, aborta silenciosamente.
+  const execucaoIniciadaEm = Date.now() - 8000
+  const { data: msgPosterior } = await supabase
     .from('messages')
     .select('created_at')
     .eq('ticket_id', ticket.id)
-    .eq('sender_type', 'ai')
+    .eq('sender_type', 'customer')
+    .gt('created_at', new Date(execucaoIniciadaEm + 500).toISOString())
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle()
 
-  if (ultimaIA && (agora - new Date(ultimaIA.created_at).getTime()) < 30000) {
-    return
-  }
+  if (msgPosterior) return // outra execucao mais recente vai responder
+
+  // Busca ultima msg da IA para agregar todas as msgs do cliente desde entao
+  const { data: ultimaIA } = await supabase
+    .from('messages')
+    .select('created_at')
+    .eq('ticket_id', ticket.id)
+    .in('sender_type', ['ai', 'agent'])
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  const desde = ultimaIA?.created_at || new Date(0).toISOString()
+
+  // Agrega todas as msgs do cliente desde a ultima resposta da IA/humano
+  const { data: msgsClienteRecentes } = await supabase
+    .from('messages')
+    .select('content, created_at')
+    .eq('ticket_id', ticket.id)
+    .eq('sender_type', 'customer')
+    .gt('created_at', desde)
+    .order('created_at', { ascending: true })
+
+  const questionAgregada = (msgsClienteRecentes && msgsClienteRecentes.length > 0)
+    ? msgsClienteRecentes.map(m => m.content).join('\n')
+    : customerQuestion
 
   const { data: customer } = await supabase
     .from('customers')
@@ -191,21 +220,23 @@ async function disparaAutoReply(
 
   if (!customer) return
 
+  // conversation_id estavel por ticket permite Sofia manter memoria da conversa
   const origin = request.nextUrl.origin
   const res = await fetch(`${origin}/api/ai/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      question: customerQuestion,
+      question: questionAgregada,
       product_id: ticket.product_id,
       category_id: ticket.category_id,
+      ticket_id: ticket.id,
       customer: {
         email: customer.email,
         cpf: customer.cpf,
         telefone: customer.phone,
       },
     }),
-    signal: AbortSignal.timeout(20000),
+    signal: AbortSignal.timeout(30000),
   })
 
   const json = await res.json()
