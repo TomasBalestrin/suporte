@@ -249,9 +249,18 @@ VOCE DEVE OBRIGATORIAMENTE:
     // ─── Prompts ───
     const toneInstrucao = '\n\nTOM DE VOZ: Portugues brasileiro formal. Cumprimento cordial no inicio ("Ola, tudo bem? Abencoado dia!"). Assinatura final "Atenciosamente, Time Bethel Educacao". Seja objetiva.'
 
+    // Dados que o cliente JA forneceu no formulario — Sofia nao deve pedi-los de novo.
+    const dadosJaFornecidos: string[] = []
+    if (customer?.email) dadosJaFornecidos.push(`email: ${customer.email}`)
+    if (customer?.cpf) dadosJaFornecidos.push(`CPF: ${customer.cpf}`)
+    if (customer?.telefone) dadosJaFornecidos.push(`telefone: ${customer.telefone}`)
+    const dadosLista = dadosJaFornecidos.join(', ')
+
+    const fluxonClienteSemCompraMasIdentificado = fluxonData && fluxonData.identificacao === 'nao_encontrado' && dadosJaFornecidos.length > 0
+
     const fluxonInstrucao = fluxonContext
-      ? '\n\nDADOS DO CLIENTE (FLUXON): Voce tem dados reais de compra, entrega e status do cliente. Priorize esses dados sobre a base de conhecimento em perguntas sobre acesso, login, link, entrega, reembolso ou status de compra. Se o cliente ja tem link e login, forneca direto. Se nao encontrou compra no Fluxon e o cliente afirma ter comprado, use a tool solicitar_mais_dados.'
-      : '\n\nATENCAO: Nenhum dado do Fluxon disponivel (cliente ainda nao identificado). Se a pergunta for sobre compra/acesso/entrega, use a tool solicitar_mais_dados para obter nome completo, email e CPF.'
+      ? `\n\nDADOS DO CLIENTE (FLUXON): Voce tem dados reais de compra, entrega e status do cliente. Priorize esses dados sobre a base de conhecimento em perguntas sobre acesso, login, link, entrega, reembolso ou status de compra. Se o cliente ja tem link e login, forneca direto.\n\nIMPORTANTE: O cliente JA FORNECEU os seguintes dados no formulario inicial: ${dadosLista}. NUNCA peca esses mesmos dados novamente. Se precisar de algo a mais, seja especifico sobre O QUE falta (ex: data da compra, plataforma Hotmart/PagTrust, ou email/CPF DIFERENTES caso o cadastro possa estar em outro).`
+      : `\n\nATENCAO: Compra do cliente nao foi localizada no nosso sistema. O cliente JA FORNECEU: ${dadosLista || 'nenhum dado identificavel'}. NUNCA peca os mesmos dados novamente. Em vez disso, pergunte especificamente:\n1. Se a compra pode ter sido feita com EMAIL ou CPF DIFERENTES do que forneceu\n2. Qual a data aproximada da compra\n3. Se foi pela plataforma Hotmart ou PagTrust\n4. Se tem um codigo/numero de pedido (id_transacao) para informar\nNao use a tool solicitar_mais_dados com texto generico — seja especifico.`
 
     const siteForaDoArInstrucao = '\n\nSITE FORA DO AR: Se a mensagem do cliente contem qualquer um destes sinais: "This Account has been suspended", "Contact your hosting provider", "404 not found", "502 bad gateway", "503 service unavailable", "site fora do ar", "nao carrega", "pagina em branco", "erro no servidor" — NAO forneca link nem senha. Trata-se de instabilidade da nossa area de membros, nao erro do cliente. Use o artigo da KB sobre "Area de Membros Fora do Ar" para responder com calma, informando que a equipe tecnica ja foi notificada e pedindo para aguardar alguns minutos.'
 
@@ -514,10 +523,34 @@ async function executarTool(
     }
 
     if (name === 'solicitar_mais_dados') {
+      const jaTem: string[] = []
+      if (ctx.customer?.email) jaTem.push('email')
+      if (ctx.customer?.cpf) jaTem.push('CPF')
+      if (ctx.customer?.telefone) jaTem.push('telefone')
+
+      // Se o cliente ja forneceu todos os dados basicos, nao retorna mensagem generica.
+      // Sofia tem que gerar uma pergunta especifica.
+      if (jaTem.length >= 2) {
+        return {
+          ok: true,
+          motivo: args.motivo,
+          dados_ja_fornecidos: jaTem,
+          instrucao: `O cliente JA FORNECEU ${jaTem.join(', ')}. NAO peca os mesmos dados. Gere uma pergunta especifica: (1) se pode ter comprado com email/CPF DIFERENTES, (2) data da compra, (3) plataforma (Hotmart/PagTrust), ou (4) numero de pedido/transacao.`,
+        }
+      }
+
+      // Se faltam dados basicos, pede o que falta
+      const faltam: string[] = []
+      if (!ctx.customer?.email) faltam.push('email de compra')
+      if (!ctx.customer?.cpf) faltam.push('CPF')
+      if (!ctx.customer?.telefone) faltam.push('telefone')
+
       return {
         ok: true,
         motivo: args.motivo,
-        mensagem_sugerida: 'Por gentileza, poderia enviar o nome completo, e-mail de compra e CPF? Assim consigo localizar sua compra e te ajudar com mais precisao.',
+        dados_ja_fornecidos: jaTem,
+        dados_que_faltam: faltam,
+        mensagem_sugerida: `Por gentileza, poderia me informar ${faltam.join(', ')}? Assim consigo localizar sua compra e te ajudar com mais precisao.`,
       }
     }
 
