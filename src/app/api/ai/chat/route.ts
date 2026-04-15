@@ -178,7 +178,13 @@ export async function POST(request: NextRequest) {
       const matched = fluxonData.compras.some((c: any) => norm(c.produto).includes(selectedNorm) || selectedNorm.includes(norm(c.produto)))
       if (!matched) {
         const comprasStr = fluxonData.compras.map((c: any) => c.produto).join(', ')
-        mismatchInfo = `ATENCAO - MISMATCH DE PRODUTO: O cliente selecionou "${productName}" no formulario, mas o sistema mostra compras de produto(s) diferente(s): ${comprasStr}. NAO FORNECA dados de acesso de "${productName}" nem dos outros produtos sem confirmar. Informe o cliente sobre essa divergencia e pergunte: (1) se ele realmente comprou "${productName}" e pode ter usado outro email/CPF, ou (2) se houve engano na selecao do produto. Nao assuma qual e a resposta correta.`
+        mismatchInfo = `ATENCAO - MISMATCH DE PRODUTO: O cliente selecionou "${productName}" no formulario, mas em nosso sistema a compra registrada deste cliente foi de "${comprasStr}" (produto diferente).
+
+VOCE DEVE OBRIGATORIAMENTE:
+1. NAO fornecer link, login ou senha de NENHUM produto (nem do "${productName}", nem do que esta no sistema).
+2. Informar com clareza que houve uma divergencia entre o produto que o cliente selecionou ("${productName}") e o que consta em nosso sistema ("${comprasStr}").
+3. PERGUNTAR DIRETAMENTE ao cliente: "Poderia confirmar qual produto voce realmente comprou? Voce comprou '${productName}' ou '${comprasStr}'? Se voce comprou '${productName}', pode ter sido com outro email ou CPF — nesse caso, por favor me informe qual email/CPF foi usado na compra."
+4. Aguardar a resposta do cliente antes de agir. Nao assuma que a resposta e uma ou outra opcao.`
       }
     }
 
