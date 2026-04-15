@@ -253,6 +253,8 @@ VOCE DEVE OBRIGATORIAMENTE:
       ? '\n\nDADOS DO CLIENTE (FLUXON): Voce tem dados reais de compra, entrega e status do cliente. Priorize esses dados sobre a base de conhecimento em perguntas sobre acesso, login, link, entrega, reembolso ou status de compra. Se o cliente ja tem link e login, forneca direto. Se nao encontrou compra no Fluxon e o cliente afirma ter comprado, use a tool solicitar_mais_dados.'
       : '\n\nATENCAO: Nenhum dado do Fluxon disponivel (cliente ainda nao identificado). Se a pergunta for sobre compra/acesso/entrega, use a tool solicitar_mais_dados para obter nome completo, email e CPF.'
 
+    const siteForaDoArInstrucao = '\n\nSITE FORA DO AR: Se a mensagem do cliente contem qualquer um destes sinais: "This Account has been suspended", "Contact your hosting provider", "404 not found", "502 bad gateway", "503 service unavailable", "site fora do ar", "nao carrega", "pagina em branco", "erro no servidor" — NAO forneca link nem senha. Trata-se de instabilidade da nossa area de membros, nao erro do cliente. Use o artigo da KB sobre "Area de Membros Fora do Ar" para responder com calma, informando que a equipe tecnica ja foi notificada e pedindo para aguardar alguns minutos.'
+
     const toolsInstrucao = `\n\nFERRAMENTAS:
 - reenviar_whatsapp_entrega: quando cliente nao recebeu o WhatsApp de entrega ou quer reenvio. Requer dados do Fluxon.
 - orientar_reembolso: quando cliente solicita reembolso. <=7 dias direciona plataforma, >7 explica fora do prazo.
@@ -261,7 +263,7 @@ VOCE DEVE OBRIGATORIAMENTE:
 Use tools apenas quando fizer sentido. Perguntas genericas cobertas pela KB = responda direto.`
 
     const mismatchSystem = mismatchInfo ? `\n\n${mismatchInfo}` : ''
-    const fullSystemPrompt = `Voce se chama ${aiName}. ${systemPrompt}\n\nIMPORTANTE: Responda com base nas informacoes fornecidas. Nunca invente.${toneInstrucao}${fluxonInstrucao}${toolsInstrucao}${mismatchSystem}`
+    const fullSystemPrompt = `Voce se chama ${aiName}. ${systemPrompt}\n\nIMPORTANTE: Responda com base nas informacoes fornecidas. Nunca invente.${toneInstrucao}${fluxonInstrucao}${siteForaDoArInstrucao}${toolsInstrucao}${mismatchSystem}`
 
     const userContent = [
       mismatchInfo ? mismatchInfo : null,
