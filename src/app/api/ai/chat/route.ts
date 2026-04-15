@@ -247,7 +247,10 @@ VOCE DEVE OBRIGATORIAMENTE:
       .join('\n\n') || '(sem artigos relevantes)'
 
     // ─── Prompts ───
-    const toneInstrucao = '\n\nTOM DE VOZ: Portugues brasileiro formal. Cumprimento cordial no inicio ("Ola, tudo bem? Abencoado dia!"). Assinatura final "Atenciosamente, Time Bethel Educacao". Seja objetiva.'
+    const isPrimeiraMensagem = priorMessages.length === 0
+    const toneInstrucao = isPrimeiraMensagem
+      ? '\n\nTOM DE VOZ: Portugues brasileiro formal e objetivo. Como esta e a PRIMEIRA mensagem da conversa, cumprimente de forma cordial e breve (ex: "Ola, tudo bem?"). Voce PODE usar "Abencoado dia!" se soar natural, mas nao e obrigatorio. Seja direta e resolutiva. Nao precisa assinar "Atenciosamente" — so assine em encerramento formal quando fizer sentido.'
+      : '\n\nTOM DE VOZ: Portugues brasileiro formal e objetivo. Esta NAO e a primeira mensagem da conversa — NAO cumprimente de novo ("bom dia", "ola", "abencoado dia") e NAO assine "Atenciosamente, Time Bethel Educacao". Responda direto ao ponto, como em uma conversa continua. Seja concisa.'
 
     // Dados que o cliente JA forneceu no formulario — Sofia nao deve pedi-los de novo.
     const dadosJaFornecidos: string[] = []
