@@ -76,14 +76,19 @@ export async function GET(req: NextRequest) {
       })
       if (!perfilRes.ok) { pulados++; continue }
 
-      // Decisão simples: se a última compra já foi LIDA (delivery_status=read) e passou >= delayHours
-      // sem o cliente voltar pra conversa, dispara o follow-up.
       const perfil = await perfilRes.json()
       const ultima = perfil.compras?.[0]
       if (!ultima) { pulados++; continue }
 
-      // TODO: checar via link_clicks do Fluxon se o cliente clicou (requer novo endpoint).
-      // Por ora, dispara follow-up sempre que passa do delay sem nova mensagem do cliente.
+      // Se o cliente JA CLICOU em algum link depois do reenvio original, nao fazer follow-up
+      const reenvioEm = new Date(m.created_at).getTime()
+      const ultimoClique = perfil.link_clicks?.ultimo_clique_em
+        ? new Date(perfil.link_clicks.ultimo_clique_em).getTime()
+        : 0
+      if (ultimoClique > reenvioEm) {
+        pulados++
+        continue
+      }
 
       const reenvioRes = await fetch(`${process.env.FLUXON_BASE_URL}/api/support/reenviar-entrega`, {
         method: 'POST',
