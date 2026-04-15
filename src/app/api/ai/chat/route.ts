@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { question, product_id, category_id, customer, conversation_id: clientConvId, ticket_id: ticketId } = body
+    const { question, product_id, category_id, customer, conversation_id: clientConvId, ticket_id: ticketId, whatsapp_conversation_id: waConvId } = body
 
     if (!question || typeof question !== 'string' || question.trim().length === 0) {
       return NextResponse.json(
@@ -82,6 +82,18 @@ export async function POST(request: NextRequest) {
       if (existingByTicket) conversationId = existingByTicket.id
     }
 
+    // WhatsApp: memoria estavel durante toda a vida da conversa no Fluxon
+    if (!conversationId && waConvId) {
+      const { data: existingByWa } = await supabase
+        .from('ai_conversations')
+        .select('id')
+        .eq('whatsapp_conversa_id', waConvId)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (existingByWa) conversationId = existingByWa.id
+    }
+
     if (!conversationId && customer && (customer.cpf || customer.email || customer.telefone)) {
       const orClauses = [
         customer.cpf ? `customer_cpf.eq.${String(customer.cpf).replace(/\D/g, '')}` : null,
@@ -114,6 +126,7 @@ export async function POST(request: NextRequest) {
             product_id: product_id || null,
             category_id: category_id || null,
             ticket_id: ticketId || null,
+            whatsapp_conversa_id: waConvId || null,
           })
           .select('id')
           .single()
