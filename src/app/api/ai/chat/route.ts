@@ -153,13 +153,33 @@ export async function POST(request: NextRequest) {
     }
 
     let enrichedQuestion = question
+    let productName: string | null = null
+    let categoryName: string | null = null
     if (product_id) {
       const { data: product } = await supabase.from('products').select('name').eq('id', product_id).single()
-      if (product) enrichedQuestion = `[Produto: ${product.name}] ${enrichedQuestion}`
+      if (product) {
+        productName = product.name
+        enrichedQuestion = `[Produto: ${product.name}] ${enrichedQuestion}`
+      }
     }
     if (category_id) {
       const { data: category } = await supabase.from('categories').select('name').eq('id', category_id).single()
-      if (category) enrichedQuestion = `[Categoria: ${category.name}] ${enrichedQuestion}`
+      if (category) {
+        categoryName = category.name
+        enrichedQuestion = `[Categoria: ${category.name}] ${enrichedQuestion}`
+      }
+    }
+
+    // Detectar mismatch: cliente selecionou produto X mas Fluxon retornou compras de produto(s) diferente(s)
+    let mismatchInfo: string | null = null
+    if (productName && fluxonData?.compras?.length > 0) {
+      const norm = (s: string) => s.toUpperCase().replace(/[ÁÀÂÃ]/g, 'A').replace(/[ÉÊ]/g, 'E').replace(/[ÍÎ]/g, 'I').replace(/[ÓÔÕ]/g, 'O').replace(/[ÚÛ]/g, 'U').replace(/[Ç]/g, 'C').replace(/\s+/g, ' ').trim()
+      const selectedNorm = norm(productName)
+      const matched = fluxonData.compras.some((c: any) => norm(c.produto).includes(selectedNorm) || selectedNorm.includes(norm(c.produto)))
+      if (!matched) {
+        const comprasStr = fluxonData.compras.map((c: any) => c.produto).join(', ')
+        mismatchInfo = `ATENCAO - MISMATCH DE PRODUTO: O cliente selecionou "${productName}" no formulario, mas o sistema mostra compras de produto(s) diferente(s): ${comprasStr}. NAO FORNECA dados de acesso de "${productName}" nem dos outros produtos sem confirmar. Informe o cliente sobre essa divergencia e pergunte: (1) se ele realmente comprou "${productName}" e pode ter usado outro email/CPF, ou (2) se houve engano na selecao do produto. Nao assuma qual e a resposta correta.`
+      }
     }
 
     const embeddingRes = await openai.embeddings.create({
@@ -220,11 +240,15 @@ export async function POST(request: NextRequest) {
 
 Use tools apenas quando fizer sentido. Perguntas genericas cobertas pela KB = responda direto.`
 
-    const fullSystemPrompt = `Voce se chama ${aiName}. ${systemPrompt}\n\nIMPORTANTE: Responda com base nas informacoes fornecidas. Nunca invente.${toneInstrucao}${fluxonInstrucao}${toolsInstrucao}`
+    const mismatchSystem = mismatchInfo ? `\n\n${mismatchInfo}` : ''
+    const fullSystemPrompt = `Voce se chama ${aiName}. ${systemPrompt}\n\nIMPORTANTE: Responda com base nas informacoes fornecidas. Nunca invente.${toneInstrucao}${fluxonInstrucao}${toolsInstrucao}${mismatchSystem}`
 
     const userContent = [
+      mismatchInfo ? mismatchInfo : null,
       fluxonContext ? `Dados do cliente (Fluxon):\n${fluxonContext}` : null,
       `Artigos da base de conhecimento:\n${context}`,
+      productName ? `Produto selecionado pelo cliente no formulario: ${productName}` : null,
+      categoryName ? `Categoria do ticket: ${categoryName}` : null,
       `Pergunta atual do cliente: ${question}`,
     ].filter(Boolean).join('\n\n')
 
