@@ -26,7 +26,8 @@ import { StatusBadge } from '@/components/common/StatusBadge'
 import { PriorityBadge } from '@/components/common/PriorityBadge'
 import { EmptyState } from '@/components/common/EmptyState'
 import { LoadingState } from '@/components/common/LoadingState'
-import { Search, Ticket, ChevronLeft, ChevronRight, AlertTriangle, RefreshCw } from 'lucide-react'
+import { Search, Ticket, ChevronLeft, ChevronRight, AlertTriangle, RefreshCw, Wand2, Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
 import { formatRelativeTime } from '@/lib/utils/format'
 import type { TicketWithRelations } from '@/lib/supabase/types'
 
@@ -42,7 +43,33 @@ export default function TicketsPage() {
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [total, setTotal] = useState(0)
+  const [isBatchCorrecting, setIsBatchCorrecting] = useState(false)
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(null)
+
+  async function handleCorrigirLote(dryRun: boolean) {
+    if (isBatchCorrecting) return
+    const confirmMsg = dryRun
+      ? 'Simular correção em lote? Nada será alterado.'
+      : 'Re-executar Sofia nos últimos 20 tickets abertos com mensagem da IA? Respostas que diferirem serão substituídas.'
+    if (!confirm(confirmMsg)) return
+    setIsBatchCorrecting(true)
+    try {
+      const url = `/api/admin/tickets/sofia-corrigir-lote?limit=20${dryRun ? '&dry_run=1' : ''}`
+      const res = await adminFetch(url, { method: 'POST' })
+      const json = await res.json()
+      if (!json.success) {
+        toast.error(json.error || 'Falha no lote')
+        return
+      }
+      const suffix = dryRun ? ' (dry-run)' : ''
+      toast.success(`Processados ${json.processados}, alterados ${json.alterados}${suffix}`)
+      console.log('[sofia-corrigir-lote] detalhes:', json.detalhes)
+    } catch {
+      toast.error('Erro ao rodar lote')
+    } finally {
+      setIsBatchCorrecting(false)
+    }
+  }
 
   // Debounce search input
   function handleSearchChange(value: string) {
@@ -104,7 +131,21 @@ export default function TicketsPage() {
                   ({total} tickets)
                 </span>
               </CardTitle>
-              <div className="flex flex-wrap gap-3">
+              <div className="flex flex-wrap gap-3 items-center">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleCorrigirLote(false)}
+                  disabled={isBatchCorrecting}
+                  title="Re-executar Sofia nos últimos 20 tickets abertos — corrige respostas da IA que não batem mais"
+                >
+                  {isBatchCorrecting ? (
+                    <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Wand2 className="mr-1 h-4 w-4" />
+                  )}
+                  Corrigir em lote
+                </Button>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
