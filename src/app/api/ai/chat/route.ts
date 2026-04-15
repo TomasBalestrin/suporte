@@ -175,7 +175,21 @@ export async function POST(request: NextRequest) {
     if (productName && fluxonData?.compras?.length > 0) {
       const norm = (s: string) => s.toUpperCase().replace(/[ÁÀÂÃ]/g, 'A').replace(/[ÉÊ]/g, 'E').replace(/[ÍÎ]/g, 'I').replace(/[ÓÔÕ]/g, 'O').replace(/[ÚÛ]/g, 'U').replace(/[Ç]/g, 'C').replace(/\s+/g, ' ').trim()
       const selectedNorm = norm(productName)
-      const matched = fluxonData.compras.some((c: any) => norm(c.produto).includes(selectedNorm) || selectedNorm.includes(norm(c.produto)))
+
+      // Nomes genericos do checkout que mapeiam para multiplos produtos internos do Fluxon.
+      // Ex: "Implementacao da Ferramenta de Inteligencia Artificial" pode ser IMP CLEITON ou IMP JULIA.
+      const temPalavra = (txt: string, palavras: string[]) => palavras.every(p => txt.includes(p))
+      const isGenericoImplIA = temPalavra(selectedNorm, ['IMPLEMENTA']) && (selectedNorm.includes('IA') || selectedNorm.includes('INTELIGENCIA'))
+
+      const matched = fluxonData.compras.some((c: any) => {
+        const produtoNorm = norm(c.produto)
+        // Match literal (substring)
+        if (produtoNorm.includes(selectedNorm) || selectedNorm.includes(produtoNorm)) return true
+        // Match semantico: cliente selecionou "Implementacao IA" e Fluxon tem qualquer "IMPLEMENTACAO ..." (JULIA, CLEITON, etc)
+        if (isGenericoImplIA && produtoNorm.includes('IMPLEMENTA')) return true
+        return false
+      })
+
       if (!matched) {
         const comprasStr = fluxonData.compras.map((c: any) => c.produto).join(', ')
         mismatchInfo = `ATENCAO - MISMATCH DE PRODUTO: O cliente selecionou "${productName}" no formulario, mas em nosso sistema a compra registrada deste cliente foi de "${comprasStr}" (produto diferente).

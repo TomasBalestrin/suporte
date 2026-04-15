@@ -105,7 +105,7 @@ export async function POST(
     // Get ticket by access_token
     const { data: ticket } = await supabase
       .from('tickets')
-      .select('id, customer_id, status')
+      .select('id, customer_id, status, product_id, category_id, description')
       .eq('access_token', token)
       .single()
 
@@ -148,6 +148,11 @@ export async function POST(
         .eq('id', ticket.id)
     }
 
+    // ─── Auto-reply da Sofia (assincrono, nao bloqueia retorno) ───
+    disparaAutoReply(supabase, request, ticket, body.content.trim()).catch(err =>
+      console.error('[auto-reply]', err?.message || err)
+    )
+
     return NextResponse.json({ success: true, data: message }, { status: 201 })
   } catch (error) {
     return NextResponse.json(
@@ -155,4 +160,60 @@ export async function POST(
       { status: 500 }
     )
   }
+}
+
+async function disparaAutoReply(
+  supabase: ReturnType<typeof createAdminClient>,
+  request: NextRequest,
+  ticket: { id: string; customer_id: string; product_id: string | null; category_id: string | null; description: string | null },
+  customerQuestion: string
+): Promise<void> {
+  // Debounce: se a IA ja respondeu nos ultimos 30s, nao responde de novo.
+  const agora = Date.now()
+  const { data: ultimaIA } = await supabase
+    .from('messages')
+    .select('created_at')
+    .eq('ticket_id', ticket.id)
+    .eq('sender_type', 'ai')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (ultimaIA && (agora - new Date(ultimaIA.created_at).getTime()) < 30000) {
+    return
+  }
+
+  const { data: customer } = await supabase
+    .from('customers')
+    .select('email, phone, cpf')
+    .eq('id', ticket.customer_id)
+    .single()
+
+  if (!customer) return
+
+  const origin = request.nextUrl.origin
+  const res = await fetch(`${origin}/api/ai/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      question: customerQuestion,
+      product_id: ticket.product_id,
+      category_id: ticket.category_id,
+      customer: {
+        email: customer.email,
+        cpf: customer.cpf,
+        telefone: customer.phone,
+      },
+    }),
+    signal: AbortSignal.timeout(20000),
+  })
+
+  const json = await res.json()
+  if (!json.success || !json.data?.answer) return
+
+  await supabase.from('messages').insert({
+    ticket_id: ticket.id,
+    sender_type: 'ai',
+    content: json.data.answer,
+  })
 }
