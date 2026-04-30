@@ -107,14 +107,23 @@ export async function POST(request: NextRequest) {
     }
 
     // Build enriched question with product/category context
+    // formProductName/formCategoryName entram em userContent como contexto separado,
+    // não misturado na pergunta — evita loop de "divergência de produto".
+    // O prefixo no enrichedQuestion ainda é usado pelo embedding (busca RAG).
     let enrichedQuestion = question
+    let formProductName: string | null = null
+    let formCategoryName: string | null = null
+
     if (product_id) {
       const { data: product } = await supabase
         .from('products')
         .select('name')
         .eq('id', product_id)
         .single()
-      if (product) enrichedQuestion = `[Produto: ${product.name}] ${enrichedQuestion}`
+      if (product) {
+        formProductName = product.name
+        enrichedQuestion = `[Produto: ${product.name}] ${enrichedQuestion}`
+      }
     }
     if (category_id) {
       const { data: category } = await supabase
@@ -122,7 +131,10 @@ export async function POST(request: NextRequest) {
         .select('name')
         .eq('id', category_id)
         .single()
-      if (category) enrichedQuestion = `[Categoria: ${category.name}] ${enrichedQuestion}`
+      if (category) {
+        formCategoryName = category.name
+        enrichedQuestion = `[Categoria: ${category.name}] ${enrichedQuestion}`
+      }
     }
 
     // Generate embedding for the question
@@ -182,7 +194,15 @@ export async function POST(request: NextRequest) {
 
     const fullSystemPrompt = `Voce se chama ${aiName}. ${systemPrompt}\n\nIMPORTANTE: Responda APENAS com base nas informacoes fornecidas no contexto. Se o contexto nao cobrir completamente a pergunta, informe ao cliente que nao tem certeza e sugira abrir um ticket. Nunca invente informacoes.${fluxonInstrucao}`
 
+    const formContextParts: string[] = []
+    if (formProductName) formContextParts.push(`produto "${formProductName}"`)
+    if (formCategoryName) formContextParts.push(`categoria "${formCategoryName}"`)
+    const formContextLine = formContextParts.length > 0
+      ? `Contexto do formulário: cliente abriu o chat selecionando ${formContextParts.join(' e ')}. Use como sinal apenas — NÃO mencione ao cliente a não ser que ele cite produto/categoria diferente.`
+      : null
+
     const userContent = [
+      formContextLine,
       fluxonContext ? `Dados operacionais do cliente (Fluxon):\n${fluxonContext}` : null,
       `Artigos da base de conhecimento:\n${context}`,
       `Pergunta do cliente: ${question}`,
