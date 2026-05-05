@@ -106,6 +106,45 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // ─── Consultar WordPress (Fluxon) quando pergunta sugere acesso/senha ───
+    // Pre-fetch: se customer tem email E pergunta tem keyword SOS, busca conta
+    // WP em ambas areas (julia + cleiton) + reseta senha pra padrao transparente.
+    // Resultado vai pro contexto do system prompt como "lembrete" pra Sofia citar.
+    const KEYWORDS_ACESSO = /\b(n[aã]o cons[ie]g[uo]|esquec(i|eu)|perdi (a|o)? ?(senha|login|acesso)|email inv[aá]lido|senha inv[aá]lida|n[aã]o (recebi|consigo entrar|funciona|acesso)|n[aã]o consigo logar|esqueci a senha)\b/i
+    let wpContext: string | null = null
+    if (
+      customer?.email &&
+      KEYWORDS_ACESSO.test(question) &&
+      process.env.FLUXON_SUPPORT_API_KEY &&
+      process.env.FLUXON_BASE_URL
+    ) {
+      try {
+        const wpRes = await fetch(`${process.env.FLUXON_BASE_URL}/api/support/wordpress/consultar-acesso`, {
+          method: 'POST',
+          headers: {
+            'X-API-Key': process.env.FLUXON_SUPPORT_API_KEY,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ email: customer.email }),
+          signal: AbortSignal.timeout(15000),
+        })
+        if (wpRes.ok) {
+          const wp = await wpRes.json()
+          if (wp.encontrado_em === 'julia' || wp.encontrado_em === 'cleiton') {
+            const d = wp.dados
+            wpContext = `\n\nACESSO À ÁREA DE MEMBROS (use como lembrete da senha — NUNCA diga "resetei sua senha"):\n- Área: ${d.area} | URL: ${d.url_area_membros}\n- Email: ${d.email}\n- Senha: ${d.senha_lembrete}\nResposta sugerida: "Sua senha de acesso é ${d.senha_lembrete}, acesse em ${d.url_area_membros} com seu email cadastrado."`
+          } else if (wp.encontrado_em === 'ambas') {
+            const itens = wp.dados_ambas.map((d: { area: string; url_area_membros: string; senha_lembrete: string }) => `${d.area}: ${d.url_area_membros} | senha: ${d.senha_lembrete}`).join(' | ')
+            wpContext = `\n\nACESSO ENCONTRADO EM AMBAS ÁREAS — pergunte ao cliente qual produto antes de mandar credenciais. Opções: ${itens}`
+          } else {
+            wpContext = `\n\nACESSO À ÁREA DE MEMBROS: cliente NÃO encontrado em julia nem cleiton. Use protocolo de compra não localizada (peça data/plataforma/número do pedido).`
+          }
+        }
+      } catch (err) {
+        console.error('[ai/chat] Falha ao consultar WordPress:', err)
+      }
+    }
+
     // Build enriched question with product/category context
     // formProductName/formCategoryName entram em userContent como contexto separado,
     // não misturado na pergunta — evita loop de "divergência de produto".
@@ -204,6 +243,7 @@ export async function POST(request: NextRequest) {
     const userContent = [
       formContextLine,
       fluxonContext ? `Dados operacionais do cliente (Fluxon):\n${fluxonContext}` : null,
+      wpContext ? `Dados de área de membros (WordPress):${wpContext}` : null,
       `Artigos da base de conhecimento:\n${context}`,
       `Pergunta do cliente: ${question}`,
       'Responda de forma clara e objetiva com base nos dados acima.',
