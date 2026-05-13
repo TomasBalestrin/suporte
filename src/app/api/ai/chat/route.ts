@@ -74,6 +74,49 @@ const TOOLS = [
         required: ['email']
       }
     }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'reenviar_whatsapp_entrega',
+      description: 'Reenvia o WhatsApp com link de acesso da ultima compra do cliente. Use quando cliente disser que nao recebeu ou perdeu o link/senha/email de acesso.',
+      parameters: {
+        type: 'object',
+        properties: {
+          motivo: { type: 'string', description: 'Breve motivo do reenvio' },
+        },
+        required: ['motivo'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'orientar_reembolso',
+      description: 'Retorna instrucoes formais de reembolso conforme plataforma e prazo. Use sempre que cliente solicitar reembolso.',
+      parameters: {
+        type: 'object',
+        properties: {
+          plataforma: { type: 'string', enum: ['hotmart', 'pagtrust', 'desconhecida'] },
+          dias_desde_compra: { type: 'number', description: 'Dias desde a compra. -1 se desconhecido.' },
+        },
+        required: ['plataforma', 'dias_desde_compra'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'solicitar_mais_dados',
+      description: 'Use quando nao conseguir identificar o cliente ou precisar de info adicional.',
+      parameters: {
+        type: 'object',
+        properties: {
+          motivo: { type: 'string', description: 'Por que precisa dos dados' },
+        },
+        required: ['motivo'],
+      },
+    },
   }
 ]
 
@@ -89,22 +132,24 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { question, messages, product_id, category_id, customer } = body
+    const { 
+      question, 
+      messages: clientMessages, 
+      product_id, 
+      category_id, 
+      customer,
+      conversation_id: clientConvId,
+      ticket_id: ticketId,
+      whatsapp_conversation_id: waConvId 
+    } = body
 
-    const lastMessageContent = messages && messages.length > 0
-      ? messages[messages.length - 1].content
+    const lastMessageContent = clientMessages && clientMessages.length > 0
+      ? clientMessages[clientMessages.length - 1].content
       : question
 
     if (!lastMessageContent || typeof lastMessageContent !== 'string' || lastMessageContent.trim().length === 0) {
       return NextResponse.json(
         { success: false, error: 'Pergunta nao pode ser vazia' },
-        { status: 400 }
-      )
-    }
-
-    if (lastMessageContent.trim().length > 2000) {
-      return NextResponse.json(
-        { success: false, error: 'Pergunta muito longa (maximo 2000 caracteres)' },
         { status: 400 }
       )
     }
@@ -118,15 +163,69 @@ export async function POST(request: NextRequest) {
 
     const supabase = createAdminClient()
 
-    // Get AI config
-    const { data: configs } = await supabase
-      .from('ai_config')
-      .select('config_key, config_value')
+    // ─── Memória de conversa ───
+    let conversationId: string | null = clientConvId || null
+    let priorMessages: any[] = []
 
+    if (!conversationId && ticketId) {
+      const { data: existingByTicket } = await supabase
+        .from('ai_conversations')
+        .select('id')
+        .eq('ticket_id', ticketId)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (existingByTicket) conversationId = existingByTicket.id
+    }
+
+    if (!conversationId && waConvId) {
+      const { data: existingByWa } = await supabase
+        .from('ai_conversations')
+        .select('id')
+        .eq('whatsapp_conversa_id', waConvId)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (existingByWa) conversationId = existingByWa.id
+    }
+
+    if (!conversationId && customer) {
+      try {
+        const { data: created } = await supabase
+          .from('ai_conversations')
+          .insert({
+            customer_email: customer.email || null,
+            customer_cpf: customer.cpf ? String(customer.cpf).replace(/\D/g, '') : null,
+            customer_telefone: customer.telefone || null,
+            product_id: product_id || null,
+            category_id: category_id || null,
+            ticket_id: ticketId || null,
+            whatsapp_conversa_id: waConvId || null,
+          })
+          .select('id')
+          .single()
+        if (created) conversationId = created.id
+      } catch (err) {
+        console.error('Falha ao criar conversa:', err)
+      }
+    }
+
+    if (conversationId) {
+      try {
+        const { data: msgs } = await supabase
+          .from('ai_conversation_messages')
+          .select('role, content, tool_name')
+          .eq('conversation_id', conversationId)
+          .order('created_at', { ascending: true })
+          .limit(20)
+        if (msgs) priorMessages = msgs
+      } catch {}
+    }
+
+    // Get AI config
+    const { data: configs } = await supabase.from('ai_config').select('config_key, config_value')
     const configMap: Record<string, string> = {}
-    configs?.forEach((c) => {
-      configMap[c.config_key] = c.config_value
-    })
+    configs?.forEach((c) => { configMap[c.config_key] = c.config_value })
 
     if (configMap.ai_enabled === 'false') {
       return NextResponse.json({
@@ -138,34 +237,21 @@ export async function POST(request: NextRequest) {
     const threshold = parseFloat(configMap.confidence_threshold || '0.7')
     const systemPrompt = configMap.system_prompt || 'Voce e uma assistente de suporte.'
     const temperature = parseFloat(configMap.temperature || '0.3')
-    const maxTokens = parseInt(configMap.max_tokens || '500', 10)
+    const maxTokens = parseInt(configMap.max_tokens || '1000', 10)
     const aiName = configMap.ai_name || 'Sofia'
     const fallbackMessage = configMap.fallback_message || 'Nao encontrei uma resposta para sua duvida. Vou encaminhar para um atendente.'
 
     const OpenAI = (await import('openai')).default
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
-    // Build enriched question for RAG search
+    // RAG Search
     let enrichedQuestion = lastMessageContent
-    let formProductName: string | null = null
-    let formCategoryName: string | null = null
-
+    let productName: string | null = null
     if (product_id) {
-      const { data: product } = await supabase.from('products').select('name').eq('id', product_id).single()
-      if (product) {
-        formProductName = product.name
-        enrichedQuestion = `[Produto: ${product.name}] ${enrichedQuestion}`
-      }
-    }
-    if (category_id) {
-      const { data: category } = await supabase.from('categories').select('name').eq('id', category_id).single()
-      if (category) {
-        formCategoryName = category.name
-        enrichedQuestion = `[Categoria: ${category.name}] ${enrichedQuestion}`
-      }
+      const { data: p } = await supabase.from('products').select('name').eq('id', product_id).single()
+      if (p) { productName = p.name; enrichedQuestion = `[Produto: ${p.name}] ${enrichedQuestion}` }
     }
 
-    // Embeddings & KB Search
     const embeddingRes = await openai.embeddings.create({
       model: process.env.OPENAI_EMBEDDING_MODEL || 'text-embedding-3-small',
       input: enrichedQuestion,
@@ -177,72 +263,82 @@ export async function POST(request: NextRequest) {
       match_threshold: threshold,
       match_count: 5,
     })
-
-    const bestSimilarity = articles?.[0] ? (articles[0] as any).similarity || 0 : 0
     const articlesArr = articles || []
-    
+    const bestSimilarity = articles?.[0] ? (articles[0] as any).similarity || 0 : 0
     const contextStr = articlesArr
-      .map((a: any) => `## ${a.title} (relevancia: ${((a.similarity || 0) * 100).toFixed(0)}%)\n${a.content}`)
+      .map((a: any) => `## ${a.title}\n${a.content}`)
       .join('\n\n') || '(sem artigos relevantes)'
 
-    // Build System Prompt
+    // System Prompt & Messages
     const customerInfo = `Email: ${customer?.email || 'N/A'}, CPF: ${customer?.cpf || 'N/A'}, Telefone: ${customer?.telefone || 'N/A'}`
-    const toolsInstrucao = `\n\n[FERRAMENTAS]\nVoce possui ferramentas (tools) para consultar dados em tempo real no Fluxon e WordPress. O cliente atual informou os dados: ${customerInfo}. USE as ferramentas caso o cliente pergunte sobre compras, links de acesso, envios de WhatsApp ou reclamacao de senha. NUNCA diga que nao localizou a compra sem antes usar a ferramenta 'consultar_fluxon'.`
-    const fullSystemPrompt = `Voce se chama ${aiName}. ${systemPrompt}\n\n[BASE DE CONHECIMENTO]\nAbaixo estao artigos relevantes da base de conhecimento (use como guia):\n${contextStr}${toolsInstrucao}`
+    const fullSystemPrompt = `Voce se chama ${aiName}. ${systemPrompt}
 
-    // Mapear historico
+[DADOS DO CLIENTE]
+${customerInfo}
+
+[BASE DE CONHECIMENTO]
+${contextStr}
+
+[FERRAMENTAS]
+Use 'consultar_fluxon' para checar compras e status.
+Use 'consultar_wordpress' para problemas de login/senha.
+Use 'reenviar_whatsapp_entrega' se o cliente pedir o link/acesso novamente.
+Use 'orientar_reembolso' se o cliente pedir estorno.
+NUNCA diga que nao encontrou nada sem usar as ferramentas primeiro.`
+
     const openaiMessages: any[] = [ { role: 'system', content: fullSystemPrompt } ]
     
-    if (messages && Array.isArray(messages) && messages.length > 0) {
-      for (let i = 0; i < messages.length - 1; i++) {
-        const m = messages[i]
+    // Merge history from DB or client
+    const history = clientMessages || priorMessages
+    if (history && history.length > 0) {
+      for (const m of history) {
+        if (m.role === 'tool' || m.role === 'system') continue
         openaiMessages.push({
           role: m.role === 'ai' || m.role === 'assistant' ? 'assistant' : 'user',
           content: m.content
         })
       }
     }
+    openaiMessages.push({ role: 'user', content: lastMessageContent })
 
-    const formContextParts: string[] = []
-    if (formProductName) formContextParts.push(`produto "${formProductName}"`)
-    if (formCategoryName) formContextParts.push(`categoria "${formCategoryName}"`)
-    const formContextLine = formContextParts.length > 0
-      ? `(Contexto invisivel: cliente selecionou ${formContextParts.join(' e ')})`
-      : ''
-
-    openaiMessages.push({ role: 'user', content: `${formContextLine}\n\n${lastMessageContent}`.trim() })
-
-    // LLM Loop para Tool Calling
+    // Tool Loop
     let answer = fallbackMessage
     let iterations = 0
-    let requiresTicket = false
+    let toolCallsExecuted: any[] = []
 
-    while (iterations < 3) {
+    while (iterations < 4) {
       const chatRes = await openai.chat.completions.create({
-        model: typeof process !== "undefined" && process.env.OPENAI_MODEL ? process.env.OPENAI_MODEL : 'gpt-4o-mini',
+        model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
         temperature,
         max_tokens: maxTokens,
         messages: openaiMessages,
         tools: TOOLS as any,
-        tool_choice: 'auto'
       })
 
       const msg = chatRes.choices[0]?.message
       if (!msg) break
-
       openaiMessages.push(msg)
 
       if (msg.tool_calls && msg.tool_calls.length > 0) {
         for (const tc of msg.tool_calls as any[]) {
-          if (tc.type === 'function' && tc.function.name === 'consultar_fluxon') {
-            const args = JSON.parse(tc.function.arguments || '{}')
-            const resStr = await consultar_fluxon(args.cpf, args.email, args.telefone)
-            openaiMessages.push({ role: 'tool', tool_call_id: tc.id, name: tc.function.name, content: resStr })
-          } else if (tc.type === 'function' && tc.function.name === 'consultar_wordpress') {
-            const args = JSON.parse(tc.function.arguments || '{}')
-            const resStr = await consultar_wordpress(args.email)
-            openaiMessages.push({ role: 'tool', tool_call_id: tc.id, name: tc.function.name, content: resStr })
+          const name = tc.function.name
+          const args = JSON.parse(tc.function.arguments || '{}')
+          let resStr = ""
+
+          if (name === 'consultar_fluxon') {
+            resStr = await consultar_fluxon(args.cpf, args.email, args.telefone)
+          } else if (name === 'consultar_wordpress') {
+            resStr = await consultar_wordpress(args.email)
+          } else if (name === 'reenviar_whatsapp_entrega') {
+            resStr = await executarLegacyTool(name, args, { customer })
+          } else if (name === 'orientar_reembolso') {
+            resStr = await executarLegacyTool(name, args, { customer })
+          } else if (name === 'solicitar_mais_dados') {
+            resStr = JSON.stringify({ ok: true, instrucao: "Peça os dados educadamente." })
           }
+
+          openaiMessages.push({ role: 'tool', tool_call_id: tc.id, name, content: resStr })
+          toolCallsExecuted.push({ name, args, result: resStr })
         }
         iterations++
       } else {
@@ -251,59 +347,49 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    if ((!articles || articles.length === 0) && iterations === 0) {
-       // Se nao achou artigo na base e nem chamou ferramenta, provavelmente nao sabe responder bem
-       requiresTicket = true
-       await supabase.from('ai_unanswered_questions').insert({
-        question: lastMessageContent,
-        similarity_score: 0,
-        context: product_id || category_id ? `Produto: ${product_id || '-'}, Categoria: ${category_id || '-'}` : null,
-      })
+    // Persist messages
+    if (conversationId) {
+      const toInsert = [
+        { conversation_id: conversationId, role: 'user', content: lastMessageContent },
+        ...toolCallsExecuted.map(t => ({ 
+          conversation_id: conversationId, 
+          role: 'tool', 
+          content: t.result, 
+          tool_name: t.name 
+        })),
+        { conversation_id: conversationId, role: 'assistant', content: answer }
+      ]
+      await supabase.from('ai_conversation_messages').insert(toInsert)
+      await supabase.from('ai_conversations').update({ updated_at: new Date().toISOString() }).eq('id', conversationId)
     }
-
-    if (bestSimilarity < threshold + 0.1 && iterations === 0) {
-      await supabase.from('ai_unanswered_questions').insert({
-        question: lastMessageContent,
-        similarity_score: bestSimilarity,
-        context: articlesArr[0] ? `Melhor artigo: ${(articlesArr[0] as any).title}` : null,
-      })
-    }
-
-    const now = new Date().toISOString()
-    try {
-      await Promise.all(
-        articlesArr.map((article: any) =>
-          supabase.rpc('increment_usage_count', { article_id: article.id, used_at: now }).then(() => {}, () => {
-            return supabase.from('knowledge_base').update({ last_used_at: now }).eq('id', article.id)
-          })
-        )
-      )
-    } catch {}
-
-    try {
-      await supabase.from('ai_usage_stats').insert({
-        query: lastMessageContent,
-        response: answer,
-        articles_found: articlesArr.length,
-        confidence_score: bestSimilarity,
-      })
-    } catch {}
 
     return NextResponse.json({
       success: true,
       data: {
         answer,
-        requires_ticket: requiresTicket,
-        articles_used: articlesArr.length,
+        requires_ticket: bestSimilarity < threshold,
         confidence: Math.round(bestSimilarity * 100),
         ai_name: aiName,
-      },
+        conversation_id: conversationId
+      }
     })
   } catch (error) {
     console.error('AI chat error:', error)
-    return NextResponse.json(
-      { success: false, error: 'Erro ao consultar IA' },
-      { status: 500 }
-    )
+    return NextResponse.json({ success: false, error: 'Erro ao consultar IA' }, { status: 500 })
   }
+}
+
+async function executarLegacyTool(name: string, args: any, ctx: any) {
+  if (name === 'reenviar_whatsapp_entrega') {
+    const res = await fetch(`${process.env.FLUXON_BASE_URL}/api/support/reenviar-entrega`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-API-Key': process.env.FLUXON_SUPPORT_API_KEY! },
+      body: JSON.stringify({ email: ctx.customer?.email, cpf: ctx.customer?.cpf }),
+    })
+    return JSON.stringify(await res.json())
+  }
+  if (name === 'orientar_reembolso') {
+    return JSON.stringify({ ok: true, instrucao: "Oriente sobre o prazo de 7 dias." })
+  }
+  return "Tool desconhecida"
 }

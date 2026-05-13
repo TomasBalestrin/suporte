@@ -30,6 +30,7 @@ import { PriorityBadge } from '@/components/common/PriorityBadge'
 import { LoadingState } from '@/components/common/LoadingState'
 import { FileUploadButton, AttachmentPreview, MessageAttachments } from '@/components/chat/FileUploadButton'
 import type { Attachment } from '@/components/chat/FileUploadButton'
+import { MessageContent } from '@/components/chat/MessageContent'
 import { useRealtimeMessages } from '@/hooks/useRealtimeMessages'
 import {
   Send,
@@ -50,6 +51,7 @@ import {
   History,
   PanelRight,
   MessageSquarePlus,
+  Wand2,
 } from 'lucide-react'
 import { formatDate, formatRelativeTime, formatPhone } from '@/lib/utils/format'
 import { SENDER_TYPE_LABELS, TICKET_STATUS_LABELS, PRIORITY_LABELS } from '@/lib/utils/constants'
@@ -71,6 +73,7 @@ export default function TicketDetailPage() {
   const [isSending, setIsSending] = useState(false)
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const [isSuggesting, setIsSuggesting] = useState(false)
+  const [isCorrecting, setIsCorrecting] = useState(false)
   const [quickReplies, setQuickReplies] = useState<QuickReply[]>([])
   const [showQuickReplies, setShowQuickReplies] = useState(false)
   const [qrFilter, setQrFilter] = useState('')
@@ -244,6 +247,38 @@ export default function TicketDetailPage() {
       setIsSuggesting(false)
     }
   }
+
+  async function handleCorrigirIA() {
+    if (isCorrecting) return
+    if (!confirm('Re-executar Sofia neste ticket? Se a nova resposta for diferente da última mensagem da IA, a antiga será apagada e substituída.')) return
+    setIsCorrecting(true)
+    try {
+      const res = await adminFetch(`/api/admin/tickets/${ticketId}/sofia-corrigir`, {
+        method: 'POST',
+      })
+      const json = await res.json()
+      if (!json.success) {
+        toast.error(json.error || 'Falha ao corrigir')
+        return
+      }
+      if (!json.alterado) {
+        toast.info('Sofia gerou a mesma resposta — nada a corrigir')
+        return
+      }
+      toast.success('Mensagem da IA corrigida')
+      // Recarrega mensagens
+      const mRes = await adminFetch(`/api/admin/tickets/${ticketId}/messages`)
+      const mJson = await mRes.json()
+      if (mJson.success) setMessages(mJson.data || [])
+    } catch (err) {
+      console.error(err)
+      toast.error('Erro ao corrigir ticket')
+    } finally {
+      setIsCorrecting(false)
+    }
+  }
+
+  const hasAIMessage = messages.some((m) => m.sender_type === 'ai')
 
   function getSenderIcon(senderType: string) {
     switch (senderType) {
@@ -488,6 +523,23 @@ export default function TicketDetailPage() {
               <WifiOff className="h-4 w-4 text-muted-foreground animate-pulse motion-reduce:animate-none" aria-hidden="true" />
             )}
           </div>
+          {hasAIMessage && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleCorrigirIA}
+              disabled={isCorrecting}
+              title="Re-executar Sofia e corrigir a resposta da IA se estiver errada"
+              className="text-primary hover:text-primary"
+            >
+              {isCorrecting ? (
+                <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+              ) : (
+                <Wand2 className="mr-1 h-4 w-4" />
+              )}
+              Corrigir com IA
+            </Button>
+          )}
           {/* Mobile sidebar trigger */}
           <Sheet>
             <SheetTrigger asChild>
@@ -575,7 +627,7 @@ export default function TicketDetailPage() {
                           </Badge>
                         )}
                       </div>
-                      <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                      <MessageContent content={msg.content} />
                       <MessageAttachments attachments={msgAttachments} />
                       <p className={`mt-1 text-right text-xs ${isAgent && !isInternal ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
                         {formatRelativeTime(msg.created_at)}
