@@ -139,14 +139,14 @@ export async function POST(request: NextRequest) {
       html: emailData.html,
       ticketId: ticket.id,
       template: 'ticket_created',
-    }).catch(() => {})
+    }).catch(() => { })
 
     // Execute automations (non-blocking)
     executeAutomations({
       ticket_id: ticket.id,
       trigger_type: 'ticket_created',
       data: { status: 'open', priority: 'medium', product_id, category_id },
-    }).catch(() => {})
+    }).catch(() => { })
 
     return NextResponse.json(
       {

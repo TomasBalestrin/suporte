@@ -2,6 +2,81 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
 
+// ─── TOOL HELPERS ───
+async function consultar_fluxon(cpf?: string, email?: string, telefone?: string) {
+  if (!process.env.FLUXON_SUPPORT_API_KEY || !process.env.FLUXON_BASE_URL) return "Erro: Integracao Fluxon nao configurada."
+  if (!cpf && !email && !telefone) return "Erro: Informe pelo menos um dado (cpf, email ou telefone)."
+  
+  const params = new URLSearchParams()
+  if (cpf) params.set('cpf', cpf)
+  if (email) params.set('email', email)
+  if (telefone) params.set('telefone', telefone)
+
+  try {
+    const flRes = await fetch(`${process.env.FLUXON_BASE_URL}/api/support/lead?${params.toString()}`, {
+      headers: { 'X-API-Key': process.env.FLUXON_SUPPORT_API_KEY },
+      signal: AbortSignal.timeout(8000),
+    })
+    if (!flRes.ok) return `Erro na API do Fluxon: ${flRes.statusText}`
+    const fl = await flRes.json()
+    return JSON.stringify(fl)
+  } catch (err) {
+    return `Erro ao consultar Fluxon: ${err instanceof Error ? err.message : String(err)}`
+  }
+}
+
+async function consultar_wordpress(email: string) {
+  if (!process.env.FLUXON_SUPPORT_API_KEY || !process.env.FLUXON_BASE_URL) return "Erro: Integracao Fluxon nao configurada."
+  try {
+    const wpRes = await fetch(`${process.env.FLUXON_BASE_URL}/api/support/wordpress/consultar-acesso`, {
+      method: 'POST',
+      headers: {
+        'X-API-Key': process.env.FLUXON_SUPPORT_API_KEY,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email }),
+      signal: AbortSignal.timeout(15000),
+    })
+    if (!wpRes.ok) return `Erro na API do WP: ${wpRes.statusText}`
+    const wp = await wpRes.json()
+    return JSON.stringify(wp)
+  } catch (err) {
+    return `Erro ao consultar WordPress: ${err instanceof Error ? err.message : String(err)}`
+  }
+}
+
+const TOOLS = [
+  {
+    type: 'function',
+    function: {
+      name: 'consultar_fluxon',
+      description: 'Busca o perfil 360 do cliente no Fluxon (compras, status de entrega do WhatsApp, link de acesso, carrinho abandonado). Use sempre que precisar saber o que o cliente comprou, se o link de acesso foi enviado ou para pegar instrucoes de login.',
+      parameters: {
+        type: 'object',
+        properties: {
+          cpf: { type: 'string', description: 'Apenas numeros' },
+          email: { type: 'string' },
+          telefone: { type: 'string', description: 'Telefone do cliente com DDD' }
+        }
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'consultar_wordpress',
+      description: 'Verifica se o cliente tem conta nas areas de membros (Tutor LMS) e gera uma senha temporaria/lembrete de acesso. Use se o cliente disser que perdeu a senha ou o acesso ao portal.',
+      parameters: {
+        type: 'object',
+        properties: {
+          email: { type: 'string', description: 'Email do cliente' }
+        },
+        required: ['email']
+      }
+    }
+  }
+]
+
 export async function POST(request: NextRequest) {
   try {
     const ip = getClientIp(request)
@@ -14,30 +89,30 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { question, product_id, category_id, customer } = body
+    const { question, messages, product_id, category_id, customer } = body
 
-    if (!question || typeof question !== 'string' || question.trim().length === 0) {
+    const lastMessageContent = messages && messages.length > 0
+      ? messages[messages.length - 1].content
+      : question
+
+    if (!lastMessageContent || typeof lastMessageContent !== 'string' || lastMessageContent.trim().length === 0) {
       return NextResponse.json(
         { success: false, error: 'Pergunta nao pode ser vazia' },
         { status: 400 }
       )
     }
 
-    if (question.trim().length > 2000) {
+    if (lastMessageContent.trim().length > 2000) {
       return NextResponse.json(
         { success: false, error: 'Pergunta muito longa (maximo 2000 caracteres)' },
         { status: 400 }
       )
     }
 
-    // If OpenAI is not configured, return fallback
     if (!process.env.OPENAI_API_KEY) {
       return NextResponse.json({
         success: true,
-        data: {
-          answer: null,
-          requires_ticket: true,
-        },
+        data: { answer: null, requires_ticket: true },
       })
     }
 
@@ -53,15 +128,10 @@ export async function POST(request: NextRequest) {
       configMap[c.config_key] = c.config_value
     })
 
-    // Check if AI is enabled
     if (configMap.ai_enabled === 'false') {
       return NextResponse.json({
         success: true,
-        data: {
-          answer: null,
-          requires_ticket: true,
-          ai_name: configMap.ai_name || 'Sofia',
-        },
+        data: { answer: null, requires_ticket: true, ai_name: configMap.ai_name || 'Sofia' },
       })
     }
 
@@ -70,248 +140,161 @@ export async function POST(request: NextRequest) {
     const temperature = parseFloat(configMap.temperature || '0.3')
     const maxTokens = parseInt(configMap.max_tokens || '500', 10)
     const aiName = configMap.ai_name || 'Sofia'
-    const fallbackMessage = configMap.fallback_message ||
-      'Nao encontrei uma resposta para sua duvida. Vou encaminhar para um atendente.'
+    const fallbackMessage = configMap.fallback_message || 'Nao encontrei uma resposta para sua duvida. Vou encaminhar para um atendente.'
 
     const OpenAI = (await import('openai')).default
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
-    // ─── Consultar Fluxon para dados do cliente (perfil 360) ───
-    let fluxonContext: string | null = null
-
-    if (customer && (customer.cpf || customer.email || customer.telefone) && process.env.FLUXON_SUPPORT_API_KEY && process.env.FLUXON_BASE_URL) {
-      try {
-        const params = new URLSearchParams()
-        if (customer.cpf) params.set('cpf', String(customer.cpf))
-        if (customer.email) params.set('email', String(customer.email))
-        if (customer.telefone) params.set('telefone', String(customer.telefone))
-
-        const flRes = await fetch(`${process.env.FLUXON_BASE_URL}/api/support/lead?${params.toString()}`, {
-          headers: { 'X-API-Key': process.env.FLUXON_SUPPORT_API_KEY },
-          signal: AbortSignal.timeout(8000),
-        })
-        if (flRes.ok) {
-          const fl = await flRes.json()
-          const parts: string[] = [fl.diagnostico_resumido || '']
-          if (Array.isArray(fl.compras) && fl.compras.length > 0) {
-            parts.push(`\nHistorico de compras (${fl.compras.length}):`)
-            for (const c of fl.compras) {
-              parts.push(`- ${c.produto} (${c.plataforma}, ha ${c.dias_desde_compra} dia(s)) | WhatsApp: ${c.whatsapp_entrega?.delivery_status || 'sem status'} | Link: ${c.link_acesso || '(sem link)'} | Login: ${c.login_instrucao || '(sem instrucao)'}`)
-            }
-          }
-          fluxonContext = parts.filter(Boolean).join('\n')
-        }
-      } catch (err) {
-        console.error('[ai/chat] Falha ao consultar Fluxon:', err)
-      }
-    }
-
-    // ─── Consultar WordPress (Fluxon) quando pergunta sugere acesso/senha ───
-    // Pre-fetch: se customer tem email E pergunta tem keyword SOS, busca conta
-    // WP em ambas areas (julia + cleiton) + reseta senha pra padrao transparente.
-    // Resultado vai pro contexto do system prompt como "lembrete" pra Sofia citar.
-    const KEYWORDS_ACESSO = /\b(n[aã]o cons[ie]g[uo]|esquec(i|eu)|perdi (a|o)? ?(senha|login|acesso)|email inv[aá]lido|senha inv[aá]lida|n[aã]o (recebi|consigo entrar|funciona|acesso)|n[aã]o consigo logar|esqueci a senha)\b/i
-    let wpContext: string | null = null
-    if (
-      customer?.email &&
-      KEYWORDS_ACESSO.test(question) &&
-      process.env.FLUXON_SUPPORT_API_KEY &&
-      process.env.FLUXON_BASE_URL
-    ) {
-      try {
-        const wpRes = await fetch(`${process.env.FLUXON_BASE_URL}/api/support/wordpress/consultar-acesso`, {
-          method: 'POST',
-          headers: {
-            'X-API-Key': process.env.FLUXON_SUPPORT_API_KEY,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ email: customer.email }),
-          signal: AbortSignal.timeout(15000),
-        })
-        if (wpRes.ok) {
-          const wp = await wpRes.json()
-          if (wp.encontrado_em === 'julia' || wp.encontrado_em === 'cleiton') {
-            const d = wp.dados
-            wpContext = `\n\nACESSO À ÁREA DE MEMBROS (use como lembrete da senha — NUNCA diga "resetei sua senha"):\n- Área: ${d.area} | URL: ${d.url_area_membros}\n- Email: ${d.email}\n- Senha: ${d.senha_lembrete}\nResposta sugerida: "Sua senha de acesso é ${d.senha_lembrete}, acesse em ${d.url_area_membros} com seu email cadastrado."`
-          } else if (wp.encontrado_em === 'ambas') {
-            const itens = wp.dados_ambas.map((d: { area: string; url_area_membros: string; senha_lembrete: string }) => `${d.area}: ${d.url_area_membros} | senha: ${d.senha_lembrete}`).join(' | ')
-            wpContext = `\n\nACESSO ENCONTRADO EM AMBAS ÁREAS — pergunte ao cliente qual produto antes de mandar credenciais. Opções: ${itens}`
-          } else {
-            wpContext = `\n\nACESSO À ÁREA DE MEMBROS: cliente NÃO encontrado em julia nem cleiton. Use protocolo de compra não localizada (peça data/plataforma/número do pedido).`
-          }
-        }
-      } catch (err) {
-        console.error('[ai/chat] Falha ao consultar WordPress:', err)
-      }
-    }
-
-    // Build enriched question with product/category context
-    // formProductName/formCategoryName entram em userContent como contexto separado,
-    // não misturado na pergunta — evita loop de "divergência de produto".
-    // O prefixo no enrichedQuestion ainda é usado pelo embedding (busca RAG).
-    let enrichedQuestion = question
+    // Build enriched question for RAG search
+    let enrichedQuestion = lastMessageContent
     let formProductName: string | null = null
     let formCategoryName: string | null = null
 
     if (product_id) {
-      const { data: product } = await supabase
-        .from('products')
-        .select('name')
-        .eq('id', product_id)
-        .single()
+      const { data: product } = await supabase.from('products').select('name').eq('id', product_id).single()
       if (product) {
         formProductName = product.name
         enrichedQuestion = `[Produto: ${product.name}] ${enrichedQuestion}`
       }
     }
     if (category_id) {
-      const { data: category } = await supabase
-        .from('categories')
-        .select('name')
-        .eq('id', category_id)
-        .single()
+      const { data: category } = await supabase.from('categories').select('name').eq('id', category_id).single()
       if (category) {
         formCategoryName = category.name
         enrichedQuestion = `[Categoria: ${category.name}] ${enrichedQuestion}`
       }
     }
 
-    // Generate embedding for the question
+    // Embeddings & KB Search
     const embeddingRes = await openai.embeddings.create({
       model: process.env.OPENAI_EMBEDDING_MODEL || 'text-embedding-3-small',
       input: enrichedQuestion,
     })
     const embedding = embeddingRes.data[0].embedding
 
-    // Search knowledge base
     const { data: articles } = await supabase.rpc('search_knowledge_base', {
       query_embedding: embedding,
       match_threshold: threshold,
       match_count: 5,
     })
 
-    // Calculate best similarity score
-    const bestSimilarity = articles?.[0]
-      ? (articles[0] as { similarity?: number }).similarity || 0
-      : 0
-
-    if ((!articles || articles.length === 0) && !fluxonContext) {
-      // No relevant articles found e sem dados do Fluxon — log unanswered
-      await supabase.from('ai_unanswered_questions').insert({
-        question,
-        similarity_score: 0,
-        context: product_id || category_id
-          ? `Produto: ${product_id || '-'}, Categoria: ${category_id || '-'}`
-          : null,
-      })
-
-      return NextResponse.json({
-        success: true,
-        data: {
-          answer: fallbackMessage,
-          requires_ticket: true,
-          confidence: 0,
-          ai_name: aiName,
-        },
-      })
-    }
-
-    // Se chegou aqui sem KB mas com Fluxon, garante array vazio para o resto do codigo
+    const bestSimilarity = articles?.[0] ? (articles[0] as any).similarity || 0 : 0
     const articlesArr = articles || []
-
-    // Build context from articles
-    const context = articlesArr
-      .map((a: { title: string; content: string; similarity?: number }) =>
-        `## ${a.title} (relevancia: ${((a.similarity || 0) * 100).toFixed(0)}%)\n${a.content}`
-      )
+    
+    const contextStr = articlesArr
+      .map((a: any) => `## ${a.title} (relevancia: ${((a.similarity || 0) * 100).toFixed(0)}%)\n${a.content}`)
       .join('\n\n') || '(sem artigos relevantes)'
 
-    // Enhanced system prompt with AI name + dados operacionais do Fluxon (se houver)
-    const fluxonInstrucao = fluxonContext
-      ? `\n\nIMPORTANTE: Voce tem acesso aos dados REAIS de compra e entrega deste cliente no Fluxon. Priorize esses dados sobre a base de conhecimento quando o cliente reclamar de acesso, login, link, entrega, reembolso ou status da compra. Se o cliente ja tem o link de acesso e login nos dados abaixo, forneca diretamente. Se nao encontrou compra no Fluxon e o cliente afirma ter comprado, pergunte pelos dados exatos (email da compra ou CPF) antes de abrir ticket.`
-      : ''
+    // Build System Prompt
+    const customerInfo = `Email: ${customer?.email || 'N/A'}, CPF: ${customer?.cpf || 'N/A'}, Telefone: ${customer?.telefone || 'N/A'}`
+    const toolsInstrucao = `\n\n[FERRAMENTAS]\nVoce possui ferramentas (tools) para consultar dados em tempo real no Fluxon e WordPress. O cliente atual informou os dados: ${customerInfo}. USE as ferramentas caso o cliente pergunte sobre compras, links de acesso, envios de WhatsApp ou reclamacao de senha. NUNCA diga que nao localizou a compra sem antes usar a ferramenta 'consultar_fluxon'.`
+    const fullSystemPrompt = `Voce se chama ${aiName}. ${systemPrompt}\n\n[BASE DE CONHECIMENTO]\nAbaixo estao artigos relevantes da base de conhecimento (use como guia):\n${contextStr}${toolsInstrucao}`
 
-    const fullSystemPrompt = `Voce se chama ${aiName}. ${systemPrompt}\n\nIMPORTANTE: Responda APENAS com base nas informacoes fornecidas no contexto. Se o contexto nao cobrir completamente a pergunta, informe ao cliente que nao tem certeza e sugira abrir um ticket. Nunca invente informacoes.${fluxonInstrucao}`
+    // Mapear historico
+    const openaiMessages: any[] = [ { role: 'system', content: fullSystemPrompt } ]
+    
+    if (messages && Array.isArray(messages) && messages.length > 0) {
+      for (let i = 0; i < messages.length - 1; i++) {
+        const m = messages[i]
+        openaiMessages.push({
+          role: m.role === 'ai' || m.role === 'assistant' ? 'assistant' : 'user',
+          content: m.content
+        })
+      }
+    }
 
     const formContextParts: string[] = []
     if (formProductName) formContextParts.push(`produto "${formProductName}"`)
     if (formCategoryName) formContextParts.push(`categoria "${formCategoryName}"`)
     const formContextLine = formContextParts.length > 0
-      ? `Contexto do formulário: cliente abriu o chat selecionando ${formContextParts.join(' e ')}. Use como sinal apenas — NÃO mencione ao cliente a não ser que ele cite produto/categoria diferente.`
-      : null
+      ? `(Contexto invisivel: cliente selecionou ${formContextParts.join(' e ')})`
+      : ''
 
-    const userContent = [
-      formContextLine,
-      fluxonContext ? `Dados operacionais do cliente (Fluxon):\n${fluxonContext}` : null,
-      wpContext ? `Dados de área de membros (WordPress):${wpContext}` : null,
-      `Artigos da base de conhecimento:\n${context}`,
-      `Pergunta do cliente: ${question}`,
-      'Responda de forma clara e objetiva com base nos dados acima.',
-    ].filter(Boolean).join('\n\n')
+    openaiMessages.push({ role: 'user', content: `${formContextLine}\n\n${lastMessageContent}`.trim() })
 
-    // Call GPT-4o Mini
-    const chatRes = await openai.chat.completions.create({
-      model: typeof process !== "undefined" && process.env.OPENAI_MODEL ? process.env.OPENAI_MODEL : 'gpt-4o-mini',
-      temperature,
-      max_tokens: maxTokens,
-      messages: [
-        { role: 'system', content: fullSystemPrompt },
-        { role: 'user', content: userContent },
-      ],
-    })
+    // LLM Loop para Tool Calling
+    let answer = fallbackMessage
+    let iterations = 0
+    let requiresTicket = false
 
-    const answer = chatRes.choices[0]?.message?.content || fallbackMessage
+    while (iterations < 3) {
+      const chatRes = await openai.chat.completions.create({
+        model: typeof process !== "undefined" && process.env.OPENAI_MODEL ? process.env.OPENAI_MODEL : 'gpt-4o-mini',
+        temperature,
+        max_tokens: maxTokens,
+        messages: openaiMessages,
+        tools: TOOLS as any,
+        tool_choice: 'auto'
+      })
 
-    // Low confidence — also log as potentially unanswered
-    if (bestSimilarity < threshold + 0.1) {
-      await supabase.from('ai_unanswered_questions').insert({
-        question,
-        similarity_score: bestSimilarity,
-        context: `Melhor artigo: ${(articles[0] as { title: string }).title}`,
+      const msg = chatRes.choices[0]?.message
+      if (!msg) break
+
+      openaiMessages.push(msg)
+
+      if (msg.tool_calls && msg.tool_calls.length > 0) {
+        for (const tc of msg.tool_calls as any[]) {
+          if (tc.type === 'function' && tc.function.name === 'consultar_fluxon') {
+            const args = JSON.parse(tc.function.arguments || '{}')
+            const resStr = await consultar_fluxon(args.cpf, args.email, args.telefone)
+            openaiMessages.push({ role: 'tool', tool_call_id: tc.id, name: tc.function.name, content: resStr })
+          } else if (tc.type === 'function' && tc.function.name === 'consultar_wordpress') {
+            const args = JSON.parse(tc.function.arguments || '{}')
+            const resStr = await consultar_wordpress(args.email)
+            openaiMessages.push({ role: 'tool', tool_call_id: tc.id, name: tc.function.name, content: resStr })
+          }
+        }
+        iterations++
+      } else {
+        answer = msg.content || fallbackMessage
+        break
+      }
+    }
+
+    if ((!articles || articles.length === 0) && iterations === 0) {
+       // Se nao achou artigo na base e nem chamou ferramenta, provavelmente nao sabe responder bem
+       requiresTicket = true
+       await supabase.from('ai_unanswered_questions').insert({
+        question: lastMessageContent,
+        similarity_score: 0,
+        context: product_id || category_id ? `Produto: ${product_id || '-'}, Categoria: ${category_id || '-'}` : null,
       })
     }
 
-    // Update usage count for used articles
+    if (bestSimilarity < threshold + 0.1 && iterations === 0) {
+      await supabase.from('ai_unanswered_questions').insert({
+        question: lastMessageContent,
+        similarity_score: bestSimilarity,
+        context: articlesArr[0] ? `Melhor artigo: ${(articlesArr[0] as any).title}` : null,
+      })
+    }
+
     const now = new Date().toISOString()
     try {
       await Promise.all(
-        articlesArr.map((article: { id: string }) =>
-   
-          supabase.rpc('increment_usage_count', {
-            article_id: article.id,
-            used_at: now,
-          }).then(() => {}, () => {
-            // Fallback: direct update if RPC doesn't exist
-            return supabase
-              .from('knowledge_base')
-              .update({ last_used_at: now })
-              .eq('id', article.id)
+        articlesArr.map((article: any) =>
+          supabase.rpc('increment_usage_count', { article_id: article.id, used_at: now }).then(() => {}, () => {
+            return supabase.from('knowledge_base').update({ last_used_at: now }).eq('id', article.id)
           })
         )
       )
-    } catch {
-      // non-blocking
-    }
+    } catch {}
 
-    // Update ai_usage_stats (non-blocking)
     try {
       await supabase.from('ai_usage_stats').insert({
-        query: question,
+        query: lastMessageContent,
         response: answer,
         articles_found: articlesArr.length,
         confidence_score: bestSimilarity,
-        was_helpful: null,
       })
-    } catch {
-      // non-blocking
-    }
+    } catch {}
 
     return NextResponse.json({
       success: true,
       data: {
         answer,
-        requires_ticket: false,
-        articles_used: articles.length,
+        requires_ticket: requiresTicket,
+        articles_used: articlesArr.length,
         confidence: Math.round(bestSimilarity * 100),
         ai_name: aiName,
       },

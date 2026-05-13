@@ -151,6 +151,69 @@ export default function HelpPage() {
     }
   }
 
+  async function handleFollowUp(message: string) {
+    if (isAiLoading) return
+    setIsAiLoading(true)
+
+    const newMessages: AiMessage[] = [
+      ...aiMessages,
+      { role: 'user', content: message }
+    ]
+    setAiMessages(newMessages)
+    setFeedbackGiven(false) // reset feedback for the new answer
+
+    const formData = watch()
+
+    try {
+      const res = await fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question: message, // fallback
+          messages: newMessages, // historico
+          product_id: formData.product_id,
+          category_id: formData.category_id,
+          customer: {
+            email: formData.email,
+            cpf: formData.cpf,
+            telefone: formData.phone,
+          },
+        }),
+      })
+
+      const json = await res.json()
+
+      if (json.success && json.data?.answer) {
+        setAiMessages((prev) => [
+          ...prev,
+          {
+            role: 'ai',
+            content: json.data.answer,
+            confidence: json.data.confidence,
+          },
+        ])
+      } else {
+        setAiMessages((prev) => [
+          ...prev,
+          {
+            role: 'ai',
+            content: 'Não consegui processar a resposta. Se preferir, pode abrir um ticket.',
+          },
+        ])
+      }
+    } catch {
+      setAiMessages((prev) => [
+        ...prev,
+        {
+          role: 'ai',
+          content: 'Desculpe, tive um problema de conexão. Tente novamente ou abra um ticket.',
+        },
+      ])
+    } finally {
+      setIsAiLoading(false)
+    }
+  }
+
   async function sendFeedback(helpful: boolean) {
     setFeedbackGiven(true)
     try {
@@ -590,25 +653,41 @@ export default function HelpPage() {
 
               {!isAiLoading && aiMessages.length > 1 && (
                 <Card className="border-border bg-card">
-                  <CardContent className="p-4">
-                    <p className="mb-3 text-center text-sm text-muted-foreground">
-                      Isso resolveu seu problema?
-                    </p>
+                  <CardContent className="p-4 space-y-4">
+                    <form onSubmit={(e) => {
+                      e.preventDefault()
+                      const form = e.currentTarget
+                      const input = new FormData(form).get('message') as string
+                      if (!input || !input.trim()) return
+                      form.reset()
+                      handleFollowUp(input)
+                    }} className="flex gap-2">
+                      <Input name="message" placeholder="Continuar conversa..." autoComplete="off" disabled={isAiLoading} className="bg-muted" />
+                      <Button type="submit" disabled={isAiLoading}><Send className="h-4 w-4" /></Button>
+                    </form>
+                    
+                    <div className="relative">
+                      <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border/50" /></div>
+                      <div className="relative flex justify-center text-xs uppercase"><span className="bg-card px-2 text-muted-foreground">Ou encerre o chat</span></div>
+                    </div>
+
                     <div className="flex gap-3">
                       <Button
+                        type="button"
                         onClick={handleResolved}
-                        className="flex-1 bg-green-600 hover:bg-green-700"
+                        className="flex-1 bg-green-600 hover:bg-green-700 text-white"
                       >
                         <CheckCircle className="mr-2 h-4 w-4" />
-                        Sim, resolveu!
+                        Dúvida resolvida
                       </Button>
                       <Button
+                        type="button"
                         onClick={handleNotResolved}
                         variant="outline"
                         className="flex-1 border-destructive text-destructive hover:bg-destructive/10"
                       >
                         <XCircle className="mr-2 h-4 w-4" />
-                        Não, preciso de ajuda
+                        Falar com humano
                       </Button>
                     </div>
                   </CardContent>
