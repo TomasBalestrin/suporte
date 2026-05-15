@@ -65,16 +65,16 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Gera embedding da pergunta.
-    const OpenAI = (await import('openai')).default
-    const openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-      timeout: REQUEST_TIMEOUT_MS,
-    })
-    const embRes = await openai.embeddings.create({
-      model: process.env.OPENAI_EMBEDDING_MODEL || 'text-embedding-3-small',
-      input: question,
-    })
+    // D-P3 — singleton OpenAI. Timeout aplicado ao request, não ao client.
+    const { getOpenAIClient } = await import('@/lib/openai-client')
+    const openai = await getOpenAIClient()
+    const embRes = await openai.embeddings.create(
+      {
+        model: process.env.OPENAI_EMBEDDING_MODEL || 'text-embedding-3-small',
+        input: question,
+      },
+      { timeout: REQUEST_TIMEOUT_MS },
+    )
     const queryEmbedding = embRes.data[0]?.embedding
     if (!queryEmbedding || queryEmbedding.length !== 1536) {
       return NextResponse.json({ success: false, error: 'embedding generation failed' }, { status: 500 })

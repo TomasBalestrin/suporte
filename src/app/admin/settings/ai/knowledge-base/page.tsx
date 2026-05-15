@@ -47,6 +47,7 @@ import { adminFetch } from '@/lib/fetch'
 import { formatDate } from '@/lib/utils/format'
 import { useConfirmDialog } from '@/components/common/ConfirmDialog'
 import type { KnowledgeBaseArticle, Product } from '@/lib/supabase/types'
+import { HealthBanner } from './components/HealthBanner'
 
 interface ArticleForm {
   title: string
@@ -216,8 +217,11 @@ export default function KnowledgeBasePage() {
     <>
       {confirmDialog}
       <Header title="Base de Conhecimento" />
-      <div className="p-6">
-        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="p-6 space-y-6">
+        {/* Fatia 5 — Observability UI: saúde + última sync do pipeline vault. */}
+        <HealthBanner />
+
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input

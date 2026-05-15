@@ -45,8 +45,9 @@ export async function POST(request: NextRequest) {
     const { ticket_description, messages, customer_question } = parsed.data
 
     const admin = createAdminClient()
-    const OpenAI = (await import('openai')).default
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+    // D-P3 — singleton OpenAI.
+    const { getOpenAIClient } = await import('@/lib/openai-client')
+    const openai = await getOpenAIClient()
 
     // Get AI config
     const { data: configs } = await admin

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { collectKbHealthMetrics } from '@/lib/kb-health'
 
 /**
  * PR-2 Parte 2 (A Lenda) — cron diário de alerta de saúde da KB.
@@ -19,40 +20,11 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    // Δ13 — lógica extraída pra lib/kb-health (shared com /api/admin/kb/health).
     const admin = createAdminClient()
-
-    const { count: totalActive } = await admin
-      .from('knowledge_base')
-      .select('id', { count: 'exact', head: true })
-      .eq('is_active', true)
-
-    const { count: nullEmbedding } = await admin
-      .from('knowledge_base')
-      .select('id', { count: 'exact', head: true })
-      .eq('is_active', true)
-      .is('embedding', null)
-
-    const { data: lastSyncRow } = await admin
-      .from('knowledge_base')
-      .select('updated_at')
-      .not('slug', 'is', null)
-      .order('updated_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-
-    const total = totalActive ?? 0
-    const nullCount = nullEmbedding ?? 0
-    const lastSync = lastSyncRow?.updated_at ?? null
-    const hoursSinceSync = lastSync
-      ? (Date.now() - new Date(lastSync).getTime()) / 1000 / 60 / 60
-      : Infinity
-
-    let healthStatus: 'healthy' | 'degraded' | 'critical' = 'healthy'
-    if (total === 0 || nullCount === total || hoursSinceSync > 72) {
-      healthStatus = 'critical'
-    } else if (nullCount > 0 || hoursSinceSync > 24) {
-      healthStatus = 'degraded'
-    }
+    const m = await collectKbHealthMetrics(admin)
+    const { total, nullEmbedding: nullCount, lastSuccessfulSync: lastSync, hoursSinceLastSync, healthStatus } = m
+    const hoursSinceSync = hoursSinceLastSync ?? Infinity
 
     // Healthy → log + sai.
     if (healthStatus === 'healthy') {

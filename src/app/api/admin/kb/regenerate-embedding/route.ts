@@ -54,8 +54,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'article not found' }, { status: 404 })
     }
 
-    const OpenAI = (await import('openai')).default
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+    // D-P3 — singleton OpenAI.
+    const { getOpenAIClient } = await import('@/lib/openai-client')
+    const openai = await getOpenAIClient()
 
     const embRes = await openai.embeddings.create({
       model: process.env.OPENAI_EMBEDDING_MODEL || 'text-embedding-3-small',

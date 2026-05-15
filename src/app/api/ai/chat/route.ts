@@ -222,10 +222,9 @@ export async function POST(request: NextRequest) {
       } catch {}
     }
 
-    // Get AI config
-    const { data: configs } = await supabase.from('ai_config').select('config_key, config_value')
-    const configMap: Record<string, string> = {}
-    configs?.forEach((c) => { configMap[c.config_key] = c.config_value })
+    // Get AI config (D-P1 — cache TTL 5min em-memory)
+    const { getAiConfigMap } = await import('@/lib/ai-config-cache')
+    const configMap = await getAiConfigMap()
 
     if (configMap.ai_enabled === 'false') {
       return NextResponse.json({
@@ -241,8 +240,9 @@ export async function POST(request: NextRequest) {
     const aiName = configMap.ai_name || 'Sofia'
     const fallbackMessage = configMap.fallback_message || 'Nao encontrei uma resposta para sua duvida. Vou encaminhar para um atendente.'
 
-    const OpenAI = (await import('openai')).default
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+    // D-P3 — singleton OpenAI client (reusa instância entre warm starts).
+    const { getOpenAIClient } = await import('@/lib/openai-client')
+    const openai = await getOpenAIClient()
 
     // RAG Search
     let enrichedQuestion = lastMessageContent

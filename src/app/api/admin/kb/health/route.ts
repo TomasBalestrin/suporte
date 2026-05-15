@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { isAgentOrAdmin } from '@/lib/supabase/guards'
+import { collectKbHealthMetrics } from '@/lib/kb-health'
 
 /**
  * PR-2 (A Lenda) — health endpoint da knowledge base.
@@ -31,64 +32,20 @@ export async function GET() {
       return NextResponse.json({ success: false, error: 'Acesso negado' }, { status: 403 })
     }
 
+    // Δ13 — lógica extraída pra lib/kb-health (shared com cron).
     const admin = createAdminClient()
-
-    const { count: totalActive } = await admin
-      .from('knowledge_base')
-      .select('id', { count: 'exact', head: true })
-      .eq('is_active', true)
-
-    const { count: nullEmbedding } = await admin
-      .from('knowledge_base')
-      .select('id', { count: 'exact', head: true })
-      .eq('is_active', true)
-      .is('embedding', null)
-
-    const { count: fromVault } = await admin
-      .from('knowledge_base')
-      .select('id', { count: 'exact', head: true })
-      .eq('is_active', true)
-      .not('slug', 'is', null)
-
-    const { data: lastSyncRow } = await admin
-      .from('knowledge_base')
-      .select('updated_at')
-      .not('slug', 'is', null)
-      .order('updated_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-
-    const total = totalActive ?? 0
-    const nullCount = nullEmbedding ?? 0
-    const vaultCount = fromVault ?? 0
-    const lastSuccessfulSync = lastSyncRow?.updated_at ?? null
-
-    const now = Date.now()
-    const hoursSinceSync = lastSuccessfulSync
-      ? (now - new Date(lastSuccessfulSync).getTime()) / 1000 / 60 / 60
-      : Infinity
-
-    let healthStatus: 'healthy' | 'degraded' | 'critical' = 'healthy'
-    if (total === 0) {
-      healthStatus = 'critical'
-    } else if (nullCount === total) {
-      healthStatus = 'critical'
-    } else if (hoursSinceSync > 72) {
-      healthStatus = 'critical'
-    } else if (nullCount > 0 || hoursSinceSync > 24) {
-      healthStatus = 'degraded'
-    }
+    const m = await collectKbHealthMetrics(admin)
 
     return NextResponse.json({
       success: true,
       data: {
-        articles_with_null_embedding: nullCount,
-        total_articles: total,
-        articles_from_vault: vaultCount,
-        articles_legacy_no_slug: total - vaultCount,
-        last_successful_sync: lastSuccessfulSync,
-        hours_since_last_sync: lastSuccessfulSync ? Number(hoursSinceSync.toFixed(2)) : null,
-        health_status: healthStatus,
+        articles_with_null_embedding: m.nullEmbedding,
+        total_articles: m.total,
+        articles_from_vault: m.fromVault,
+        articles_legacy_no_slug: m.total - m.fromVault,
+        last_successful_sync: m.lastSuccessfulSync,
+        hours_since_last_sync: m.hoursSinceLastSync,
+        health_status: m.healthStatus,
       },
     })
   } catch (error) {
