@@ -265,8 +265,11 @@ export async function POST(request: NextRequest) {
     })
     const articlesArr = articles || []
     const bestSimilarity = articles?.[0] ? (articles[0] as any).similarity || 0 : 0
+    // Δ7 — escapar o fechamento do delimiter sandbox (PR-3); artigo que contenha </knowledge_base>
+    // no corpo permite bypass do isolamento, fazendo conteúdo pós-tag virar instrução pro LLM.
+    const escapeKbSandbox = (s: string) => String(s ?? '').replace(/<\/knowledge_base>/gi, '<\\/knowledge_base>')
     const contextStr = articlesArr
-      .map((a: any) => `## ${a.title}\n${a.content}`)
+      .map((a: any) => `## ${escapeKbSandbox(a.title)}\n${escapeKbSandbox(a.content)}`)
       .join('\n\n') || '(sem artigos relevantes)'
 
     // System Prompt & Messages

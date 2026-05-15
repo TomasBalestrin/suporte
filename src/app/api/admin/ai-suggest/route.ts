@@ -70,9 +70,11 @@ export async function POST(request: NextRequest) {
       match_count: 3,
     })
 
+    // Δ7 — escapar fechamento do delimiter sandbox (PR-3) pra prevenir bypass via artigo malicioso.
+    const escapeKbSandbox = (s: string) => String(s ?? '').replace(/<\/knowledge_base>/gi, '<\\/knowledge_base>')
     const context = articles?.length
       ? articles
-          .map((a: { title: string; content: string }) => `## ${a.title}\n${a.content}`)
+          .map((a: { title: string; content: string }) => `## ${escapeKbSandbox(a.title)}\n${escapeKbSandbox(a.content)}`)
           .join('\n\n')
       : 'Nenhum artigo relevante encontrado na base de conhecimento.'
 

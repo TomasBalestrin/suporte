@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'invalid embedding' }, { status: 500 })
     }
 
-    await admin
+    const { error: updateError } = await admin
       .from('knowledge_base')
       .update({
         embedding,
@@ -75,6 +75,11 @@ export async function POST(request: NextRequest) {
         updated_at: new Date().toISOString(),
       })
       .eq('id', articleId)
+
+    if (updateError) {
+      console.error(`[regenerate-embedding] update failed for ${articleId}:`, updateError)
+      return NextResponse.json({ success: false, error: 'update failed', detail: updateError.message }, { status: 500 })
+    }
 
     console.log(`[regenerate-embedding] article ${articleId} updated`)
     return NextResponse.json({ success: true, article_id: articleId })
