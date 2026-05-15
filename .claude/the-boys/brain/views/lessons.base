@@ -1,0 +1,12 @@
+filters:
+  and:
+    - file.inFolder("brain/lessons")
+views:
+  - type: table
+    name: Lições F20 (Memória Autônoma)
+    order:
+      - id
+      - title
+      - owners
+      - date
+      - severity

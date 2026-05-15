@@ -1,0 +1,10 @@
+filters:
+  and:
+    - file.inFolder("brain/stacks")
+views:
+  - type: table
+    name: Todas as stacks
+    order:
+      - file.name
+      - note.language
+      - note.updated

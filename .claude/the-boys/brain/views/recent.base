@@ -1,0 +1,10 @@
+filters:
+  and:
+    - file.inFolder("brain")
+views:
+  - type: table
+    name: Modificados recentemente (clica em mtime pra ordenar)
+    order:
+      - file.name
+      - file.folder
+      - file.mtime

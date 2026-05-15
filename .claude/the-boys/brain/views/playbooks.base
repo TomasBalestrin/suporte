@@ -1,0 +1,18 @@
+filters:
+  and:
+    - file.inFolder("brain/playbooks")
+views:
+  - type: table
+    name: Todos os playbooks
+    order:
+      - file.name
+      - title
+      - category
+      - owners
+      - date
+  - type: table
+    name: Por categoria
+    order:
+      - category
+      - file.name
+      - title

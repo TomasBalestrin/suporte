@@ -1,0 +1,38 @@
+{
+	"nodes":[
+		{"id":"title-small","type":"text","text":"## Small / Quick\n_sem ladder_\nKimiko direto; Luz Estrela só se houver dúvida.","x":-1400,"y":-400,"width":320,"height":140,"color":"4"},
+		{"id":"small-kimiko","type":"file","file":"personas/kimiko/persona.md","x":-1400,"y":-220,"width":320,"height":80},
+		{"id":"title-medium","type":"text","text":"## Medium\n+ Soldier Boy (UI), Trem-Bala (perf), MM (CI/deploy)","x":-1000,"y":-400,"width":320,"height":140,"color":"5"},
+		{"id":"medium-luz","type":"file","file":"personas/luz-estrela/persona.md","x":-1000,"y":-220,"width":320,"height":80},
+		{"id":"medium-bruto","type":"file","file":"personas/bruto/persona.md","x":-1000,"y":-120,"width":320,"height":80},
+		{"id":"title-large","type":"text","text":"## Large\nA Lenda se há decisão estrutural; Soldier Boy se UI; Trem-Bala se perf-sensitive; MM se shippable; Hughie se user-facing.","x":-600,"y":-400,"width":320,"height":140,"color":"2"},
+		{"id":"large-alenda","type":"file","file":"personas/a-lenda/persona.md","x":-600,"y":-220,"width":320,"height":80},
+		{"id":"large-kimiko","type":"file","file":"personas/kimiko/persona.md","x":-600,"y":-120,"width":320,"height":80},
+		{"id":"large-soldier","type":"file","file":"personas/soldierboy/persona.md","x":-600,"y":-20,"width":320,"height":80},
+		{"id":"large-trem","type":"file","file":"personas/trem-bala/persona.md","x":-600,"y":80,"width":320,"height":80},
+		{"id":"large-luz","type":"file","file":"personas/luz-estrela/persona.md","x":-600,"y":180,"width":320,"height":80},
+		{"id":"large-mm","type":"file","file":"personas/mm/persona.md","x":-600,"y":280,"width":320,"height":80},
+		{"id":"large-hughie","type":"file","file":"personas/hughie/persona.md","x":-600,"y":380,"width":320,"height":80},
+		{"id":"large-bruto","type":"file","file":"personas/bruto/persona.md","x":-600,"y":480,"width":320,"height":80},
+		{"id":"title-complex","type":"text","text":"## Complex\nLarge + research do Francês + red-team da A Lenda + Discuss do Hughie. Stan Edgar (`/edgar`) dá o tier antes — default Opus (D023).","x":-200,"y":-400,"width":320,"height":140,"color":"1"},
+		{"id":"complex-edgar","type":"file","file":"personas/edgar/persona.md","x":-200,"y":-220,"width":320,"height":80},
+		{"id":"complex-frances","type":"file","file":"personas/frances/persona.md","x":-200,"y":-120,"width":320,"height":80},
+		{"id":"complex-alenda","type":"file","file":"personas/a-lenda/persona.md","x":-200,"y":-20,"width":320,"height":80},
+		{"id":"complex-hughie","type":"file","file":"personas/hughie/persona.md","x":-200,"y":80,"width":320,"height":80},
+		{"id":"complex-rest","type":"text","text":"+ ladder do Large\n(Kimiko → Soldier → Trem → Luz → MM → Bruto)","x":-200,"y":180,"width":320,"height":100}
+	],
+	"edges":[
+		{"id":"e-medium-1","fromNode":"medium-luz","fromSide":"bottom","toNode":"medium-bruto","toSide":"top"},
+		{"id":"e-large-1","fromNode":"large-alenda","fromSide":"bottom","toNode":"large-kimiko","toSide":"top"},
+		{"id":"e-large-2","fromNode":"large-kimiko","fromSide":"bottom","toNode":"large-soldier","toSide":"top"},
+		{"id":"e-large-3","fromNode":"large-soldier","fromSide":"bottom","toNode":"large-trem","toSide":"top"},
+		{"id":"e-large-4","fromNode":"large-trem","fromSide":"bottom","toNode":"large-luz","toSide":"top"},
+		{"id":"e-large-5","fromNode":"large-luz","fromSide":"bottom","toNode":"large-mm","toSide":"top"},
+		{"id":"e-large-6","fromNode":"large-mm","fromSide":"bottom","toNode":"large-hughie","toSide":"top"},
+		{"id":"e-large-7","fromNode":"large-hughie","fromSide":"bottom","toNode":"large-bruto","toSide":"top"},
+		{"id":"e-complex-1","fromNode":"complex-edgar","fromSide":"bottom","toNode":"complex-frances","toSide":"top"},
+		{"id":"e-complex-2","fromNode":"complex-frances","fromSide":"bottom","toNode":"complex-alenda","toSide":"top"},
+		{"id":"e-complex-3","fromNode":"complex-alenda","fromSide":"bottom","toNode":"complex-hughie","toSide":"top"},
+		{"id":"e-complex-4","fromNode":"complex-hughie","fromSide":"bottom","toNode":"complex-rest","toSide":"top"}
+	]
+}
