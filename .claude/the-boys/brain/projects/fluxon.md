@@ -11,7 +11,8 @@ deploy: vercel
 status: active
 mapped_by: "[[Francês]]"
 mapped_at: 2026-05-11
-related: ["[[FluxonApp]]"]
+last_touched: 2026-05-15
+related: ["[[FluxonApp]]", "[[L012]]"]
 ---
 
 # Projeto: Fluxon (pasta: Disparotey)
@@ -38,6 +39,7 @@ related: ["[[FluxonApp]]"]
 - Service Baileys: `cd fluxon-grupos-service && npm install && cp .env.example .env` (preenche `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`) → `npm start` → escaneia QR (1x; sessão em `auth/`).
 
 ## Armadilhas / "não faça"
+- **⚠️ Vercel NÃO auto-deploya commits desse projeto** — após `git push origin master`, rodar `vercel --prod --yes` manualmente. Detalhe e workaround em [[L012]]. Reproduziu 2x na sessão de 14/05.
 - **Não renomear a pasta `Disparotey/`** — quebra paths/symlinks; manter o alias `disparotey.vercel.app` ativo 6-12 meses (webhooks externos ainda apontam pra lá). Auditar paineis Hotmart/PagTrust em 2026-Q3 e migrar pra `fluxon-e.vercel.app` sem desligar o legado.
 - **Formatação SSR-safe**: NUNCA `toLocaleString('pt-BR')` nem `date-fns format()` com locale em SSR — usar `fmtDataBR`/`fmtDataBRs`/`dataBR`/`fmtPhone`/`fmtMoeda` de `src/lib/utils.ts` (UTC → UTC-3 por subtração).
 - **`bloqueado_meta` / `reembolsado`**: TODOS os endpoints de disparo filtram `.eq('bloqueado_meta', false)` + `reembolsado=false`. Entregas de produto (webhook compra) NÃO filtram — comprador recebe mesmo bloqueado. Bug recente (fix 2026-05-11): o handler de compra dava `return` precoce em lead bloqueado e pulava a entrega por email — corrigido; backfill manual do Rodrigo Colombelli ainda pendente (ver STATE).
@@ -46,10 +48,16 @@ related: ["[[FluxonApp]]"]
 - **Service Baileys / LIDs**: WhatsApp Multi-Device esconde telefone real; ser admin não resolve; o chip Cleiton (Cloud API 9907/9929) **NÃO pode ser pareado no Baileys** (conflito + risco de ban). Soluço de "aquecimento" não testado em produção.
 - **Apps Scripts (Google Sheets)**: usar a versão **batch** (`docs/google-apps-script.js`) com trigger de 30min — a versão antiga faz 1 fetch por linha dentro do loop e estoura a quota `premium urlfetch` da conta Google (já aconteceu 2x).
 - **Sofia (OpenAI)**: se quota OpenAI estoura → 86% das conversas caem em `ia_indisponivel` (sintoma silencioso, custo USD=0). Kill switch: `UPDATE system_flags SET value='true'::jsonb WHERE key='sofia_kill_switch'`. Templates Meta de convite: a maioria é só Quick Reply (sem CTA URL) — convite Step1 free-form falha 97% sem janela 24h, por isso virou template.
+- **Detector de apuro (`urgente`)**: `src/utils/sofia/detector-apuro.ts` marca `conversas.urgente=true` via regex em mensagens inbound de texto (palavras tipo "urgente", "preciso resolver", "emergência"). Sobe pra topo da inbox + alerta. False positives são comuns; op limpa manualmente pelo botão **"Remover urgente"** no header do chat (endpoint `PATCH /api/chat/conversas/[id]/urgente` zera flag+motivo+timestamp). NÃO desliga a feature global — caso a caso.
+- **Handlers de botão Meta** (em `webhook/whatsapp/route.ts`): cada Quick Reply de template tem handler dedicado em `convite-mentoria-handler.ts`. Botões existentes: `Entrar no Grupo VIP` (template de entrega → `processarCliqueEntrarGrupoVip` com dedup/filtro), `Entrar no Grupo` (template `mentoria_cleiton_*_base_*` → `processarCliqueEntrarGrupoMentoria`, sem dedup/filtro). Match no payload é case-insensitive + EXATO (`buttonPayloadLower === 'entrar no grupo'`). **Plugar novos handlers ANTES dos existentes** no if-chain pra evitar bate-bate (ex.: novo "entrar no grupo X" tem que checar `!isCliqueGrupoVip` antes). Link do grupo oficial atual: constante `URL_GRUPO_OFICIAL_MENTORIA` no topo do `convite-mentoria-handler.ts` (não env var, rotaciona ali).
 - **Dívida de duplicação** mapeada em `AUDIT_FLUXON_DUPLICACOES.md` (fmtPhone/fmtMoeda em 5+ arquivos, status color maps, modal overlay CSS) — em parte já resolvida (V1/V2 cleanup, -3260 linhas, abr/25); o resto é P3.
 
 ## Estado atual
 - Em produção, ativo, mexido quase diariamente. Repo no master `https://fluxon-e.vercel.app`. Detalhe vivo em `.specs/project/STATE.md` (grande — última entrada 2026-05-11: fix `bloqueado_meta` no webhook de compra + feature "Resolver entrega bloqueada" no dashboard).
+- **Sessão 2026-05-14**: 3 features em prod (3 commits, 3 deploys manuais via CLI — ver [[L012]]):
+  - Handler `processarCliqueEntrarGrupoMentoria` (template novo `mentoria_cleiton_*_base_julia/cleiton`). Disparo de validação: 1000 leads da `base_julia`, 7 cliques "Entrar no Grupo", Sofia respondeu 7/7 (100%).
+  - Modais de disparo (`ListasSalvas.tsx`) com largura ampliada: `size="md"` (era sm) + `max-w-xl` no confirm dialog — elimina scroll horizontal em listas com inconsistentes.
+  - Botão "Remover urgente" no header de `/dashboard/chat` (limpa false positive do `detector-apuro`).
 - Em curso: feature `email-entrega-transacional` (Resend) — T1-T13 prontas e em prod, **T14 (UAT) bloqueada** aguardando user configurar domínio em resend.com/domains + DNS (SPF+DKIM), depois setar `RESEND_FROM_DOMAIN`/`RESEND_REPLY_TO` em Vercel.
 - Pendências grandes: smoke test do service Baileys (25/04); consolidação dos 3 endpoints de disparo (Frente 3, agendada 15/05); paginação server-side nas tabelas grandes; webhook auto pra mentorias; backfill manual Rodrigo.
 - `.specs/codebase/` tem ARCHITECTURE/STACK/STRUCTURE/CONVENTIONS/INTEGRATIONS/CONCERNS/TESTING/SERVICE_ROLE_AUDIT (mapeamento de abr/14, ainda útil).

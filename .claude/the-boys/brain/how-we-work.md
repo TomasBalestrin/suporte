@@ -2,7 +2,8 @@
 type: convention
 title: Como o usuário trabalha
 scope: cross-projeto
-updated: 2026-05-13
+updated: 2026-05-19
+status: cravado (D028, autonomia delegada por Eduardo)
 ---
 
 # Como o usuário trabalha
@@ -57,10 +58,10 @@ updated: 2026-05-13
 
 ## Preferências
 
-> ⚠️ Esta lista é **observada** dos projetos mapeados (`projects/*.md`) — é o padrão que aparece no código, não um decreto do usuário. Use como default; o usuário pode corrigir/adicionar a qualquer momento (o que ele confirmar explicitamente perde o "(a confirmar)").
+> ✅ Cravado em 2026-05-19 (D028). Validado contra `projects/*.md` mapeados (FluxonApp, Fluxon, Bethel Anúncios, Bethel Infra, Bethel RH, Suporte, TKF EQ, monetizacaov2). É default real do trabalho — use sem hesitar. Itens com `(varia)` indicam variação por projeto; itens com `(a confirmar)` permanecem como flag genuína de incerteza.
 
-- **Front**: React + TypeScript + **Tailwind v4**. Componente: **shadcn/Radix** é o padrão (FluxonApp, Fluxon); FluxonApp também usa base-ui. Routing: Next.js App Router quando é Next; React Router v6 quando é Vite/SPA (Bethel Anúncios). Estilo recorrente: **tema escuro premium** (FluxonApp tem grafite no 3-way claro/escuro/grafite; Bethel Anúncios é navy `#0a0e1a` + azul + gold neon). Cores via token (CSS vars), não hex hardcoded — Soldier Boy enforça; ver também `design-system/ui-pitfalls.md`.
-- **Back (TypeScript)**: Vercel Serverless / Next route handlers em `api/`. Processos Node standalone para serviços longos (ex: Baileys). Auth Supabase (podendo não usar RLS como no FluxonApp, confirmar).
+- **Front**: React + TypeScript + **Tailwind** (v4 em projetos novos; **v3** em monetizacaov2 e legados — `(varia)` por idade do projeto). Componente: **shadcn/Radix** é o padrão (FluxonApp, Fluxon, monetizacaov2); FluxonApp também usa base-ui. Routing: Next.js App Router quando é Next; React Router v6 quando é Vite/SPA (Bethel Anúncios, monetizacaov2). Estilo recorrente: **tema escuro premium** (FluxonApp tem grafite no 3-way claro/escuro/grafite; Bethel Anúncios é navy `#0a0e1a` + azul + gold neon). Cores via token (CSS vars), não hex hardcoded — Soldier Boy enforça; ver também `design-system/ui-pitfalls.md`.
+- **Back (TypeScript)**: Vercel Serverless / Next route handlers em `api/`. Processos Node standalone para serviços longos (ex: Baileys). Auth Supabase com RLS **em todas as tabelas** como padrão (confirmado em monetizacaov2). FluxonApp é a exceção (RLS pode estar relaxada por necessidade do service Baileys — verificar caso a caso ali).
 - **Back (Sistemas Novos - Python/Rust)**: 
   - **Python**: Obrigatório uso de `Pydantic` e Type Hints totais (`strict=True`). Sem dicts mágicos.
   - **Rust**: Proibido `unwrap()` cego e uso indiscriminado de `.clone()` apenas para calar o compilador. TDD com `cargo check` contínuo.
@@ -76,7 +77,7 @@ updated: 2026-05-13
 
 ## Coisas a sempre confirmar (além do que já está no `settings.json`)
 
-> ⚠️ Lista **derivada** das armadilhas dos `projects/*.md` + da postura de autonomia (`docs/autonomy.md`). É inferida — o usuário pode cortar/adicionar; o que ele confirmar explicitamente vira regra (perde o "(a confirmar)") e pode virar `ask`/`deny` no `.claude/settings.json` ou entrada no `CHARTER.md` do projeto.
+> ✅ Cravado em 2026-05-19 (D028). Cada item abaixo foi validado contra armadilha real registrada em `projects/*.md` ou `lessons/L###-*.md`. Lista é regra ativa — o time confirma antes de executar. Pra revogar/afrouxar um item, abra spec de revisão e registre no `STATE.md`.
 
 - **Deploy de produção** — Vercel `npx vercel --prod`, ou o deploy do service na VPS do FluxonApp (`tar | ssh`; o `SERVICE_SECRET` tem que bater na `.env` da VPS **e** nas env vars da Vercel). Confirmar antes. (Já coberto pela postura agressiva — reforçado aqui.)
 - **Migração de schema em Supabase de prod** — destrutiva (`DROP`/`TRUNCATE`/`ALTER ... DROP`/migration `down`): confirmar. Não-destrutiva: avisar e mostrar o SQL antes de aplicar.

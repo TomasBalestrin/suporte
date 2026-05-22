@@ -117,3 +117,4 @@
 - **Sintoma**: no celular/tablet, um botão importante fica fora da tela, dois elementos se sobrepõem, o menu não abre, a tabela some.
 - **Causa**: design feito em 1440px e ponto.
 - **Fix**: teste em **breakpoints reais** (≈360px, 768px, 1024px, 1440px); conteúdo crítico (ações primárias, navegação, erro) tem que estar acessível em todos; mobile-first ajuda a não esquecer. Touch targets ≥ ~44px. Texto não fica abaixo de ~14px sem motivo.
+

@@ -6,7 +6,7 @@ removed_in: v0.15.0
 ---
 
 <!-- AUTO-GENERATED — DO NOT EDIT. Conteúdo vive em brain/decisions/. -->
-<!-- content-hash: e4c6503420fbbb5cd4d86848dd6bfb12027665af1f133f5b9d74b81559006256 -->
+<!-- content-hash: 0de73cf01ad87a061659ce7a216d29ee3694ca51e33fdd3b4208e73f17f14288 -->
 
 # Decisões & lições — cross-projeto
 
@@ -21,3 +21,4 @@ removed_in: v0.15.0
 | [D005](decisions/D005-tres-projetos-whatsapp-nao-confundir.md) | 2026-05-11 | Três projetos \"WhatsApp\" — não confundir | accepted |
 | [D006](decisions/D006-git-add-agit-add-e-proibido-sem-revisar.md) | 2026-05-11 | `git add -A`/`git add .` é proibido sem revisar | accepted |
 | [D007](decisions/D007-playbooks-automated-skill-creation.md) | 2026-05-14 | Playbooks (F21) — automated skill creation inspirada em Hermes/OpenClaw | accepted |
+| [D008](decisions/D008-afrouxa-vercel-prod-e-supabase-db-push.md) | 2026-05-15 | Afrouxa vercel --prod e supabase db push (viraram rotina, não excepcionais) | accepted |

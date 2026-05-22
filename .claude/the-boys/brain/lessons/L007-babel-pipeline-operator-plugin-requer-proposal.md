@@ -8,7 +8,7 @@ owners:
 occurrences: 1
 severity: normal
 related:
-  - "[[L005]]"
+  - "[[L011]]"
 ---
 
 # L007 — Babel plugins experimentais throw silencioso sem options

@@ -59,7 +59,7 @@ Exemplo (10 sliders 24px + gap 4px + padding 16px×2 + reserve 48px):
 <body class="bg-white text-gray-900" style="width: 440px; min-width: 440px;">
 ```
 
-**Validação obrigatória:** Smoke test de popup multi-coluna **não pode ser só `npm run build`** — tem que carregar em `chrome://extensions` e abrir o popup visualmente. Build verde mascarando corte UI é o padrão F20 [[L005]] manifestando de novo (review estática não pega vazio/cortado).
+**Validação obrigatória:** Smoke test de popup multi-coluna **não pode ser só `npm run build`** — tem que carregar em `chrome://extensions` e abrir o popup visualmente. Build verde mascarando corte UI é o padrão F20 [[L011]] manifestando de novo (review estática não pega vazio/cortado).
 
 ## Onde se aplica
 
