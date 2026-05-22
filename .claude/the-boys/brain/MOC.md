@@ -73,5 +73,5 @@ updated: 2026-05-14
 ## Não-objetivos (por ora)
 
 - Write-back automático projeto → harness — edite o canônico à mão.
-- Busca semântica / embedding — não temos. Use search + tags.
+- ~~Busca semântica / embedding — não temos.~~ → **temos** (D030): MCP `brain:search` (local, sem LLM). Ver [[brain-search-setup]]. Rode `markdown-vault-mcp index` após editar o brain.
 - Ser repo separado — `brain/` é pasta dentro do harness.
