@@ -423,13 +423,13 @@ NUNCA diga que nao encontrou nada sem usar as ferramentas primeiro.`
     if (conversationId) {
       const toInsert = [
         { conversation_id: conversationId, role: 'user', content: lastMessageContent },
-        ...toolCallsExecuted.map(t => ({ 
-          conversation_id: conversationId, 
-          role: 'tool', 
-          content: t.result, 
-          tool_name: t.name 
+        ...toolCallsExecuted.map(t => ({
+          conversation_id: conversationId,
+          role: 'tool',
+          content: t.result,
+          tool_name: t.name
         })),
-        { conversation_id: conversationId, role: 'assistant', content: answer }
+        { conversation_id: conversationId, role: 'assistant', content: answer, confidence: Math.round(bestSimilarity * 100) }
       ]
       await supabase.from('ai_conversation_messages').insert(toInsert)
       await supabase.from('ai_conversations').update({ updated_at: new Date().toISOString() }).eq('id', conversationId)

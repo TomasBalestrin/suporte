@@ -44,6 +44,7 @@ export default function HelpPage() {
   const [isAiLoading, setIsAiLoading] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
   const [feedbackGiven, setFeedbackGiven] = useState(false)
+  const [conversationId, setConversationId] = useState<string | null>(null)
   const [ticketResult, setTicketResult] = useState<{
     ticket_code: string
     access_token: string
@@ -121,6 +122,10 @@ export default function HelpPage() {
         setAiName(json.data.ai_name)
       }
 
+      if (json.success && json.data?.conversation_id) {
+        setConversationId(json.data.conversation_id)
+      }
+
       if (json.success && json.data?.answer) {
         setAiMessages((prev) => [
           ...prev,
@@ -184,6 +189,10 @@ export default function HelpPage() {
 
       const json = await res.json()
 
+      if (json.success && json.data?.conversation_id) {
+        setConversationId(json.data.conversation_id)
+      }
+
       if (json.success && json.data?.answer) {
         setAiMessages((prev) => [
           ...prev,
@@ -217,15 +226,13 @@ export default function HelpPage() {
 
   async function sendFeedback(helpful: boolean) {
     setFeedbackGiven(true)
+    if (!conversationId) return
     try {
-      const userMsg = aiMessages.find((m) => m.role === 'user')
-      if (userMsg) {
-        await fetch('/api/ai/feedback', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query: userMsg.content, helpful }),
-        })
-      }
+      await fetch('/api/ai/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conversation_id: conversationId, helpful }),
+      })
     } catch {
       // non-blocking
     }

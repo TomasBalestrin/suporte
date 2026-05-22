@@ -208,4 +208,56 @@ Pedido do usuário: ver as respostas da Sofia nos últimos 2 dias. Achados:
 - **⚠️ `ai_usage_stats` está MORTA desde 2026-05-13** — o SQL de monitoramento do v3 varre tabela vazia. As respostas reais estão em `ai_conversation_messages`. Qualquer monitoramento futuro DEVE apontar pra cá. (Ponto cego de observabilidade.)
 - **❌ FALSO ALARME meu (revertido):** cheguei a mudar 4 `produtos.url_acesso` do Fluxon (Reels/Método/Teste) de quillforms → juliaacademy, achando que o link estava errado. **ERRADO.** O usuário confirmou: as **entregas do Fluxon estão todas certas**, e `produtos.url_acesso` é justamente o campo que **alimenta a entrega** (webhook/compra, email, reenviar-entrega — 42 arquivos leem ele). Os quillforms são os links de entrega corretos. **Revertido via `revert-fluxon-urls.mjs`** (snapshot `fluxon-produtos-snapshot-pre-fix.json`). Fluxon intocado. Implementação IA quillforms = legítimos (já sabia). Lição L031 reforçada: não tratar dado de outra fonte como "errado" sem confirmar o papel dele no sistema.
 - **🔴 A RAIZ REAL — regressão no `route.ts` da Sofia (SUPORTE):** o fluxo desenhado é "Sofia checa o Fluxon (comprou?) → se achou, usa o dado/link da entrega → se NÃO achou, manda pra área de membros". Isso **foi programado** no commit `04b7ad1` como **pre-fetch determinístico**: se `customer.email` + keyword de acesso, o código chamava `/api/support/wordpress/consultar-acesso` (e havia `fluxonContext` análogo) ANTES do LLM e injetava no contexto. **O "Sofia v2 Refactor" (`1214a0c`) jogou isso fora** — o `route.ts` atual só tem tool-loop, onde o gpt-4o-mini **decide** chamar a tool, e ele não chama (vanessa: 0 de 8 conversas chamaram `consultar_fluxon`). Por isso a Sofia respondia 100% da KB/prompt sem nunca verificar a compra real. **Fix = restaurar o pre-fetch** (consultar_fluxon + wordpress) no route.ts atual. ⚠️ É mudança de CÓDIGO → precisa de deploy, e o push está bloqueado (repo `TomasBalestrin/suporte`). Há também `route.ts.backup` (provável versão pré-v2 com o pre-fetch) como referência.
+
+### ✅ RESOLVIDO + DEPLOYADO (2026-05-22)
+Pre-fetch restaurado no `route.ts` (mantendo memória/tool-loop/sandbox/cache do v2). Roda ANTES do LLM: se cliente tem email/cpf → `consultar_fluxon`; se email + keyword de acesso → `consultar_wordpress`; resultado injetado no system prompt. Achou compra → usa dado real; não achou → `fluxonSemCompra` (pede email/CPF exato ou área de membros).
+- **Gates**: build local OK · ⭐ Luz Estrela APROVADO (3 dívidas menores não-bloqueantes: WP sem-else, latência sequencial Fluxon+WP, risco teórico de injeção via API interna).
+- **Deploy**: `vercel --prod` (push bloqueado) → `suporte-amber.vercel.app` (deploy `suporte-u0xjave6a`). Commit local `0f1018f` na fila do push do Tomás (senão deploy via GitHub reverte).
+- **Verificado em prod**: (1) email real c/ compra → Sofia identifica "REELS MAGNETICOS" + link de entrega real (pre-fetch disparou); (2) email sem compra → Sofia pede esclarecimento sem alucinar. Fluxo do usuário (checar Fluxon → área de membros) funcionando.
+- **Dívidas não-bloqueantes registradas** (Luz Estrela): WP sem-else; paralelizar fetches com Promise.all; sanitização de campos Fluxon se modelo de ameaça mudar.
 - [ ] Push do código (`apply-fix.mjs` etc. são artefatos da feature; KB/prompt são dados, não precisam de push). Repo `TomasBalestrin/suporte` segue com push bloqueado pro user `eduardotkfm-maker`.
+
+---
+
+# Feature `sofia-observabilidade` — instrumentação de qualidade restaurada (2026-05-22)
+
+## Problema
+O "Sofia v2 Refactor" trocou o modelo de dados (`ai_usage_stats` → `ai_conversations` + `ai_conversation_messages`) e **quebrou silenciosamente a instrumentação de qualidade**. Três buracos:
+1. `ai_usage_stats` congelada desde **2026-05-13 15:34 BRT** — nenhum INSERT novo. O SQL de monitoramento do v3 varria tabela morta e voltava "tudo certo" (monitoramento que mente).
+2. `confidence` calculado em `route.ts:443` mas nunca persistido.
+3. Feedback (thumbs up/down) gravava em `ai_usage_stats` (morta) via `feedback/route.ts` → perdido, com `success:true` falso.
+
+## Fase 1 — Estanca (read-only, sem deploy) — MM
+- Foto do banco vivo: `ai_usage_stats` 446 rows (morta 13/05), `ai_conversations` 322, `ai_conversation_messages` 1.085 (viva).
+- **13 respostas envenenadas** (link errado do Teste dos Arquétipos + "7 dias") entre 18–21/05 passaram despercebidas pelo monitoramento cego; pico 21/05 (o dia da vanessa). **Fix de 22/05 zerou** (0 pós-fix) — comprovado com número.
+- SQL durável repontado pra `ai_conversation_messages` salvo em `.specs/features/sofia-observabilidade/monitoring.sql` (roda via Management API curl).
+
+## Fase 2 — Fix completo (com deploy) — Hughie(decisões)/Kimiko/Luz Estrela/MM
+**Decisões (decided_by: butcher, confirmado pelo usuário 2026-05-22):**
+- D1: confidence + feedback viram **colunas aditivas** em `ai_conversation_messages`.
+- D2: feedback chaveado por **`conversation_id`** (front passa a guardar/enviar) → atualiza a mensagem `assistant` mais recente.
+- D3: **sem backfill** — período cego (13–22/05) é irrecuperável pra confidence/thumbs-down.
+- D4: **sem painel** — `/admin/analytics` fica fora; monitora via SQL. Painel = feature futura deferida (`sofia-analytics-ui`).
+
+**Entregue (migration `017` + `route.ts` + `feedback/route.ts` + `ajuda/page.tsx` + `monitoring.sql`):**
+- Migration `017_ai_conversation_messages_metrics.sql` (`ADD COLUMN confidence integer, was_helpful boolean`, aditiva/idempotente) aplicada em prod **antes** do deploy.
+- `route.ts`: insert do assistant grava `confidence`.
+- `feedback/route.ts`: schema `{ conversation_id, helpful }`, atualiza a msg assistant mais recente; no-op gracioso (PGRST116) sem 500.
+- Front: state `conversationId`, enviado no feedback.
+- **Deploy**: `vercel --prod` (push bloqueado) → `suporte-amber.vercel.app`, deploy `BwDxgaRn87SiTSM6AQxQk71hcj98`.
+- **Verificado em prod**: confidence gravando (valor real), feedback gravando (`was_helpful=false` via SQL), no-op gracioso OK.
+
+**Gate ladder:** Kimiko (execute) → ⭐ Luz Estrela (APROVADO + 2 dívidas não-bloqueantes) → 🍼 MM (shippado e verificado) → 🔪 Bruto (merge autorizado).
+
+## Dívidas não-bloqueantes (Luz Estrela)
+- [ ] `ajuda/page.tsx:228` — no-op silencioso quando `conversationId` é nulo (chat sem conversa persistida): usuário clica feedback e nada acontece. Add `console.warn` pra visibilidade em log. Deferred.
+- [ ] `feedback/route.ts` — endpoint público sem ownership do `conversation_id` (qualquer um seta `was_helpful` de conversa alheia se adivinhar o uuid v4). Risco desprezível (métrica não-sensível). Decisão consciente; revisar se RLS chegar nessa tabela.
+
+## Rollback
+- Código: Vercel 1-click rollback. Schema: `ALTER TABLE ai_conversation_messages DROP COLUMN confidence, DROP COLUMN was_helpful` (perde só métrica nova). Critério: 500s em `/api/ai/chat` ou `/api/ai/feedback`.
+
+## Monitoramento 48h (a partir de 2026-05-22 ~12:27 UTC)
+`monitoring.sql`: Q3 veneno (esperado ZERO), Q9 confidence (alerta se avg < 65), Q10 thumbs-down (alerta se > 15%). Q9/Q10 só têm dado a partir deste deploy.
+
+## Candidata a lição F20 (harness)
+"Refactor que troca modelo de dados pode quebrar instrumentação sem erro — e monitoramento que faz `SELECT` numa tabela congelada reporta falso-verde. Lição: instrumentar o **writer**, não só o reader; e ter check de **frescor/staleness** do dado (MAX(created_at)) no próprio monitoramento." Grave 9+ dias cego. Avaliar registro no brain do harness.

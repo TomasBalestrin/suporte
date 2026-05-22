@@ -4,7 +4,7 @@ import { rateLimit, getClientIp } from '@/lib/rate-limit'
 import { z } from 'zod'
 
 const feedbackSchema = z.object({
-  query: z.string().min(1),
+  conversation_id: z.string().uuid(),
   helpful: z.boolean(),
 })
 
@@ -28,23 +28,24 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { query, helpful } = parsed.data
+    const { conversation_id, helpful } = parsed.data
     const supabase = createAdminClient()
 
-    // Find the most recent stat for this query and update was_helpful
-    const { data: stat } = await supabase
-      .from('ai_usage_stats')
+    // Find the most recent assistant message in this conversation and update was_helpful
+    const { data: msg } = await supabase
+      .from('ai_conversation_messages')
       .select('id')
-      .eq('query', query)
+      .eq('conversation_id', conversation_id)
+      .eq('role', 'assistant')
       .order('created_at', { ascending: false })
       .limit(1)
       .single()
 
-    if (stat) {
+    if (msg) {
       await supabase
-        .from('ai_usage_stats')
+        .from('ai_conversation_messages')
         .update({ was_helpful: helpful })
-        .eq('id', stat.id)
+        .eq('id', msg.id)
     }
 
     return NextResponse.json({ success: true })
