@@ -148,3 +148,64 @@ Análise de 413 respostas reais da Sofia entre 2026-03-05 e 2026-04-29 (`ai_usag
 - [ ] Filtro de input gating contra auto-replies de bots externos (escopo separado — `sofia-input-hygiene`, deferred)
 - [ ] Implementar tools de verdade no chat completion (escopo separado — `sofia-tools-v1`, deferred até v3 estabilizar)
 - [ ] Reprocessamento das 346 unanswered para alimentar a `knowledge_base` (escopo separado)
+
+---
+
+# Incidente 2026-05-21 — Sofia mandou link errado de "Teste dos Arquétipos" (ticket SUP-2026-0329)
+
+## Sintoma
+Cliente (paga) disse "comprei o teste de arquétipo da Júlia Ottoni" e mostrou tela de **login pago com senha errada**. Sofia respondeu: *"O Teste dos Arquétipos é livre e não exige login. Você pode acessá-lo pelo link abaixo: https://quiz.testedosarquetipos.com.br/ ..."* — link e enquadramento errados para um produto pago.
+
+## Root cause (confirmado no banco vivo `zeocxcfiyhzsztwjllvl`, decided_by: butcher)
+1. **Não é alucinação.** A resposta é cópia literal do artigo KB `799731f5` ("Teste dos Arquétipos — como acessar, refazer e troubleshooting"), que contém `Link oficial: https://quiz.testedosarquetipos.com.br` + "Não exige login — é grátis e aberto" + a mensagem sugerida que a Sofia reproduziu palavra por palavra. **Inserido em runtime, não está nas migrations** (por isso grep no repo não acha).
+2. **KB se contradiz sobre o teste** — 3 versões do link brigando: `799731f5` (`quiz.testedosarquetipos.com.br`), `3d60a09f`+`4d0c6ca0` (`cleitonquerobin.com.br/quillforms/perpetuo-teste-dos-arquetipos/`), e o system_prompt declara o quillforms como "a ÚNICA URL /quillforms/ válida".
+3. **Duplicação 2x** de quase todo artigo (débito `sofia-kb-dedup`) amplia a narrativa errada no top-5 do RAG e empurra os artigos de desambiguação pra fora.
+4. **Conflito RAG vs. contexto** — modelo seguiu o documento ("é livre") em vez do sinal forte do cliente (login pago + senha errada). Config viva está saudável (temp 0.2, threshold 0.6, prompt v3 ativo) — problema é 100% conteúdo da KB.
+
+## Verdade da fonte (confirmada pelo usuário 2026-05-21)
+- **"Teste dos Arquétipos" é PAGO** — NÃO existe quiz grátis. O enquadramento "é livre / não exige login" está errado e deve sair da KB.
+- **Link canônico único**: `https://cleitonquerobin.com.br/quillforms/perpetuo-teste-dos-arquetipos/`. O `quiz.testedosarquetipos.com.br` está morto e deve ser eliminado da KB.
+- **Abordagem escolhida**: Feature SDD completa (não hotfix).
+
+## ⚠️ Questão aberta para Specify/Hughie (NÃO resolver sem confirmar — L031)
+"Só pago" + um link de teste sem login (`/quillforms/perpetuo-...`) se contradizem na superfície. Falta pinar: o que exatamente um comprador do "Teste dos Arquétipos" recebe? O quillforms é aberto (sem login) ou gateado? Quando a Sofia deve mandar o quillforms vs. o login da área de membros (`juliaacademy.com.br` + `ottoni123`)? A cliente do print estava travada num login pago — resposta certa seria a área de membros, não o quiz.
+
+## Feature aberta
+**`sofia-kb-correcao`** (fase: `specify`) — corrigir conteúdo da KB sobre Teste dos Arquétipos, convergir links, e atacar a duplicação (`sofia-kb-dedup` absorvido). Scope provisório: **Large**. Tier: **Opus** (correção user-facing de prod, escrita em dado vivo). Gate ladder: Hughie (Specify) → Francês (Design/audit KB) → Kimiko (Execute) → Luz Estrela (review) → MM (shippability + monitoramento/rollback) → Hughie (UAT) → Butcher (merge).
+
+## Cuidado de encoding (antes de qualquer write na KB)
+Leitura via Management API mostrou acentos como mojibake (`VocÃª Ã©`). Confirmado pelo Francês: **banco guarda UTF-8 limpo** — o mojibake é artefato de decode do PowerShell 5.1. Write feito via Node (`JSON.stringify`, UTF-8 nativo, sem BOM) / `curl --data-binary`, nunca via argv. Snapshots fiéis salvos em `kb-snapshot-pre-fix.json` e `ai_config-system_prompt-FULL-backup.txt`.
+
+## ✅ RESOLUÇÃO — subset "estanca agora" aplicado em prod (2026-05-21, decided_by: butcher)
+
+Aplicado via `.specs/features/sofia-kb-correcao/apply-fix.mjs` + `reapply-799731f5.mjs`. **8 operações**:
+- **Reescritos** (mantêm ativos): `799731f5` (troubleshooting — agora "produto pago, acesso sempre via juliaacademy.com.br + ottoni123, fluxo de senha errada → Esqueci minha senha/ticket"), `43fff20f` (FAQ), `aca9f143` (acesso expirou), `4d0c6ca0` (prazo).
+- **Desativados** (`is_active=false`, duplicatas): `3d60a09f`, `ab81f92c`, `a36412c0`.
+- **system_prompt** (`ai_config`): bloco `Teste dos Arquétipos (sem login necessário)` → `(produto PAGO — acesso pela área de membros Julia Academy)`. Replace cirúrgico verificado (delta +171 chars, resto intacto). Backup completo salvo.
+
+**Verificação pós-write (verde)**: C1 link morto ativo = 0 · C2 "livre/sem login" sobre arquétipo ativo = 0 · C3 títulos de arquétipo sem duplicata ativa = 1 cada · C4 system_prompt `sem login necessário`=0, `produto PAGO`=1.
+
+### Catch da Luz Estrela (gate funcionou)
+O Francês e o Butcher tinham dado o system_prompt como "OK". A Luz Estrela achou que ele dizia `Teste dos Arquétipos (sem login necessário)` — contradizia a correção da KB e podia reproduzir o incidente sozinho. **Entrou no escopo do estanca.** Lição: o gate de review pega o que o autor do diagnóstico não vê.
+
+### Lição "elefante rosa" (RAG)
+1ª tentativa do `799731f5` reescrito ainda continha os tokens venenosos em **instrução negativa** ("Não use o link quiz.testedosarquetipos…", "Nunca diga que é grátis"). Num doc injetado no RAG e lido por gpt-4o-mini, instrução negativa **re-introduz o token no contexto** — e o ILIKE da verificação acusa o próprio meta-texto. **Regra**: artigo de KB deve ser puramente positivo (só a info correta). Disciplina de "não use X" fica no system_prompt (regra do operador), nunca no doc de referência. → candidata a lição F20 no brain do harness.
+
+### Decisões
+- **decided_by: butcher 2026-05-21** — Bloqueio 2 da Luz Estrela (quillforms aberto vs. gateado) resolvido pela resposta do usuário "Só pago / sempre área de membros". Não é default conservador; é decisão explícita do dono. Edge "não-comprador quer fazer o teste" → item de UAT do Hughie.
+- **decided_by: butcher 2026-05-21** — system_prompt entrou no estanca (Bloqueio 1, crítico), apesar de não estar no escopo original do subset, porque sozinho reproduz o incidente.
+
+## Pendências da feature `sofia-kb-correcao` (pós-estanca)
+- [x] **Dedup dos 49 pares limpos** — APLICADO 2026-05-21 via `dedup.mjs --apply`. Checagem de identidade de conteúdo por título (md5) antes de desativar: 49/49 idênticos, 0 divergentes. Ativos 130→81 (−49), zero título com duplicata ativa. IDs desativados em `dedup-disabled-ids.json` (rollback). Total da feature: 52 duplicatas desativadas (3 no estanca + 49 aqui).
+- [ ] **MM**: `ai_config` tem cache em-memory TTL 5min (`route.ts:226`) — mudança do system_prompt leva até 5min pra propagar em prod. KB não tem cache (query por request) → imediata. Definir monitoramento 48h (reusar SQL de padrões proibidos do v3, somando `quiz.testedosarquetipos`).
+- [x] **Hughie UAT**: smoke test ao vivo no `/api/ai/chat` de prod (2026-05-21) com "Comprei o teste de arquétipo da Júlia Ottoni e fala que a senha está errada". Resposta nova: aponta `juliaacademy.com.br` + login e-mail da compra + senha `ottoni123` + trata "senha errada" (confirmar e-mail). Zero "é livre", zero link morto. ✅ Incidente resolvido end-to-end. (Detalhe: `confidence:0` — RAG fraco, resposta veio CERTA pelo system_prompt corrigido → confirma que o catch da Luz Estrela no prompt era essencial.) Conversa de teste criada em prod: `9483e552`.
+- [x] **Lição F20 L034** registrada no harness (commit `25e26b6`) e propagada pros 11 clientes — "instrução negativa em doc de RAG re-injeta o token proibido (elefante rosa)".
+
+## Auditoria das respostas (2 dias) + achado sistêmico no Fluxon (2026-05-21)
+
+Pedido do usuário: ver as respostas da Sofia nos últimos 2 dias. Achados:
+- **31 conversas / 84 mensagens.** 9 respostas com o veneno do arquétipo — **todas pré-fix** (última 19:04 UTC 21/05; fix às 01:30 UTC 22/05). Zero recaída pós-fix. A cliente do incidente (vanessa) ficou presa horas, abrindo ~7 tickets, recebendo o link errado repetidamente até o fix.
+- **⚠️ `ai_usage_stats` está MORTA desde 2026-05-13** — o SQL de monitoramento do v3 varre tabela vazia. As respostas reais estão em `ai_conversation_messages`. Qualquer monitoramento futuro DEVE apontar pra cá. (Ponto cego de observabilidade.)
+- **❌ FALSO ALARME meu (revertido):** cheguei a mudar 4 `produtos.url_acesso` do Fluxon (Reels/Método/Teste) de quillforms → juliaacademy, achando que o link estava errado. **ERRADO.** O usuário confirmou: as **entregas do Fluxon estão todas certas**, e `produtos.url_acesso` é justamente o campo que **alimenta a entrega** (webhook/compra, email, reenviar-entrega — 42 arquivos leem ele). Os quillforms são os links de entrega corretos. **Revertido via `revert-fluxon-urls.mjs`** (snapshot `fluxon-produtos-snapshot-pre-fix.json`). Fluxon intocado. Implementação IA quillforms = legítimos (já sabia). Lição L031 reforçada: não tratar dado de outra fonte como "errado" sem confirmar o papel dele no sistema.
+- **🔴 A RAIZ REAL — regressão no `route.ts` da Sofia (SUPORTE):** o fluxo desenhado é "Sofia checa o Fluxon (comprou?) → se achou, usa o dado/link da entrega → se NÃO achou, manda pra área de membros". Isso **foi programado** no commit `04b7ad1` como **pre-fetch determinístico**: se `customer.email` + keyword de acesso, o código chamava `/api/support/wordpress/consultar-acesso` (e havia `fluxonContext` análogo) ANTES do LLM e injetava no contexto. **O "Sofia v2 Refactor" (`1214a0c`) jogou isso fora** — o `route.ts` atual só tem tool-loop, onde o gpt-4o-mini **decide** chamar a tool, e ele não chama (vanessa: 0 de 8 conversas chamaram `consultar_fluxon`). Por isso a Sofia respondia 100% da KB/prompt sem nunca verificar a compra real. **Fix = restaurar o pre-fetch** (consultar_fluxon + wordpress) no route.ts atual. ⚠️ É mudança de CÓDIGO → precisa de deploy, e o push está bloqueado (repo `TomasBalestrin/suporte`). Há também `route.ts.backup` (provável versão pré-v2 com o pre-fetch) como referência.
+- [ ] Push do código (`apply-fix.mjs` etc. são artefatos da feature; KB/prompt são dados, não precisam de push). Repo `TomasBalestrin/suporte` segue com push bloqueado pro user `eduardotkfm-maker`.

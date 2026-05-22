@@ -272,13 +272,79 @@ export async function POST(request: NextRequest) {
       .map((a: any) => `## ${escapeKbSandbox(a.title)}\n${escapeKbSandbox(a.content)}`)
       .join('\n\n') || '(sem artigos relevantes)'
 
+    // ─── Pre-fetch determinístico do Fluxon (perfil 360) + WordPress (área de membros) ───
+    // Restaura o fluxo do commit 04b7ad1 que o refactor "Sofia v2" (1214a0c) dropou: NÃO
+    // depender do gpt-4o-mini decidir chamar a tool — buscar a compra real ANTES do LLM e
+    // injetar no contexto. Fluxo: achou compra no Fluxon → usa o dado real; não achou → área de membros.
+    let fluxonContext: string | null = null
+    let fluxonSemCompra = false
+    if (customer && (customer.cpf || customer.email || customer.telefone) && process.env.FLUXON_SUPPORT_API_KEY && process.env.FLUXON_BASE_URL) {
+      try {
+        const params = new URLSearchParams()
+        if (customer.cpf) params.set('cpf', String(customer.cpf))
+        if (customer.email) params.set('email', String(customer.email))
+        if (customer.telefone) params.set('telefone', String(customer.telefone))
+        const flRes = await fetch(`${process.env.FLUXON_BASE_URL}/api/support/lead?${params.toString()}`, {
+          headers: { 'X-API-Key': process.env.FLUXON_SUPPORT_API_KEY },
+          signal: AbortSignal.timeout(8000),
+        })
+        if (flRes.ok) {
+          const fl = await flRes.json()
+          if (Array.isArray(fl.compras) && fl.compras.length > 0) {
+            const parts: string[] = [fl.diagnostico_resumido || '']
+            parts.push(`\nHistorico de compras (${fl.compras.length}):`)
+            for (const c of fl.compras) {
+              parts.push(`- ${c.produto} (${c.plataforma}, ha ${c.dias_desde_compra} dia(s)) | WhatsApp: ${c.whatsapp_entrega?.delivery_status || 'sem status'} | Link: ${c.link_acesso || '(sem link)'} | Login: ${c.login_instrucao || '(sem instrucao)'}`)
+            }
+            fluxonContext = parts.filter(Boolean).join('\n')
+          } else {
+            fluxonSemCompra = true
+          }
+        }
+      } catch (err) {
+        console.error('[ai/chat] Falha ao consultar Fluxon (pre-fetch):', err)
+      }
+    }
+
+    const KEYWORDS_ACESSO = /\b(n[aã]o cons[ie]g[uo]|esquec(i|eu)|perdi (a|o)? ?(senha|login|acesso)|email inv[aá]lido|senha inv[aá]lida|n[aã]o (recebi|consigo entrar|funciona|acesso)|n[aã]o consigo logar|esqueci a senha)\b/i
+    let wpContext: string | null = null
+    if (customer?.email && KEYWORDS_ACESSO.test(lastMessageContent) && process.env.FLUXON_SUPPORT_API_KEY && process.env.FLUXON_BASE_URL) {
+      try {
+        const wpRes = await fetch(`${process.env.FLUXON_BASE_URL}/api/support/wordpress/consultar-acesso`, {
+          method: 'POST',
+          headers: { 'X-API-Key': process.env.FLUXON_SUPPORT_API_KEY, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: customer.email }),
+          signal: AbortSignal.timeout(15000),
+        })
+        if (wpRes.ok) {
+          const wp = await wpRes.json()
+          if (wp.encontrado_em === 'julia' || wp.encontrado_em === 'cleiton') {
+            const d = wp.dados
+            wpContext = `\n- Area: ${d.area} | URL: ${d.url_area_membros}\n- Email: ${d.email}\n- Senha: ${d.senha_lembrete}\n(Use como lembrete da senha — NUNCA diga "resetei sua senha".)`
+          } else if (wp.encontrado_em === 'ambas') {
+            const itens = wp.dados_ambas.map((d: { area: string; url_area_membros: string; senha_lembrete: string }) => `${d.area}: ${d.url_area_membros} | senha: ${d.senha_lembrete}`).join(' | ')
+            wpContext = `\nEncontrado em AMBAS as areas — pergunte qual produto antes de mandar credenciais. Opcoes: ${itens}`
+          }
+        }
+      } catch (err) {
+        console.error('[ai/chat] Falha ao consultar WordPress (pre-fetch):', err)
+      }
+    }
+
+    const dadosOperacionais = fluxonContext
+      ? `\n[DADOS OPERACIONAIS — Fluxon: compras/entregas REAIS deste cliente. PRIORIZE sobre a base de conhecimento para acesso/login/link/entrega/reembolso. Se ha link e login abaixo, forneca direto ao cliente.]\n${fluxonContext}\n`
+      : fluxonSemCompra
+        ? `\n[DADOS OPERACIONAIS — Fluxon: nenhuma compra localizada para os dados informados. Se o cliente afirma ter comprado, peca o e-mail ou CPF EXATOS usados na compra antes de escalar. Caso contrario, oriente pela area de membros do produtor correto.]\n`
+        : ''
+    const acessoMembros = wpContext ? `\n[ACESSO A AREA DE MEMBROS — Fluxon/WordPress]${wpContext}\n` : ''
+
     // System Prompt & Messages
     const customerInfo = `Email: ${customer?.email || 'N/A'}, CPF: ${customer?.cpf || 'N/A'}, Telefone: ${customer?.telefone || 'N/A'}`
     const fullSystemPrompt = `Voce se chama ${aiName}. ${systemPrompt}
 
 [DADOS DO CLIENTE]
 ${customerInfo}
-
+${dadosOperacionais}${acessoMembros}
 <knowledge_base>
 ${contextStr}
 </knowledge_base>
