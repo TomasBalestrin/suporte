@@ -261,3 +261,9 @@ O "Sofia v2 Refactor" trocou o modelo de dados (`ai_usage_stats` → `ai_convers
 
 ## Candidata a lição F20 (harness)
 "Refactor que troca modelo de dados pode quebrar instrumentação sem erro — e monitoramento que faz `SELECT` numa tabela congelada reporta falso-verde. Lição: instrumentar o **writer**, não só o reader; e ter check de **frescor/staleness** do dado (MAX(created_at)) no próprio monitoramento." Grave 9+ dias cego. Avaliar registro no brain do harness.
+
+## ✅ Push DESBLOQUEADO (2026-05-22)
+
+O bloqueio histórico (`git push` do CLI dá **403** porque o credential cacheado é `eduardotkfm-maker`, sem permissão no repo `TomasBalestrin/suporte`) **resolve via GitHub Desktop** — lá está autenticado como o **Tomás**. Procedimento: abrir a pasta como repo no GitHub Desktop → **Push origin**. Os 5 commits críticos (incl. `4326283` observabilidade + `0f1018f` pre-fetch) subiram assim — **origin/main agora alinhado com prod**, fim do risco de reversão por deploy do GitHub.
+
+Sobraram 2 commits locais de housekeeping (não-app, podem subir pelo GitHub Desktop quando quiser): `8d587db` ("gg" — sync do brain do harness) e `fe4eb76` (gitignora o índice gerado de 245MB do markdown-vault MCP). **Nota**: o `.mcp-index/`/`.markdown_vault_mcp/` do brain são cache gerado (~245MB com model-cache) — agora no `.gitignore`, nunca commitar.
