@@ -317,3 +317,10 @@ Usuário confirmou: **Julia/Cleiton só vendem em Hotmart/PagTrust.** Logo, os 2
 **Fix = só (c): copy de escalonamento.** A nota `fluxonSemCompra` injetada no `route.ts` foi reescrita: confirmar o dado UMA vez; se ainda assim não aparecer, **acolher e ESCALAR** (abrir ticket pro humano verificar manualmente, pedir comprovante/ID da transação + plataforma), **sem repetir "não encontrei sua compra"** nem afirmar que o cliente não comprou. Mudança de string única no `route.ts` (~L356), sem migration, sem mudança no Fluxon.
 
 **Não tocou** a camada de dados do Fluxon (sob migração Supabase→Mongo por outro dev) — flag do Francês respeitada.
+
+---
+
+# Hardening do form de suporte — dead-end silencioso (2026-05-23)
+
+Origem: reclamação "fica dando loop, sempre volta no mesmo formulário" (1 cliente, abril). Investigação: **sem bug ativo** — `/api/products` (5) e `/api/categories` (5) saudáveis em prod, fluxo de steps do `ajuda/page.tsx` sólido. O "loop" foi provavelmente transitório (blip de API) ou erro de validação não percebido.
+**Armadilha latente encontrada + corrigida**: `loadDataError` só era setado no `catch` (rede/parse). Se `/api/products` ou `/api/categories` respondesse `success:false` ou lista vazia, os Selects obrigatórios (Produto/Tipo) ficavam **sem opção e sem banner** → cliente travado no form sem aviso. Fix (`page.tsx` loadData): trata `success:false` e lista vazia como `loadDataError` → mostra banner "Recarregar". Commit `7bea10e`, deploy `suporte-cpta83m7b`. Guarda confirmada silenciosa em condição normal (sem falso-positivo).
