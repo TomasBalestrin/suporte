@@ -264,6 +264,44 @@ WHERE role = 'assistant'
 
 
 -- =============================================================================
+-- [Q11] WP CONTA NAO ENCONTRADA + CROSS-REFERENCE HIT (sofia-purchase-lookup)
+-- Deploy: 2026-05-23. Feature: cross-reference WP com e-mail canonico do Fluxon.
+--
+-- Sinal 1 (conta nao encontrada) — indica volume de casos onde o cliente
+--   informou um e-mail que o WP nao reconheceu. Esperado cair apos deploy.
+-- Sinal 2 (cross-reference hit) — conta cases onde o retry com e-mail canonico
+--   do Fluxon salvou a consulta. Deve aparecer nos primeiros dias pos-deploy.
+-- Critério de regressão: se "nao_encontrei" subir muito (>20% sobre baseline)
+--   sem "cross_ref_hit" correspondente, o retry pode estar falhando silencioso.
+-- =============================================================================
+SELECT
+    DATE(created_at AT TIME ZONE 'America/Sao_Paulo')                             AS dia,
+    COUNT(*) FILTER (WHERE role = 'assistant')                                     AS total_respostas,
+    COUNT(*) FILTER (
+        WHERE role = 'assistant'
+          AND (
+              content ILIKE '%nao encontrei%'
+           OR content ILIKE '%nao encontro%'
+           OR content ILIKE '%nao localizei%'
+           OR content ILIKE '%nenhuma conta%'
+           OR content ILIKE '%nenhuma compra%'
+          )
+    )                                                                              AS nao_encontrei,
+    COUNT(*) FILTER (
+        WHERE role = 'assistant'
+          AND (
+              content ILIKE '%localiz% sob o e-mail%'
+           OR content ILIKE '%encontr% sob o e-mail%'
+           OR content ILIKE '%conta localizada%'
+          )
+    )                                                                              AS cross_ref_hit
+FROM ai_conversation_messages
+WHERE created_at >= '2026-05-23'
+GROUP BY dia
+ORDER BY dia;
+
+
+-- =============================================================================
 -- GAPS QUE SOBRAM (irrecuperáveis para período 13/05–22/05 — só Fase 2 resolve)
 -- 1. confidence: calculado em route.ts:443 mas nunca persistido na v2.
 --    ai_usage_stats.confidence_score era preenchido na v1 (último: 2026-05-13).

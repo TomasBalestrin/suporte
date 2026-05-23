@@ -267,3 +267,40 @@ O "Sofia v2 Refactor" trocou o modelo de dados (`ai_usage_stats` → `ai_convers
 O bloqueio histórico (`git push` do CLI dá **403** porque o credential cacheado é `eduardotkfm-maker`, sem permissão no repo `TomasBalestrin/suporte`) **resolve via GitHub Desktop** — lá está autenticado como o **Tomás**. Procedimento: abrir a pasta como repo no GitHub Desktop → **Push origin**. Os 5 commits críticos (incl. `4326283` observabilidade + `0f1018f` pre-fetch) subiram assim — **origin/main agora alinhado com prod**, fim do risco de reversão por deploy do GitHub.
 
 Sobraram 2 commits locais de housekeeping (não-app, podem subir pelo GitHub Desktop quando quiser): `8d587db` ("gg" — sync do brain do harness) e `fe4eb76` (gitignora o índice gerado de 245MB do markdown-vault MCP). **Nota**: o `.mcp-index/`/`.markdown_vault_mcp/` do brain são cache gerado (~245MB com model-cache) — agora no `.gitignore`, nunca commitar.
+
+---
+
+# Investigação "respostas atuais da Sofia" + Feature `sofia-purchase-lookup` (2026-05-23)
+
+## Investigação (banco vivo, pós-instrumentação Fase 2)
+
+Pedido: "dá uma olhada nas respostas atuais da Sofia." Achados (n=17 pós-deploy + 446 históricas):
+- ✅ Instrumentação nova funciona: 17/17 com `confidence`, feedback gravando, **veneno do arquétipo = 0** (fix de 22/05 segue limpo).
+- ✅ Confidence bimodal: ou 0 (sem match KB) ou 60–63 (passa raspando). Nada forte. KB com cobertura fraca.
+- 🎯 **Falha real nº 1 = "cliente pagante + Sofia não acha a compra/conta": 24/89 thumbs-down históricos (27%).** NÃO é raiva de reembolso (só 9%). Meu 1º palpite (n=7) estava errado — corrigido com volume.
+- ⚠️ **Lição de método**: minha 1ª query de varredura subcontava (acento mangleado no transporte python-stdin/Windows cp1252 → só casava trechos sem acento). Corrigido com SQL via arquivo + `--data-binary` UTF-8. Antes: 4 hits; depois: 24. **Sempre validar query de varredura contra um caso conhecido.**
+
+## Diagnóstico em 3 camadas (3 fontes: ai_usage_stats, ai_conversation_messages, API Fluxon)
+
+1. **Causa dominante = pre-fetch quebrado** (refactor v2). Casos "não encontrei conta" (robertastev=REELS MAGNETICOS, carlosbarbosa=IMPLEMENTAÇÃO CLEITON) **TÊM compra no Fluxon** (`identificacao: match_email`), mas a Sofia só chamava o WP email-only e nunca o Fluxon. **Já consertado** pela restauração do pre-fetch (22/05). Por isso pós-fix = 0 recorrência.
+2. **Irrecuperável no suporte**: tipo larissaneves — `identificacao: nao_encontrado` + 0 compras no Fluxon. Sem compra na fonte. → débito **`sofia-fluxon-coverage`** (cross-repo, mexe no Fluxon: por que clientes que compraram não aparecem? cobertura de plataforma/sync). Deferred.
+3. **Resíduo recuperável → ESTA feature.**
+
+## Feature `sofia-purchase-lookup` — cross-reference WP↔Fluxon (decided_by: butcher, usuário 2026-05-23)
+
+**Problema**: o WP (`/wordpress/consultar-acesso`) é email-only. Cliente digita e-mail que não casa a conta de membros, mas o Fluxon casa por CPF/telefone e devolve `cliente.email` canônico.
+**Fix** (1 arquivo, `route.ts` pre-fetch): captura `fluxonCanonicalEmail`; helper `fetchWpContext(email)`; loop de candidatos `[digitado, canônico]` dedupe case-insensitive; se o e-mail que casou ≠ o digitado, anota "Conta localizada sob o e-mail X — informe ao cliente". Sem migration, sem mudança no Fluxon/WP.
+**Contrato Fluxon** (sondado): `/api/support/lead` retorna `identificacao` (match_email|...|nao_encontrado), `cliente{nome,email,telefone,cpf_ultimos_4}`, `compras[{produto,plataforma,link_acesso,login_instrucao,...}]`.
+
+**Gate**: Kimiko → Luz Estrela (APROVADO) → MM (shippado) → Bruto (merge).
+**Deploy**: `vercel --prod` → `suporte-amber.vercel.app`, deploy `9vMZsC4HnAQ5ZnZkvdDncGEBB8th`. Smoke benigno 200/success/confidence:70.
+**Monitoramento**: Q11 no `monitoring.sql` — `nao_encontrei` (deve cair) + `cross_ref_hit` (anotação deve aparecer) a partir de 2026-05-23.
+**Rollback**: Vercel 1-click (sem schema).
+
+## Dívidas não-bloqueantes (Luz Estrela)
+- [ ] Latência: pior caso 2 fetches WP sequenciais (até 15s cada) — só dispara em pergunta de acesso + 1º candidato falha. Monitorar P95.
+- [ ] `fetchWpContext` acessa `d.area`/`d.url_area_membros` sem checar `wp.dados` existir — se Fluxon mandar `encontrado_em` com `dados:null`, estoura (mas cai no catch → retorna null, sem 500). Add `if (d)` defensivo na próxima passada.
+
+## Débitos abertos (deferred)
+- [ ] `sofia-fluxon-coverage` — clientes que compraram mas dão `nao_encontrado` no Fluxon (camada 2). Cross-repo.
+- [ ] Cobertura de KB (confidence bimodal — o que cai em conf=0 que deveria ter resposta).

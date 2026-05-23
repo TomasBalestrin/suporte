@@ -45,6 +45,31 @@ async function consultar_wordpress(email: string) {
   }
 }
 
+async function fetchWpContext(email: string): Promise<string | null> {
+  if (!process.env.FLUXON_SUPPORT_API_KEY || !process.env.FLUXON_BASE_URL) return null
+  try {
+    const wpRes = await fetch(`${process.env.FLUXON_BASE_URL}/api/support/wordpress/consultar-acesso`, {
+      method: 'POST',
+      headers: { 'X-API-Key': process.env.FLUXON_SUPPORT_API_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+      signal: AbortSignal.timeout(15000),
+    })
+    if (!wpRes.ok) return null
+    const wp = await wpRes.json()
+    if (wp.encontrado_em === 'julia' || wp.encontrado_em === 'cleiton') {
+      const d = wp.dados
+      return `\n- Area: ${d.area} | URL: ${d.url_area_membros}\n- Email: ${d.email}\n- Senha: ${d.senha_lembrete}\n(Use como lembrete da senha — NUNCA diga "resetei sua senha".)`
+    } else if (wp.encontrado_em === 'ambas') {
+      const itens = wp.dados_ambas.map((d: { area: string; url_area_membros: string; senha_lembrete: string }) => `${d.area}: ${d.url_area_membros} | senha: ${d.senha_lembrete}`).join(' | ')
+      return `\nEncontrado em AMBAS as areas — pergunte qual produto antes de mandar credenciais. Opcoes: ${itens}`
+    }
+    return null
+  } catch (err) {
+    console.error('[ai/chat] Falha ao consultar WordPress:', err)
+    return null
+  }
+}
+
 const TOOLS = [
   {
     type: 'function',
@@ -278,6 +303,7 @@ export async function POST(request: NextRequest) {
     // injetar no contexto. Fluxo: achou compra no Fluxon → usa o dado real; não achou → área de membros.
     let fluxonContext: string | null = null
     let fluxonSemCompra = false
+    let fluxonCanonicalEmail: string | null = null
     if (customer && (customer.cpf || customer.email || customer.telefone) && process.env.FLUXON_SUPPORT_API_KEY && process.env.FLUXON_BASE_URL) {
       try {
         const params = new URLSearchParams()
@@ -290,6 +316,7 @@ export async function POST(request: NextRequest) {
         })
         if (flRes.ok) {
           const fl = await flRes.json()
+          fluxonCanonicalEmail = fl?.cliente?.email ?? null
           if (Array.isArray(fl.compras) && fl.compras.length > 0) {
             const parts: string[] = [fl.diagnostico_resumido || '']
             parts.push(`\nHistorico de compras (${fl.compras.length}):`)
@@ -308,26 +335,18 @@ export async function POST(request: NextRequest) {
 
     const KEYWORDS_ACESSO = /\b(n[aã]o cons[ie]g[uo]|esquec(i|eu)|perdi (a|o)? ?(senha|login|acesso)|email inv[aá]lido|senha inv[aá]lida|n[aã]o (recebi|consigo entrar|funciona|acesso)|n[aã]o consigo logar|esqueci a senha)\b/i
     let wpContext: string | null = null
-    if (customer?.email && KEYWORDS_ACESSO.test(lastMessageContent) && process.env.FLUXON_SUPPORT_API_KEY && process.env.FLUXON_BASE_URL) {
-      try {
-        const wpRes = await fetch(`${process.env.FLUXON_BASE_URL}/api/support/wordpress/consultar-acesso`, {
-          method: 'POST',
-          headers: { 'X-API-Key': process.env.FLUXON_SUPPORT_API_KEY, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: customer.email }),
-          signal: AbortSignal.timeout(15000),
-        })
-        if (wpRes.ok) {
-          const wp = await wpRes.json()
-          if (wp.encontrado_em === 'julia' || wp.encontrado_em === 'cleiton') {
-            const d = wp.dados
-            wpContext = `\n- Area: ${d.area} | URL: ${d.url_area_membros}\n- Email: ${d.email}\n- Senha: ${d.senha_lembrete}\n(Use como lembrete da senha — NUNCA diga "resetei sua senha".)`
-          } else if (wp.encontrado_em === 'ambas') {
-            const itens = wp.dados_ambas.map((d: { area: string; url_area_membros: string; senha_lembrete: string }) => `${d.area}: ${d.url_area_membros} | senha: ${d.senha_lembrete}`).join(' | ')
-            wpContext = `\nEncontrado em AMBAS as areas — pergunte qual produto antes de mandar credenciais. Opcoes: ${itens}`
-          }
-        }
-      } catch (err) {
-        console.error('[ai/chat] Falha ao consultar WordPress (pre-fetch):', err)
+    if (KEYWORDS_ACESSO.test(lastMessageContent) && process.env.FLUXON_SUPPORT_API_KEY && process.env.FLUXON_BASE_URL) {
+      const typedEmail = customer?.email ? String(customer.email) : null
+      const rawCandidates = [typedEmail, fluxonCanonicalEmail].filter((e): e is string => !!e)
+      const seen = new Set<string>()
+      const candidatos = rawCandidates.filter(e => { const k = e.toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true })
+      let matchedEmail: string | null = null
+      for (const em of candidatos) {
+        wpContext = await fetchWpContext(em)
+        if (wpContext) { matchedEmail = em; break }
+      }
+      if (wpContext && matchedEmail && typedEmail && matchedEmail.toLowerCase() !== typedEmail.toLowerCase()) {
+        wpContext = `\n(Conta localizada sob o e-mail ${matchedEmail}, diferente do informado pelo cliente — informe isso a ele.)${wpContext}`
       }
     }
 
