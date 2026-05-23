@@ -71,7 +71,9 @@ export default function HelpPage() {
         ])
         const prodJson = await prodRes.json()
         const catJson = await catRes.json()
-        if (prodJson.success) {
+        const prodOk = prodJson.success && Array.isArray(prodJson.data) && prodJson.data.length > 0
+        const catOk = catJson.success && Array.isArray(catJson.data) && catJson.data.length > 0
+        if (prodOk) {
           const mainProducts = ['50 Scripts', 'Teste dos Arquétipos']
           const sorted = [...(prodJson.data as Product[])].sort((a, b) => {
             const aIdx = mainProducts.findIndex((name) => a.name.toLowerCase().includes(name.toLowerCase()))
@@ -83,7 +85,10 @@ export default function HelpPage() {
           })
           setProducts(sorted)
         }
-        if (catJson.success) setCategories(catJson.data)
+        if (catOk) setCategories(catJson.data)
+        // Dead-end silencioso: se produtos/categorias nao populam (success:false ou lista
+        // vazia), os Selects obrigatorios ficam sem opcao. Sinaliza erro em vez de form mudo.
+        if (!prodOk || !catOk) setLoadDataError(true)
       } catch {
         setLoadDataError(true)
       } finally {
