@@ -302,5 +302,18 @@ Pedido: "dá uma olhada nas respostas atuais da Sofia." Achados (n=17 pós-deplo
 - [ ] `fetchWpContext` acessa `d.area`/`d.url_area_membros` sem checar `wp.dados` existir — se Fluxon mandar `encontrado_em` com `dados:null`, estoura (mas cai no catch → retorna null, sem 500). Add `if (d)` defensivo na próxima passada.
 
 ## Débitos abertos (deferred)
-- [ ] `sofia-fluxon-coverage` — clientes que compraram mas dão `nao_encontrado` no Fluxon (camada 2). Cross-repo.
+- [x] ~~`sofia-fluxon-coverage`~~ — **DISSOLVIDO 2026-05-23.** Ver abaixo.
 - [ ] Cobertura de KB (confidence bimodal — o que cai em conf=0 que deveria ter resposta).
+
+---
+
+# `sofia-fluxon-coverage` → resolvido como copy de escalonamento (2026-05-23)
+
+## Research (Francês) + dimensionamento
+Dos 30 clientes distintos que receberam "não encontrei sua compra/conta": **27 (90%) = `nao_encontrado` no Fluxon** mesmo com email+CPF+telefone; 3 = `match_cpf` (e-mail digitado divergia, compras hotmart/pagtrust — já pegos pelo pre-fetch). O Fluxon **só ingere webhook de Hotmart + PagTrust** (único parser `hotmart.ts`; `entregas` 100% pagtrust/hotmart/manual; webhook síncrono → timing descartado).
+
+## Decisão (decided_by: butcher + usuário 2026-05-23)
+Usuário confirmou: **Julia/Cleiton só vendem em Hotmart/PagTrust.** Logo, os 27 `nao_encontrado` **não são compradores reais** desses produtos (lead confuso / revendedor / chargeback / produto de terceiro) — **não há compra a recuperar**. Não existe coverage gap. (a) fallback API e (b) ingestão Kiwify descartados — sem plataforma nova pra integrar.
+**Fix = só (c): copy de escalonamento.** A nota `fluxonSemCompra` injetada no `route.ts` foi reescrita: confirmar o dado UMA vez; se ainda assim não aparecer, **acolher e ESCALAR** (abrir ticket pro humano verificar manualmente, pedir comprovante/ID da transação + plataforma), **sem repetir "não encontrei sua compra"** nem afirmar que o cliente não comprou. Mudança de string única no `route.ts` (~L356), sem migration, sem mudança no Fluxon.
+
+**Não tocou** a camada de dados do Fluxon (sob migração Supabase→Mongo por outro dev) — flag do Francês respeitada.

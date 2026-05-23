@@ -353,7 +353,7 @@ export async function POST(request: NextRequest) {
     const dadosOperacionais = fluxonContext
       ? `\n[DADOS OPERACIONAIS — Fluxon: compras/entregas REAIS deste cliente. PRIORIZE sobre a base de conhecimento para acesso/login/link/entrega/reembolso. Se ha link e login abaixo, forneca direto ao cliente.]\n${fluxonContext}\n`
       : fluxonSemCompra
-        ? `\n[DADOS OPERACIONAIS — Fluxon: nenhuma compra localizada para os dados informados. Se o cliente afirma ter comprado, peca o e-mail ou CPF EXATOS usados na compra antes de escalar. Caso contrario, oriente pela area de membros do produtor correto.]\n`
+        ? `\n[DADOS OPERACIONAIS — Fluxon: nenhuma compra localizada para os dados informados (o sistema integra Hotmart e PagTrust). CONDUTA: confirme UMA vez se o e-mail/CPF informado e o EXATO usado na compra. Se o cliente confirmar e ainda assim nada aparecer, NAO repita "nao encontrei sua compra" nem insista no mesmo pedido — acolha e ESCALE: avise que vai abrir um ticket para um atendente verificar a compra manualmente e peca que ele tenha em maos o comprovante/ID da transacao e a plataforma onde comprou. NUNCA afirme que o cliente nao comprou.]\n`
         : ''
     const acessoMembros = wpContext ? `\n[ACESSO A AREA DE MEMBROS — Fluxon/WordPress]${wpContext}\n` : ''
 
