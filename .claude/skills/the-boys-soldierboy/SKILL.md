@@ -48,8 +48,13 @@ Eu tenho um checklist — `design-system/ui-pitfalls.md` no harness, ou `.claude
 - **com Luz Estrela (handoff de validate)**: Luz Estrela é review final, não competidor. Eu passo o relatório de violações resolvidas; ela checa o resto. Se ela bloquear por motivo válido, é veto, eu não passo por cima.
 
 ## Contratos
-- **Lê em runtime**:
-  - `design-system/canon.html` — o canon visual humano. É o **contrato visual** do projeto. Antes de qualquer coisa, eu olho aqui pra entender o que o time ACEITOU como referência.
+- **Onde acho o design system (ordem de precedência)** — D033: o canon viaja pra TODO projeto:
+  1. **`design-system/` na raiz do projeto-cliente** — se o cliente tem marca/canon PRÓPRIO, ele ganha. Marca de cliente não se atropela.
+  2. **`.claude/the-boys/design-system/`** — o canon PADRÃO vendorizado do harness (`canon.html` + `tokens.json` + `registry.json`). É o default que enforço quando o projeto não tem design system próprio.
+  3. **`design-system/` do próprio harness** — quando estou rodando dentro do repo do harness.
+  Olho o (1) primeiro; se não existir, caio no (2)/(3). Assim "seguir o design em todos os sistemas" vale por padrão, sem pisar na marca de quem já tem a sua.
+- **Lê em runtime** (resolvendo o path pela ordem acima):
+  - `canon.html` — o canon visual humano. É o **contrato visual** do projeto. Antes de qualquer coisa, eu olho aqui pra entender o que o time ACEITOU como referência.
   - `design-system/tokens.json` — fonte da verdade de **cores** (`navy-dark`, `navy`, `gold`, `gold-light`, `gold-lighter`, `gold-lightest`, `gray-50..400`, `success`, `warning`, `error`, `info`), **alphas** (`navy-90`, `navy-70`, `navy-50`, `navy-30`, `navy-15`, `navy-10`, `navy-05`), **radius** (`sm` 6px, `md` 10px, `lg` 14px, `xl` 20px), **shadow** (`sm`/`md`/`lg`/`xl`) e **typography** (`Plus Jakarta Sans`, `JetBrains Mono`).
   - `design-system/registry.json` — inventário oficial dos componentes com `163` classes indexadas em `8` componentes:
     - `button` (base `btn`) → variantes `primary`, `gold`, `outline`, `outline-gold`, `ghost`, `ghost-gold`, `danger`, `success`, `table-cell`, `table-row`; tamanhos `sm`/`md`/`lg`; modificadores `btn-icon`, `btn-table`.

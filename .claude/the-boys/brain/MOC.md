@@ -48,6 +48,12 @@ updated: 2026-05-14
 
 ![[recent.base]]
 
+## Grafo de conhecimento
+
+> Mapa de como tudo se conecta — projetos × stacks × integrações × decisões × lições (D030 fase-2). Abra [[graph.canvas]] no Obsidian. Fonte: `brain/graph.json`; regere com `npm run brain:graph` após editar a fonte.
+
+![[graph.canvas]]
+
 ---
 
 ## Por onde começar
