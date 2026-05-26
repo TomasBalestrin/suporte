@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
+import {
+  KEYWORDS_ACESSO,
+  computeConfidence,
+  buildFluxonContext,
+  buildDadosOperacionais,
+  buildWpCandidates,
+  annotateWpDivergence,
+} from '@/lib/sofia/context'
 
 // ─── TOOL HELPERS ───
 async function consultar_fluxon(cpf?: string, email?: string, telefone?: string) {
@@ -316,45 +324,31 @@ export async function POST(request: NextRequest) {
         })
         if (flRes.ok) {
           const fl = await flRes.json()
-          fluxonCanonicalEmail = fl?.cliente?.email ?? null
-          if (Array.isArray(fl.compras) && fl.compras.length > 0) {
-            const parts: string[] = [fl.diagnostico_resumido || '']
-            parts.push(`\nHistorico de compras (${fl.compras.length}):`)
-            for (const c of fl.compras) {
-              parts.push(`- ${c.produto} (${c.plataforma}, ha ${c.dias_desde_compra} dia(s)) | WhatsApp: ${c.whatsapp_entrega?.delivery_status || 'sem status'} | Link: ${c.link_acesso || '(sem link)'} | Login: ${c.login_instrucao || '(sem instrucao)'}`)
-            }
-            fluxonContext = parts.filter(Boolean).join('\n')
-          } else {
-            fluxonSemCompra = true
-          }
+          const result = buildFluxonContext(fl)
+          fluxonContext = result.fluxonContext
+          fluxonSemCompra = result.fluxonSemCompra
+          fluxonCanonicalEmail = result.fluxonCanonicalEmail
         }
       } catch (err) {
         console.error('[ai/chat] Falha ao consultar Fluxon (pre-fetch):', err)
       }
     }
 
-    const KEYWORDS_ACESSO = /\b(n[aã]o cons[ie]g[uo]|esquec(i|eu)|perdi (a|o)? ?(senha|login|acesso)|email inv[aá]lido|senha inv[aá]lida|n[aã]o (recebi|consigo entrar|funciona|acesso)|n[aã]o consigo logar|esqueci a senha)\b/i
     let wpContext: string | null = null
     if (KEYWORDS_ACESSO.test(lastMessageContent) && process.env.FLUXON_SUPPORT_API_KEY && process.env.FLUXON_BASE_URL) {
       const typedEmail = customer?.email ? String(customer.email) : null
-      const rawCandidates = [typedEmail, fluxonCanonicalEmail].filter((e): e is string => !!e)
-      const seen = new Set<string>()
-      const candidatos = rawCandidates.filter(e => { const k = e.toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true })
+      const candidatos = buildWpCandidates(typedEmail, fluxonCanonicalEmail)
       let matchedEmail: string | null = null
       for (const em of candidatos) {
         wpContext = await fetchWpContext(em)
         if (wpContext) { matchedEmail = em; break }
       }
-      if (wpContext && matchedEmail && typedEmail && matchedEmail.toLowerCase() !== typedEmail.toLowerCase()) {
-        wpContext = `\n(Conta localizada sob o e-mail ${matchedEmail}, diferente do informado pelo cliente — informe isso a ele.)${wpContext}`
+      if (wpContext && matchedEmail) {
+        wpContext = annotateWpDivergence(wpContext, matchedEmail, typedEmail)
       }
     }
 
-    const dadosOperacionais = fluxonContext
-      ? `\n[DADOS OPERACIONAIS — Fluxon: compras/entregas REAIS deste cliente. PRIORIZE sobre a base de conhecimento para acesso/login/link/entrega/reembolso. Se ha link e login abaixo, forneca direto ao cliente.]\n${fluxonContext}\n`
-      : fluxonSemCompra
-        ? `\n[DADOS OPERACIONAIS — Fluxon: nenhuma compra localizada para os dados informados (o sistema integra Hotmart e PagTrust). CONDUTA: confirme UMA vez se o e-mail/CPF informado e o EXATO usado na compra. Se o cliente confirmar e ainda assim nada aparecer, NAO repita "nao encontrei sua compra" nem insista no mesmo pedido — acolha e ESCALE: avise que vai abrir um ticket para um atendente verificar a compra manualmente e peca que ele tenha em maos o comprovante/ID da transacao e a plataforma onde comprou. NUNCA afirme que o cliente nao comprou.]\n`
-        : ''
+    const dadosOperacionais = buildDadosOperacionais(fluxonContext, fluxonSemCompra)
     const acessoMembros = wpContext ? `\n[ACESSO A AREA DE MEMBROS — Fluxon/WordPress]${wpContext}\n` : ''
 
     // System Prompt & Messages
@@ -448,7 +442,7 @@ NUNCA diga que nao encontrou nada sem usar as ferramentas primeiro.`
           content: t.result,
           tool_name: t.name
         })),
-        { conversation_id: conversationId, role: 'assistant', content: answer, confidence: Math.round(bestSimilarity * 100) }
+        { conversation_id: conversationId, role: 'assistant', content: answer, confidence: computeConfidence(bestSimilarity) }
       ]
       await supabase.from('ai_conversation_messages').insert(toInsert)
       await supabase.from('ai_conversations').update({ updated_at: new Date().toISOString() }).eq('id', conversationId)
@@ -459,7 +453,7 @@ NUNCA diga que nao encontrou nada sem usar as ferramentas primeiro.`
       data: {
         answer,
         requires_ticket: bestSimilarity < threshold,
-        confidence: Math.round(bestSimilarity * 100),
+        confidence: computeConfidence(bestSimilarity),
         ai_name: aiName,
         conversation_id: conversationId
       }
