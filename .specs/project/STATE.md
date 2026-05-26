@@ -324,3 +324,18 @@ Usuário confirmou: **Julia/Cleiton só vendem em Hotmart/PagTrust.** Logo, os 2
 
 Origem: reclamação "fica dando loop, sempre volta no mesmo formulário" (1 cliente, abril). Investigação: **sem bug ativo** — `/api/products` (5) e `/api/categories` (5) saudáveis em prod, fluxo de steps do `ajuda/page.tsx` sólido. O "loop" foi provavelmente transitório (blip de API) ou erro de validação não percebido.
 **Armadilha latente encontrada + corrigida**: `loadDataError` só era setado no `catch` (rede/parse). Se `/api/products` ou `/api/categories` respondesse `success:false` ou lista vazia, os Selects obrigatórios (Produto/Tipo) ficavam **sem opção e sem banner** → cliente travado no form sem aviso. Fix (`page.tsx` loadData): trata `success:false` e lista vazia como `loadDataError` → mostra banner "Recarregar". Commit `7bea10e`, deploy `suporte-cpta83m7b`. Guarda confirmada silenciosa em condição normal (sem falso-positivo).
+
+---
+
+# Suite de regressão da Sofia (2026-05-26)
+
+Origem: brain (sofia.md D5 + oportunidade 2) marca "Playwright sem cobertura de Sofia → mudança de prompt sem regression". Nessa sessão mexemos em prompt/route/KB em 4+ deploys só com smoke manual.
+**Estratégia**: resposta do LLM é não-determinística (não se testa texto do LLM) → testa-se a **lógica determinística** que monta contexto/decisões. Ela estava inline no `route.ts` (não-testável). Extraída (behavior-preserving) pra `src/lib/sofia/context.ts`: `buildFluxonContext`, `buildDadosOperacionais` (copy de escalonamento), `buildWpCandidates`, `annotateWpDivergence`, `KEYWORDS_ACESSO`, `computeConfidence`. `route.ts` importa.
+**Testes**: `src/lib/__tests__/sofia-context.test.ts` — 28 testes (incl. guarda byte-for-byte do copy de escalonamento; bordas de compra/e-mail nulo/dedup). Total 116 verdes.
+**Gate**: Kimiko → Luz Estrela (APROVADO, extração byte-a-byte confirmada função por função) → MM (deploy `Bvw8KjeeSACNDxjEtaPfLweghAtx`, smoke confidence:70, behavior-preserving em prod) → Bruto. Commit `e1dd914`.
+**Dívida (não-bloqueante)**: corrigida em-linha (comentário "banker's rounding" → "half-up").
+**Próximo nível (deferido)**: estender pra mais helpers do route conforme forem mexidos; e/ou um "eval" manual/nightly de perguntas-veneno contra o endpoint (não-determinístico, fora da suite rápida).
+
+## Outras melhorias mapeadas no brain (deferidas, 2026-05-26)
+- **Alerta automático de saúde da IA** (brain: "sem alertas de IA no Sentry"): cron que roda `monitoring.sql` (veneno/thumbs-down/não-achei/confidence) e alerta em breach. Fecha o loop da observabilidade.
+- **Hygiene/brain-truth**: `.mcp-venv/` (245MB+) ainda fora do `.gitignore`; brain desatualizado (D3 resolvido pela migration 016 `kb_auto_embedding_trigger`; D4 — `respostasprontas` NÃO está vazio, tem 8 mensagens com tom velho).
