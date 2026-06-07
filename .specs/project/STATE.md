@@ -339,3 +339,41 @@ Origem: brain (sofia.md D5 + oportunidade 2) marca "Playwright sem cobertura de 
 ## Outras melhorias mapeadas no brain (deferidas, 2026-05-26)
 - **Alerta automático de saúde da IA** (brain: "sem alertas de IA no Sentry"): cron que roda `monitoring.sql` (veneno/thumbs-down/não-achei/confidence) e alerta em breach. Fecha o loop da observabilidade.
 - **Hygiene/brain-truth**: `.mcp-venv/` (245MB+) ainda fora do `.gitignore`; brain desatualizado (D3 resolvido pela migration 016 `kb_auto_embedding_trigger`; D4 — `respostasprontas` NÃO está vazio, tem 8 mensagens com tom velho).
+
+---
+
+# Feature `sofia-anti-escalonamento` — Sofia parava de "abrir ticket pra tudo" (2026-06-07)
+
+## Sintoma (print do Eduardo, ticket SUP-2026-0371)
+Sofia respondia o login certo (Julia Academy + `ottoni123`), cliente dizia "Nao consegui", e ela escalava na hora: "Entendido, vou abrir um ticket pra você... tenha em mãos o comprovante da compra e a plataforma". Escalava no 1º "não consegui" sem troubleshooting. E pior: dizia "vou abrir um ticket" no auto-reply **dentro de um ticket que já existia**.
+
+## Causa-raiz (confirmada em código + prompt vivo, decided_by: butcher)
+`requires_ticket` é **decorativo** — nem `ajuda/page.tsx` (form: cliente decide no botão) nem `disparaAutoReply` (auto-reply: só usa `answer`) consomem o flag. O "abre ticket pra tudo" vinha da **fala da Sofia**, por DUAS fontes empilhadas:
+1. **`system_prompt`** (runtime `ai_config`), seção "QUANDO O CLIENTE RELATA QUE NÃO RECEBEU ACESSO" regra 3: "já tentou e não funcionou → diga 'vou abrir um ticket'". Sem degrau de troubleshooting (reset de senha / qual erro) no meio.
+2. **`buildDadosOperacionais` ramo `fluxonSemCompra`** (`src/lib/sofia/context.ts:50`): copy "acolha e ESCALE: vai abrir um ticket / comprovante/ID" disparava pra ~90% dos clientes (Julia/Cleiton só Hotmart/PagTrust, cobertura parcial Fluxon → `fluxonSemCompra=true`), sequestrando casos de login onde a Sofia já tinha o dado de acesso. A fala do print era cópia byte-for-byte dessa copy.
+
+Config (`temperature=0.2`, `confidence_threshold=0.6`) saudável — não tocada.
+
+## Decisão de produto (decided_by: usuário, 2026-06-07)
+**Escalonamento só em último caso.** Sofia troubleshoota primeiro (e-mail correto → Esqueci minha senha → qual erro). Só escala depois disso, ou pro que ela não resolve. Gatilhos de ESCALAÇÃO IMEDIATA (reembolso/fraude/humano/financeiro/3+ repetições) mantidos.
+
+## Fix (Medium, tier Opus)
+- **`context.ts` `fluxonSemCompra`**: reescrito pra troubleshooting-first; removida a conduta "abrir ticket"; mantida a guarda "NUNCA afirme que o cliente não comprou".
+- **`system_prompt`** (runtime, aplicado em prod via REST PATCH `ai_config`): seção "NÃO RECEBEU ACESSO" ganhou degrau de troubleshooting (REGRA DE OURO + 3 passos) antes de escalar; TOM/escalonamento ajustado ("encaminhar pra equipe", não "abrir ticket" dentro de atendimento); LEMBRETE FINAL item 4 novo. 8730→10278 chars. Backup: `.specs/features/sofia-anti-escalonamento/system_prompt-backup-2026-06-07.txt`.
+- **Testes**: `sofia-context.test.ts` — guarda byte-for-byte atualizada pra copy nova + guard de regressão (copy antiga não volta). 29/29 verde, `tsc` limpo.
+
+## Gate ladder
+Kimiko (execute) → ⭐ Luz Estrela (**APROVADO** — L034 não se aplica/é instrução de operador; escalação imediata intacta; anti-alucinação preservada; 1 dívida não-bloqueante corrigida em-linha) → 🍼 MM (prompt em prod + `vercel --prod` + smoke) → 🔪 Bruto (merge autorizado).
+
+## Deploy + verificação
+- Commit local `c48a9a5`. Prompt aplicado em prod. Deploy `suporte-8rkdzn9w8` aliased `suporte-amber.vercel.app` (build 45s).
+- **Smoke prod** (caso Juliana, "Nao consegui"): resposta nova = "Qual mensagem aparece? 'e-mail não encontrado', 'senha incorreta' ou a página não abre?" — troubleshoota, **não escala**. ✓
+
+## Rollback
+- Prompt: restaurar `system_prompt-backup-2026-06-07.txt` no `ai_config` (cache 5min).
+- Código: Vercel 1-click rollback (sem migration).
+- Critério: thumbs-down subir vs. baseline ou recaída de "abre ticket" sem troubleshooting nas 48h.
+
+## ⚠️ Pendências
+- [ ] **Push do `c48a9a5` pro `origin/main`** — repo `TomasBalestrin/suporte` trava push do CLI (user `eduardotkfm-maker`). Fazer via **GitHub Desktop / Tomás**, senão o próximo deploy do GitHub reverte o `vercel --prod` (padrão L045). Prod JÁ está com o fix (deploy direto Vercel); o risco é só de reversão futura.
+- [ ] **Débito `sofia-requires-ticket-semantica`**: `requires_ticket: bestSimilarity<threshold` é decorativo nos fluxos atuais — revisar se a integração WhatsApp/Fluxon consumir o flag.
