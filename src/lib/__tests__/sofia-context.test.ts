@@ -119,15 +119,17 @@ describe('sofia/context', () => {
       expect(msg).toContain('Some context')
     })
 
-    it('returns escalonamento note when fluxonSemCompra=true', () => {
+    it('returns troubleshooting-first conduct when fluxonSemCompra=true', () => {
       const msg = buildDadosOperacionais(null, true)
       expect(msg).toContain('DADOS OPERACIONAIS')
       expect(msg).toContain('nenhuma compra localizada')
-      expect(msg).toContain('integra Hotmart e PagTrust')
+      expect(msg).toContain('Hotmart e PagTrust')
       expect(msg).toContain('NUNCA afirme que o cliente nao comprou')
-      expect(msg).toContain('comprovante')
-      expect(msg).toContain('ticket')
-      expect(msg).toContain('ESCALE')
+      // conduta nova: troubleshooting antes de qualquer encaminhamento
+      expect(msg).toContain('NAO escale')
+      expect(msg).toContain('troubleshooting de acesso')
+      expect(msg).toContain('Esqueci minha senha')
+      expect(msg).toContain('So encaminhe para um atendente humano')
     })
 
     it('returns empty string when neither context nor semCompra', () => {
@@ -135,14 +137,21 @@ describe('sofia/context', () => {
       expect(msg).toBe('')
     })
 
-    it('preserves exact escalonamento text (byte-for-byte)', () => {
+    it('preserves exact troubleshooting-first text (byte-for-byte)', () => {
       const msg = buildDadosOperacionais(null, true)
-      // Check for the exact escalation note as it appears in route.ts
-      expect(msg).toContain('confirme UMA vez')
-      expect(msg).toContain('e-mail/CPF informado e o EXATO')
-      expect(msg).toContain('NAO repita "nao encontrei sua compra"')
-      expect(msg).toContain('peca que ele tenha em maos o comprovante/ID da transacao')
-      expect(msg).toContain('plataforma onde comprou')
+      // Trava a copy NOVA (anti-escalonamento) — fragmentos-chave verbatim
+      expect(msg).toContain('ausencia AQUI nao prova que o cliente nao comprou')
+      expect(msg).toContain('NAO diga ao cliente que "nao encontrou a compra"')
+      expect(msg).toContain('e-mail correto -> Esqueci minha senha -> qual erro aparece')
+      expect(msg).toContain('DEPOIS do troubleshooting')
+    })
+
+    it('does NOT contain the old eager-escalation copy (regression guard)', () => {
+      const msg = buildDadosOperacionais(null, true)
+      // Estas frases causavam o "abre ticket pra tudo" — nao podem voltar
+      expect(msg).not.toContain('acolha e ESCALE')
+      expect(msg).not.toContain('vai abrir um ticket')
+      expect(msg).not.toContain('comprovante/ID da transacao')
     })
   })
 

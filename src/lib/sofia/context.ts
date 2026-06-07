@@ -47,7 +47,7 @@ export function buildDadosOperacionais(fluxonContext: string | null, fluxonSemCo
     return `\n[DADOS OPERACIONAIS — Fluxon: compras/entregas REAIS deste cliente. PRIORIZE sobre a base de conhecimento para acesso/login/link/entrega/reembolso. Se ha link e login abaixo, forneca direto ao cliente.]\n${fluxonContext}\n`
   }
   if (fluxonSemCompra) {
-    return `\n[DADOS OPERACIONAIS — Fluxon: nenhuma compra localizada para os dados informados (o sistema integra Hotmart e PagTrust). CONDUTA: confirme UMA vez se o e-mail/CPF informado e o EXATO usado na compra. Se o cliente confirmar e ainda assim nada aparecer, NAO repita "nao encontrei sua compra" nem insista no mesmo pedido — acolha e ESCALE: avise que vai abrir um ticket para um atendente verificar a compra manualmente e peca que ele tenha em maos o comprovante/ID da transacao e a plataforma onde comprou. NUNCA afirme que o cliente nao comprou.]\n`
+    return `\n[DADOS OPERACIONAIS — Fluxon: nenhuma compra localizada para os dados informados (a busca cobre Hotmart e PagTrust; ausencia AQUI nao prova que o cliente nao comprou — pode ser e-mail/CPF divergente ou outra plataforma). CONDUTA: NAO diga ao cliente que "nao encontrou a compra" e NAO escale por causa disso. Atenda normalmente pelo produto/area de membros: se souber o produto, mande o link e a senha-padrao e faca o troubleshooting de acesso (e-mail correto -> Esqueci minha senha -> qual erro aparece). Se precisar, confirme UMA vez se o e-mail/CPF e o EXATO usado na compra. So encaminhe para um atendente humano se, DEPOIS do troubleshooting, o cliente ainda nao conseguir acessar OU se for algo que voce nao resolve (reembolso, e-mail de compra divergente, pagamento). NUNCA afirme que o cliente nao comprou.]\n`
   }
   return ''
 }
