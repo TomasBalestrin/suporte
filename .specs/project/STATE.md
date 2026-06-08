@@ -375,5 +375,18 @@ Kimiko (execute) → ⭐ Luz Estrela (**APROVADO** — L034 não se aplica/é in
 - Critério: thumbs-down subir vs. baseline ou recaída de "abre ticket" sem troubleshooting nas 48h.
 
 ## ⚠️ Pendências
-- [ ] **Push do `c48a9a5` pro `origin/main`** — repo `TomasBalestrin/suporte` trava push do CLI (user `eduardotkfm-maker`). Fazer via **GitHub Desktop / Tomás**, senão o próximo deploy do GitHub reverte o `vercel --prod` (padrão L045). Prod JÁ está com o fix (deploy direto Vercel); o risco é só de reversão futura.
+- [ ] **Push do `c48a9a5`+`2bc672b`+`e0c... (state retomada)` pro `origin/main`** — repo `TomasBalestrin/suporte` trava push do CLI (user `eduardotkfm-maker`). Fazer via **GitHub Desktop / Tomás**, senão o próximo deploy do GitHub reverte o `vercel --prod` (padrão L045). Prod JÁ está com o fix (deploy direto Vercel); o risco é só de reversão futura.
 - [ ] **Débito `sofia-requires-ticket-semantica`**: `requires_ticket: bestSimilarity<threshold` é decorativo nos fluxos atuais — revisar se a integração WhatsApp/Fluxon consumir o flag.
+
+## ⭐ RETOMAR DAQUI (2026-06-08) — pausa pedida pelo Eduardo 2026-06-07 ~19h40
+
+**Onde paramos:** fix da Sofia (anti-escalonamento) está NO AR e verificado por smoke. Baseline pré-fix medido = **42% de escalonamento** (7d). Pós-fix só 1 resposta (o smoke) — falta tráfego real das 48h pra validar de verdade.
+
+**Próximos passos (Eduardo escolhe qual tocar):**
+1. **Validar com tráfego real** — rodar `node .specs/features/sofia-anti-escalonamento/monitor-escalonamento.mjs` (já pronto, read-only). Alvo: escalonamento pós-fix << 42%, troubleshooting subindo. Se ≥30% pós-fix = recaída, investigar.
+2. **Achado a investigar (separado, NÃO é o fix de hoje):** resposta de 2026-06-07 20:55 (pré-fix) mandou `cleitonquerobin.com.br/quillforms/julia-implementacao-...` — formato que o system_prompt marca como URL inventada/proibida (regra 2), MAS pode ser link de entrega legítimo do Fluxon. Abrir a conversa das 20:55 em `ai_conversation_messages` e decidir se é alucinação de URL (bug novo) ou Fluxon legítimo.
+3. **Débito `sofia-requires-ticket-semantica`** — limpar o flag decorativo.
+
+**Crítico antes de qualquer deploy novo do GitHub:** subir os commits locais (`c48a9a5`, `2bc672b` + o de hoje) via GitHub Desktop, senão o deploy do GitHub reverte o `vercel --prod` (L045).
+
+**Artefatos da feature:** `.specs/features/sofia-anti-escalonamento/` — `spec.md`, `system_prompt-backup-2026-06-07.txt` (rollback), `system_prompt-NEW-2026-06-07.txt` (aplicado), `monitor-escalonamento.mjs`.
