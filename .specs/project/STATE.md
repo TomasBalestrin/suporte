@@ -390,3 +390,60 @@ Kimiko (execute) → ⭐ Luz Estrela (**APROVADO** — L034 não se aplica/é in
 **Crítico antes de qualquer deploy novo do GitHub:** subir os commits locais (`c48a9a5`, `2bc672b` + o de hoje) via GitHub Desktop, senão o deploy do GitHub reverte o `vercel --prod` (L045).
 
 **Artefatos da feature:** `.specs/features/sofia-anti-escalonamento/` — `spec.md`, `system_prompt-backup-2026-06-07.txt` (rollback), `system_prompt-NEW-2026-06-07.txt` (aplicado), `monitor-escalonamento.mjs`.
+
+## ✅ VALIDADO COM TRÁFEGO REAL (2026-06-09, decided_by: butcher)
+
+Rodado o monitor de 48h (`monitor-escalonamento.mjs`) + auditoria caso-a-caso (`audit-escalonamento.mjs`, novo, read-only) sobre **n=64 respostas pós-fix** (07/06 22:25 UTC → 09/06 05:12 UTC).
+
+**Números brutos:** escalonamento 42%→**33%** · troubleshooting 10%→**17%**. Direção certa.
+
+**O alerta >30% do monitor é FALSO POSITIVO de regex cego** (lição da varredura — `L`: scan amplo conta legítimo como recaída). Classificando os 21 matches de ESCALA caso-a-caso:
+- 3 = cliente **pediu humano explicitamente** ("falar com atendimento humano") → escalar é correto
+- 5 = reembolso/insatisfação ("não atende expectativas", "não gostei") → LEGIT (gatilho imediato mantido de propósito)
+- 2+ = **falha de entrega** ("comprei e não liberou/não está nos scripts/bloqueado") → ela não resolve → escalar é o desenho
+- 1 = deu o link de acesso (nem é escalonamento)
+- 2 = coletou o e-mail antes de escalar (não escalou seco)
+
+**Prematuro REAL = 16% (10/64), e lendo os 10 um a um: ZERO é o bug que o fix mirou** (escalar no 1º "não consegui" de login tendo o dado de acesso). A recaída do print do Eduardo (SUP-2026-0371) **não voltou**. **Fix validado, feature `sofia-anti-escalonamento` fechada.**
+
+### 🆕 Achado novo (separado desta feature) — sinal de FULFILLMENT/entrega
+~5-6 conversas pós-fix são "comprei e não recebi / só liberou parte / não está aparecendo" (juliana: 4 cursos, 1 liberado; ada9fb03: script não aparece; dedf82d3: comprei sábado não resolveram; 41627097: produtos bloqueados). **Sofia está CORRETAMENTE escalando** (é o que ela não resolve). É problema **upstream** — gap de entrega do Fluxon (webhook não provisionou / fulfillment parcial), NÃO bug de prompt. Candidato a investigação própria (possível cross-repo Fluxon). Relacionado ao débito dissolvido `sofia-fluxon-coverage`, mas com sinal novo de entrega-parcial.
+
+### Dívida de instrumentação (não-bloqueante)
+- [ ] O `monitor-escalonamento.mjs` precisa adotar os buckets do `audit` (pede-humano / reembolso / não-resolve / deu-link) ou vai gritar lobo toda vez. Hoje ele só faz o agregado bruto. Refinado no `audit-escalonamento.mjs`; portar pro monitor quando for mexer.
+
+### ⚠️ Pendência operacional ABERTA (risco L045)
+- [ ] **5 commits locais à frente do `origin/main`** (incl. `c48a9a5` o fix que está em prod via `vercel --prod`). Push do CLI travado (`eduardotkfm-maker` sem permissão no `TomasBalestrin/suporte`). **Subir via GitHub Desktop / Tomás** — senão o próximo deploy do GitHub reverte o fix de prod. Prod JÁ tem o fix; o risco é só reversão futura.
+
+---
+
+# Investigação "falha de entrega" → na verdade é "Sofia escala comprador real com link na mão" (2026-06-09, Bruto)
+
+Eduardo pediu pra investigar o cluster pós-fix de "comprei e não recebi / só liberou parte". Read-only sobre `ai_conversation_messages` + `ai_conversations` + `tickets` + **replay do `/api/support/lead` (Fluxon)**.
+
+## Resultado: a teoria "gap de entrega do Fluxon / não-comprador" MORREU
+Replay do Fluxon nos 5 clientes-queixa distintos → **5/5 = `match_cpf` (compradores REAIS), e 5/5 com `link_acesso` válido no Fluxon:**
+
+| Cliente | Queixa | Fluxon | Link | Virou ticket? |
+|---|---|---|---|---|
+| isbeels | "produtos bloqueados (pix ontem)" | IMPLEMENTAÇÃO JULIA (hotmart) | ✅ | ✅ SUP-2026-0372 |
+| bbfrural | "não está entre os scripts" | IMPLEMENTAÇÃO CLEITON (pagtrust) | ✅ | 🔴 nunca |
+| juliana | "comprei 4 cursos, só 1 liberou" | **só REELS MAGNETICOS** | ✅ | ✅ SUP-2026-0375 |
+| weidyisa | "comprei sábado não resolveram" | REELS MAGNETICOS (pagtrust) | ✅ | ✅ SUP-2026-0369 |
+| pecsul.vet | "não atende expectativas" | IMPLEMENTAÇÃO JULIA (hotmart) | ✅ | 🔴 nunca |
+
+## Diagnóstico (decided_by: butcher, a confirmar com Eduardo)
+1. **Não é não-comprador nem gap de entrega.** A compra e o link existem no Fluxon. O problema está no lado Suporte/Sofia.
+2. **Sofia escala comprador real em vez de entregar o link que ela tem.** O fix anti-escalonamento (07/06) só tocou o ramo `fluxonSemCompra` (`context.ts:49`). O ramo **com compra** (`context.ts:46`, instrução "PRIORIZE... forneca direto ao cliente") NÃO foi tocado — e é aí que esses caem. Quando o comprador reclama em linguagem de "bloqueado / não aparece / não funcionou", a Sofia trata como problema além-do-link e escala, sem ANTES entregar o link específico que está no contexto e confirmar se resolve.
+3. **Subset legítimo de escalonamento:** juliana cita 4 cursos mas Fluxon só tem REELS (3 fantasmas → humano); pecsul "não atende" (reembolso/insatisfação → humano); isbeels "pix ontem" (pode ser pagamento não compensado ainda). Pra esses, escalar é certo.
+4. **Não dá pra cravar #2 de fora** porque **o resultado do pre-fetch não é persistido** — Sofia pode ter tido o link e ignorado, OU o pre-fetch não achou a compra na hora (timing de ingestão Hotmart/PagTrust). Mesmo efeito pro cliente. → reforça o débito "logar o resultado do pre-fetch".
+
+## Dois achados colaterais (separados)
+- **Dead-end de escalonamento**: a Sofia diz "a equipe retorna por aqui mesmo", mas o ticket no form só nasce se o cliente clicar **"Não Resolveu"** (`ajuda/page.tsx:252` `handleNotResolved`→`/api/tickets`). `requires_ticket` é decorativo (confirmado). 2 de 5 (bbfrural, pecsul) acreditaram, fecharam, **nunca viraram ticket** → ninguém atende. A copy promete retorno passivo que a arquitetura não entrega.
+- **Linkagem quebrada**: `/api/tickets` não grava `ai_conversations.ticket_id` de volta → só 16/203 conversas (8%) têm ticket linkado. Não dá pra rastrear conversa↔ticket. (Foi o que fez o probe inicial parecer "92% no vazio" — era red herring.)
+
+## Artefatos (read-only, em `.specs/features/sofia-anti-escalonamento/`)
+`audit-escalonamento.mjs`, `probe-fulfillment.mjs`, `probe-ticket-void.mjs`, `probe-customer-tickets.mjs`, `probe-fluxon-replay.mjs`. ⚠️ Os probes contêm e-mail/CPF/telefone de clientes reais (PII) — não versionar/commitar; são scratch de investigação.
+
+## Decisão pendente (Eduardo) — não há fix aplicado, é diagnóstico
+Próximo passo é decisão de produto: (A) ajustar o ramo "com compra" do prompt pra Sofia entregar o link ANTES de escalar; (B) fechar o dead-end (auto-criar ticket no escalonamento OU mudar a copy pra mandar clicar); (C) logar o resultado do pre-fetch (observabilidade) pra parar de adivinhar. Ver também débito `sofia-requires-ticket-semantica`.
