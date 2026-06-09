@@ -312,6 +312,8 @@ export async function POST(request: NextRequest) {
     let fluxonContext: string | null = null
     let fluxonSemCompra = false
     let fluxonCanonicalEmail: string | null = null
+    let fluxonIdentificacao: string | null = null
+    let fluxonTemLink: boolean | null = null
     if (customer && (customer.cpf || customer.email || customer.telefone) && process.env.FLUXON_SUPPORT_API_KEY && process.env.FLUXON_BASE_URL) {
       try {
         const params = new URLSearchParams()
@@ -328,6 +330,8 @@ export async function POST(request: NextRequest) {
           fluxonContext = result.fluxonContext
           fluxonSemCompra = result.fluxonSemCompra
           fluxonCanonicalEmail = result.fluxonCanonicalEmail
+          fluxonIdentificacao = result.identificacao
+          fluxonTemLink = result.temLink
         }
       } catch (err) {
         console.error('[ai/chat] Falha ao consultar Fluxon (pre-fetch):', err)
@@ -442,7 +446,7 @@ NUNCA diga que nao encontrou nada sem usar as ferramentas primeiro.`
           content: t.result,
           tool_name: t.name
         })),
-        { conversation_id: conversationId, role: 'assistant', content: answer, confidence: computeConfidence(bestSimilarity) }
+        { conversation_id: conversationId, role: 'assistant', content: answer, confidence: computeConfidence(bestSimilarity), fluxon_identificacao: fluxonIdentificacao, fluxon_tem_link: fluxonTemLink }
       ]
       await supabase.from('ai_conversation_messages').insert(toInsert)
       await supabase.from('ai_conversations').update({ updated_at: new Date().toISOString() }).eq('id', conversationId)

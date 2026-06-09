@@ -47,3 +47,7 @@ supabase/.temp/
 # Obsidian / markdown-vault MCP — indice gerado (cache de embeddings + modelo, ~245MB). Nunca commitar.
 .claude/the-boys/brain/.mcp-index/
 .claude/the-boys/brain/.markdown_vault_mcp/
+
+# Probes de investigação com PII real de cliente (e-mail/CPF/telefone hardcoded) — read-only scratch, NUNCA versionar.
+.specs/features/sofia-anti-escalonamento/probe-customer-tickets.mjs
+.specs/features/sofia-anti-escalonamento/probe-fluxon-replay.mjs

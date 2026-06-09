@@ -51,6 +51,7 @@ describe('sofia/context', () => {
   describe('buildFluxonContext', () => {
     it('returns fluxonContext with products when compras.length > 0', () => {
       const fl = {
+        identificacao: 'match_cpf',
         cliente: { email: 'user@example.com' },
         diagnostico_resumido: 'Cliente ativo',
         compras: [
@@ -71,6 +72,27 @@ describe('sofia/context', () => {
       expect(result.fluxonContext).toContain('Historico de compras (1)')
       expect(result.fluxonSemCompra).toBe(false)
       expect(result.fluxonCanonicalEmail).toBe('user@example.com')
+      // fix C — observabilidade do pre-fetch
+      expect(result.identificacao).toBe('match_cpf')
+      expect(result.temLink).toBe(true)
+    })
+
+    it('temLink=false when compra has no link_acesso (fix C)', () => {
+      const fl = {
+        identificacao: 'match_cpf',
+        cliente: { email: 'user@example.com' },
+        compras: [{ produto: 'Curso ABC', plataforma: 'hotmart', dias_desde_compra: 1 }],
+      }
+      const result = buildFluxonContext(fl)
+      expect(result.fluxonSemCompra).toBe(false)
+      expect(result.temLink).toBe(false)
+      expect(result.identificacao).toBe('match_cpf')
+    })
+
+    it('identificacao=null and temLink=false when no compras (fix C)', () => {
+      const result = buildFluxonContext({ cliente: { email: 'u@e.com' }, identificacao: 'nao_encontrado', compras: [] })
+      expect(result.temLink).toBe(false)
+      expect(result.identificacao).toBe('nao_encontrado')
     })
 
     it('returns fluxonSemCompra=true when no compras', () => {
@@ -117,6 +139,18 @@ describe('sofia/context', () => {
       expect(msg).toContain('DADOS OPERACIONAIS')
       expect(msg).toContain('PRIORIZE')
       expect(msg).toContain('Some context')
+    })
+
+    it('with-compra branch instructs to deliver link BEFORE escalating (fix A)', () => {
+      const msg = buildDadosOperacionais('Historico de compras (1):\n- Curso ABC', false)
+      // conduta nova: entregar o link que ela TEM antes de mandar pra humano
+      expect(msg).toContain('ENTREGUE o link')
+      expect(msg).toContain('ANTES de encaminhar')
+      expect(msg).toContain('consegue acessar AGORA')
+      // guarda anti-regressao: nao pode escalar so por "bloqueado" sem entregar o link
+      expect(msg).toContain('NUNCA encaminhe so porque o cliente disse')
+      // ainda escala nos casos certos (produto nao consta / reembolso / nao resolveu depois)
+      expect(msg).toContain('NAO esta na lista de compras')
     })
 
     it('returns troubleshooting-first conduct when fluxonSemCompra=true', () => {
