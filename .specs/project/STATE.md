@@ -463,3 +463,15 @@ Prod agora tem A+C **só via `vercel --prod` direto**. São **7 commits locais �
 
 ### Débito relacionado
 - `sofia-requires-ticket-semantica`: `requires_ticket: bestSimilarity<threshold` segue decorativo. O B vai introduzir sinal real de escalonamento (tool `escalar_para_humano`) — possivelmente absorve esse débito.
+
+## ⭐ RETOMAR DAQUI (pausa pedida pelo Eduardo 2026-06-09 ~10:45) — 🔪 Bruto
+
+**Onde paramos:** A+C da Sofia **LIVE em prod e verificado por smoke**. C já está coletando `fluxon_identificacao`/`fluxon_tem_link` no tráfego real.
+
+**Duas frentes abertas, em ordem:**
+1. **[AÇÃO DO EDUARDO — urgente] Push dos 8 commits via GitHub Desktop/Tomás.** `origin/main` está 8 commits atrás de prod (incl. `874f9f3` A+C). Qualquer deploy pelo GitHub reverte A+C **e** o fix anti-escalonamento de 07/06. Procedimento: abrir a pasta no GitHub Desktop (autenticado como Tomás) → Push origin. (L045.)
+2. **[BUILD] B — auto-criar ticket no escalonamento.** Design já esboçado: tool `escalar_para_humano` → backend cria ticket (helper extraído de `/api/tickets`, sem duplicar) + grava `ai_conversations.ticket_id` (conserta linkagem). Cuidados: (a) efeito real de e-mail Resend → teste sem cliente real; (b) idempotência contra ticket duplicado (Sofia cria + cliente clica "Não Resolvi" → toca `ajuda/page.tsx`); (c) `name`/`description` faltam no input do chat → tratar. Gate: Francês/A Lenda (design do auto-create + fallback determinístico) → Kimiko → Luz Estrela → MM → Hughie UAT → Bruto.
+
+**Validação 48h do A (rodar a partir de ~2026-06-11):** com C ativo, medir entre conversas `fluxon_identificacao IN (match_*)` E `fluxon_tem_link=true` se a Sofia ainda escala. Se o pre-fetch ACHA a compra e ela ainda escala → A não bastou, investigar prompt; se o pre-fetch NÃO acha (muitos `nao_encontrado` em comprador real) → problema é timing/cobertura do Fluxon, não o prompt.
+
+**Artefatos read-only:** `.specs/features/sofia-anti-escalonamento/` — `audit-escalonamento.mjs`, `probe-*.mjs` (os com PII gitignorados). Token do projeto: `SUPABASE_ACCESS_TOKEN` no `.env.local` (Management API).
