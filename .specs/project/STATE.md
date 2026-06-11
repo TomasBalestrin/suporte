@@ -445,5 +445,21 @@ Replay do Fluxon nos 5 clientes-queixa distintos → **5/5 = `match_cpf` (compra
 ## Artefatos (read-only, em `.specs/features/sofia-anti-escalonamento/`)
 `audit-escalonamento.mjs`, `probe-fulfillment.mjs`, `probe-ticket-void.mjs`, `probe-customer-tickets.mjs`, `probe-fluxon-replay.mjs`. ⚠️ Os probes contêm e-mail/CPF/telefone de clientes reais (PII) — não versionar/commitar; são scratch de investigação.
 
-## Decisão pendente (Eduardo) — não há fix aplicado, é diagnóstico
-Próximo passo é decisão de produto: (A) ajustar o ramo "com compra" do prompt pra Sofia entregar o link ANTES de escalar; (B) fechar o dead-end (auto-criar ticket no escalonamento OU mudar a copy pra mandar clicar); (C) logar o resultado do pre-fetch (observabilidade) pra parar de adivinhar. Ver também débito `sofia-requires-ticket-semantica`.
+## Decisão (Eduardo, 2026-06-09): A+B+C coordenado, sequenciado A+C → B
+- **A** (entrega link antes de escalar): Sofia entrega link+login e confirma acesso ANTES de escalar; só escala se (a) não resolveu depois, (b) produto citado não consta nas compras, (c) reembolso/pagamento.
+- **B** (auto-criar ticket no escalonamento): quando a Sofia escala, o sistema cria o ticket automaticamente (não depende do clique "Não Resolvi"). **Próximo build, design próprio** (efeito real de e-mail Resend + idempotência contra ticket duplicado + `name`/`description` faltando no input do chat).
+- **C** (observabilidade): logar `fluxon_identificacao` + `fluxon_tem_link` do pre-fetch.
+
+## ✅ A+C IMPLEMENTADO E DEPLOYADO (2026-06-09, decided_by: butcher)
+- **Código**: `context.ts` (ramo com-compra reescrito — fix A; `buildFluxonContext` retorna `identificacao`+`temLink`) + `route.ts` (grava `fluxon_identificacao`/`fluxon_tem_link`) + migration `018` (aditiva/idempotente) + testes estendidos.
+- **Gate**: `tsc` 0 · `vitest` 120/120 · `build` ok · ⭐ Luz Estrela **APROVADO** (D1 copy "hoje/ontem" hardcoded; D2 `insert` sem trato de erro do Supabase — não-bloqueantes, deferred).
+- **Commits locais**: `874f9f3` (feat A+C) + `e42a742` (docs).
+- **Deploy**: migration 018 aplicada em prod via Management API (token do próprio projeto, **autorizado pelo Eduardo**) → colunas confirmadas no `information_schema` → `vercel --prod` deploy `suporte-f71sl30dw` aliased `suporte-amber.vercel.app`.
+- **Smoke prod (verde)**: `POST /api/ai/chat` com não-comprador → HTTP 200, `success:true`, **C gravou** `fluxon_identificacao:"nao_encontrado"`, `fluxon_tem_link:false`. Conversa de teste: `f365e662` (artefato de smoke, não-comprador).
+- **Validação 48h (a partir de 2026-06-09 ~12:40 UTC)**: com C ativo, medir entre conversas `fluxon_identificacao` em `match_*` E `fluxon_tem_link=true` (comprador real com link) se a Sofia ainda escala. Hipótese: se o pre-fetch ACHA a compra, escalonamento deve cair; se NÃO acha (timing de ingestão), o fix A não ajuda e o problema é a camada do pre-fetch/Fluxon. C resolve a dúvida com dado.
+
+### ⚠️ RISCO L045 AGRAVADO — push urgente
+Prod agora tem A+C **só via `vercel --prod` direto**. São **7 commits locais à frente do `origin/main`** (5 antigos + `874f9f3` + `e42a742`). **Subir via GitHub Desktop / Tomás ASAP** — qualquer deploy pelo GitHub reverte A+C (e o fix anti-escalonamento de 07/06) de prod. Push do CLI segue travado (`eduardotkfm-maker`).
+
+### Débito relacionado
+- `sofia-requires-ticket-semantica`: `requires_ticket: bestSimilarity<threshold` segue decorativo. O B vai introduzir sinal real de escalonamento (tool `escalar_para_humano`) — possivelmente absorve esse débito.
