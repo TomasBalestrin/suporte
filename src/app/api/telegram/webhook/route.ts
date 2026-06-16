@@ -164,7 +164,10 @@ export async function POST(request: NextRequest) {
   if (!ticket.first_response_at) ticketUpdate.first_response_at = new Date().toISOString()
   if (ticket.status !== 'in_progress') ticketUpdate.status = 'in_progress'
   if (Object.keys(ticketUpdate).length > 0) {
-    await admin.from('tickets').update(ticketUpdate).eq('id', ticket.id)
+    const { error: updErr } = await admin.from('tickets').update(ticketUpdate).eq('id', ticket.id)
+    // Falha aqui não duplica nem bloqueia (msg já durável + 200 dado): só loga p/ não ficar
+    // invisível — ticket poderia ficar 'open' com resposta dentro (dívida 2, Luz Estrela).
+    if (updErr) console.error(`[telegram] falha ao atualizar status do ticket ${ticket.ticket_code}:`, updErr.message)
   }
 
   const customer = ticket.customer as unknown as { name: string; email: string } | null
