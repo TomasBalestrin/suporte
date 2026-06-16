@@ -204,7 +204,7 @@ export async function createTicket(
   // ── Telegram do dono (non-blocking; Sofia auto-create passa doNotify=false) ──
   // Privacy-safe (decisão do dono): só código + link pro painel, SEM nome/e-mail/conteúdo.
   if (doNotify) {
-    const app = process.env.NEXT_PUBLIC_APP_URL || 'https://suporte.bethelsystems.com.br'
+    const app = process.env.NEXT_PUBLIC_APP_URL || 'https://suporte-amber.vercel.app'
     // await (não void): serverless mata fire-and-forget pós-resposta. Seguro (não lança + timeout).
     await notifyTelegram(`🎫 Novo ticket ${ticket.ticket_code}\n🔗 ${app}/admin/tickets/${ticket.id}`)
   }

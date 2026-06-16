@@ -526,7 +526,7 @@ NUNCA diga que nao encontrou nada sem usar as ferramentas primeiro.`
       // await (não void): em serverless o fire-and-forget é morto quando a função
       // retorna antes do fetch terminar — por isso notificação se perdia. notifyTelegram
       // nunca lança e tem timeout próprio, então aguardar é seguro e garante a entrega.
-      const app = process.env.NEXT_PUBLIC_APP_URL || 'https://suporte.bethelsystems.com.br'
+      const app = process.env.NEXT_PUBLIC_APP_URL || 'https://suporte-amber.vercel.app'
       if (escalatedTicket) {
         await notifyTelegram(`💬➡️🎫 Sofia escalou · ${productName || '—'} → ticket ${escalatedTicket.ticket_code}\n🔗 ${app}/admin/tickets/${escalatedTicket.ticket_id}`)
       } else {
