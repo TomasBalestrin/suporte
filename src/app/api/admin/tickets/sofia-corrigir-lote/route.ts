@@ -83,6 +83,7 @@ export async function POST(request: NextRequest) {
             cpf: customer.cpf,
             telefone: customer.phone,
           },
+          notify_telegram: false, // correção em lote: não floodar o Telegram do dono
         }),
       })
 

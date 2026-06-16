@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createTicket } from '@/lib/tickets/create'
 import { buildEscalationTicketFields } from '@/lib/tickets/normalize'
+import { notifyTelegram } from '@/lib/notify/telegram'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
 import {
   KEYWORDS_ACESSO,
@@ -188,7 +189,8 @@ export async function POST(request: NextRequest) {
       customer,
       conversation_id: clientConvId,
       ticket_id: ticketId,
-      whatsapp_conversation_id: waConvId 
+      whatsapp_conversation_id: waConvId,
+      notify_telegram: notifyTg = true
     } = body
 
     const lastMessageContent = clientMessages && clientMessages.length > 0
@@ -483,7 +485,7 @@ NUNCA diga que nao encontrou nada sem usar as ferramentas primeiro.`
     // se o cliente clicar o botão depois, /api/tickets devolve este mesmo ticket.
     // Sem conversationId/name/email/produto/categoria → não auto-cria (degrada pro fluxo
     // manual; limitação consciente — A Lenda). O e-mail real ao cliente é desejado.
-    let escalatedTicket: { ticket_code: string; access_token: string } | null = null
+    let escalatedTicket: { ticket_code: string; access_token: string; ticket_id: string } | null = null
     if (escalationRequested && conversationId && customer?.name && customer?.email && product_id && category_id) {
       try {
         const { title, description } = buildEscalationTicketFields({
@@ -508,11 +510,24 @@ NUNCA diga que nao encontrou nada sem usar as ferramentas primeiro.`
             description,
             messages: ticketMessages,
           },
-          { conversationId, source: 'portal' }
+          { conversationId, source: 'portal', notifyTelegram: false }
         )
-        escalatedTicket = { ticket_code: result.ticket_code, access_token: result.access_token }
+        escalatedTicket = { ticket_code: result.ticket_code, access_token: result.access_token, ticket_id: result.ticket_id }
       } catch (err) {
         console.error('[ai/chat] Falha ao auto-criar ticket no escalonamento:', err)
+      }
+    }
+
+    // ─── Telegram do dono: AVISO sem PII + link pro painel (non-blocking) ───
+    // Privacy-safe (decisão do dono): NÃO manda CPF/e-mail/telefone nem o conteúdo do
+    // chat (que pode conter PII) — só evento + produto + confiança + link pro /admin.
+    // notifyTg=false vem dos fluxos internos (correção do admin) pra não floodar.
+    if (notifyTg) {
+      const app = process.env.NEXT_PUBLIC_APP_URL || 'https://suporte.bethelsystems.com.br'
+      if (escalatedTicket) {
+        void notifyTelegram(`💬➡️🎫 Sofia escalou · ${productName || '—'} → ticket ${escalatedTicket.ticket_code}\n🔗 ${app}/admin/tickets/${escalatedTicket.ticket_id}`)
+      } else {
+        void notifyTelegram(`💬 Sofia atendeu · ${productName || '—'} · conf=${computeConfidence(bestSimilarity)} (resolvido sem ticket)`)
       }
     }
 

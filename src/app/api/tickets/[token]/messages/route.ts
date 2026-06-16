@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
+import { notifyTelegram } from '@/lib/notify/telegram'
 
 export async function GET(
   request: NextRequest,
@@ -105,7 +106,7 @@ export async function POST(
     // Get ticket by access_token
     const { data: ticket } = await supabase
       .from('tickets')
-      .select('id, customer_id, status, product_id, category_id, description')
+      .select('id, ticket_code, customer_id, status, product_id, category_id, description')
       .eq('access_token', token)
       .single()
 
@@ -147,6 +148,11 @@ export async function POST(
         .update({ status: 'open' })
         .eq('id', ticket.id)
     }
+
+    // ─── Telegram do dono: AVISO sem PII + link pro painel (non-blocking) ───
+    // Privacy-safe (decisão do dono): não manda o conteúdo da mensagem (pode ter PII).
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://suporte.bethelsystems.com.br'
+    void notifyTelegram(`✉️ Cliente respondeu · ${ticket.ticket_code}\n🔗 ${appUrl}/admin/tickets/${ticket.id}`)
 
     // ─── Auto-reply da Sofia (assincrono, nao bloqueia retorno) ───
     disparaAutoReply(supabase, request, ticket, body.content.trim()).catch(err =>

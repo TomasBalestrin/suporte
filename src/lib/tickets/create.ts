@@ -27,6 +27,7 @@ import { sendEmail } from '@/lib/email/send'
 import { ticketCreatedCustomer } from '@/lib/email/templates'
 import { executeAutomations } from '@/lib/automations/engine'
 import { normalizeTicketMessages } from '@/lib/tickets/normalize'
+import { notifyTelegram } from '@/lib/notify/telegram'
 
 export interface CreateTicketInput {
   name: string
@@ -46,6 +47,9 @@ export interface CreateTicketOptions {
   conversationId?: string
   /** Origem do ticket (coluna tickets.source). Default 'portal' (behavior-preserving). */
   source?: string
+  /** Encaminha "novo ticket" pro Telegram do dono. Default true. A Sofia auto-create
+   *  passa false (o Hook do /api/ai/chat já anuncia o ticket inline, evita duplicar). */
+  notifyTelegram?: boolean
 }
 
 export interface CreateTicketResult {
@@ -73,7 +77,7 @@ export async function createTicket(
   opts: CreateTicketOptions = {}
 ): Promise<CreateTicketResult> {
   const supabase = createAdminClient()
-  const { conversationId, source = 'portal' } = opts
+  const { conversationId, source = 'portal', notifyTelegram: doNotify = true } = opts
   const { name, email, cpf, phone, product_id, category_id, title, description, messages } = input
 
   // ── Idempotência: pré-check barato (reduz a corrida; o CAS abaixo fecha o resíduo) ──
@@ -196,6 +200,13 @@ export async function createTicket(
     trigger_type: 'ticket_created',
     data: { status: 'open', priority: 'medium', product_id, category_id },
   }).catch(() => {})
+
+  // ── Telegram do dono (non-blocking; Sofia auto-create passa doNotify=false) ──
+  // Privacy-safe (decisão do dono): só código + link pro painel, SEM nome/e-mail/conteúdo.
+  if (doNotify) {
+    const app = process.env.NEXT_PUBLIC_APP_URL || 'https://suporte.bethelsystems.com.br'
+    void notifyTelegram(`🎫 Novo ticket ${ticket.ticket_code}\n🔗 ${app}/admin/tickets/${ticket.id}`)
+  }
 
   return {
     ticket_id: ticket.id,

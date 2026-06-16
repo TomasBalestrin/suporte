@@ -70,6 +70,7 @@ export async function POST(
           cpf: customer.cpf,
           telefone: customer.phone,
         },
+        notify_telegram: false, // correção do admin, não é interação de cliente
       }),
     })
 
