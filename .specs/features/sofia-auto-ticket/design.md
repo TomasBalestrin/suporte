@@ -45,19 +45,16 @@ Aprovou o esqueleto de 3 peças **condicionado a**:
 - Mantém os efeitos atuais: find-or-create customer, insert ticket, insert messages, activity_log, `sendEmail` (non-blocking), `executeAutomations` (non-blocking).
 - **Dívida consciente (não-bloqueante v1):** o helper segue **não-transacional** (espelha o handler atual). Embrulhar em RPC Postgres = escopo próprio (registrado em débitos). Para v1 form-only de baixo volume, behavior-preserving.
 
-### Peça 3 — Idempotência no BANCO (o bloqueio da A Lenda) — **migration 019**
+### Peça 3 — Idempotência: CAS atômico (sem schema change) — **REVISADO pós pré-check**
 
-- `migration 019_ai_conversation_ticket_unique.sql` (aditiva):
-  ```sql
-  CREATE UNIQUE INDEX IF NOT EXISTS uq_ai_conv_ticket
-    ON public.ai_conversations (ticket_id) WHERE ticket_id IS NOT NULL;
-  ```
-  Garante **1 conversa → no máx. 1 ticket**, enforçado pelo Postgres (índice único parcial — não colide nas N conversas com `ticket_id` nulo).
-- **CAS (compare-and-swap), não check-then-act**, no `createTicket` quando há `conversationId`:
-  1. `UPDATE ai_conversations SET ticket_id = <sentinela?> ...` — na prática: insere o ticket, depois `UPDATE ai_conversations SET ticket_id=$novo WHERE id=$conv AND ticket_id IS NULL`.
-  2. Se `rowCount === 0` → **perdeu a corrida**: deleta o ticket recém-criado (compensação) e retorna o `ticket_id` já linkado (busca-o). Resultado: 1 ticket, 1 e-mail.
-  3. Pré-check barato antes do insert (lê `ticket_id` atual; se já existe, retorna sem criar) **reduz** a corrida; o CAS + unique **fecham** o resíduo.
-- **Sem `conversationId` → NÃO auto-cria** (decisão A Lenda + Bruto). Idempotência sem chave estável é fake; e os caminhos sem conversa (`OPENAI_API_KEY` ausente L190; `customer` ausente L225) degradam pro fluxo manual atual. Limitação consciente, escrita aqui.
+> ⚠️ **Override do Bruto (2026-06-16) à recomendação da A Lenda.** A Lenda travou o merge pedindo um índice ÚNICO em `ai_conversations(ticket_id)` (migration 019). O **pré-check de prod** mostrou que isso (a) **falharia** — 2 `ticket_id` já duplicados por uma corrida PRÉ-EXISTENTE da página de ticket (2 conversas/mesmo minuto → mesmo ticket), e (b) enforça o invariante **errado** (conv:ticket **1:1**), que não é o do Fix B. A idempotência do Fix B é **por-conversa** (≤1 ticket por conversa); como `ticket_id` é coluna única, isso é **estrutural**, e o **CAS** é a proteção atômica completa contra a corrida que o Fix B introduz (auto-create vs botão). Nenhum índice agrega a esse invariante. → **Migration 019 removida; Fix B não tem schema change.**
+
+- **CAS (compare-and-swap), statement único atômico** (NÃO check-then-act), no `createTicket` quando há `conversationId`:
+  1. Insere o ticket; depois `UPDATE ai_conversations SET ticket_id=$novo WHERE id=$conv AND ticket_id IS NULL` (em READ COMMITTED, o 2º UPDATE concorrente re-avalia o predicado após o lock → 0 linhas).
+  2. Se `rowCount === 0` → **perdeu a corrida**: deleta o ticket recém-criado (ANTES de qualquer efeito colateral) e retorna o `ticket_id` já linkado; se o vencedor não for localizado → throw (sem efeito órfão — catch da Luz Estrela).
+  3. Pré-check barato antes do insert (lê `ticket_id`; se já existe, retorna sem criar) **reduz** a corrida; o CAS **fecha** o resíduo.
+- **Sem `conversationId` → NÃO auto-cria** (A Lenda + Bruto). Caminhos sem conversa (`OPENAI_API_KEY` ausente L190; `customer` ausente L225) degradam pro fluxo manual atual. Limitação consciente.
+- **Débito pré-existente registrado** (NÃO do Fix B): a corrida da página de ticket que gerou os 2 dups (`route.ts` L203-211 look-up-then-insert sem trava) — mesma classe do `generate_ticket_code()`. → Soldier Boy/Trem-Bala.
 
 ### Peça 4 — Front (`ajuda/page.tsx`) + chat handler
 
@@ -79,9 +76,9 @@ Aprovou o esqueleto de 3 peças **condicionado a**:
 
 ## Tasks atômicas (ordem)
 
-1. **T1 — migration 019** (unique index parcial). Primeira (A Lenda: "primeira task atômica").
+1. ~~**T1 — migration 019**~~ **REMOVIDA** — pré-check mostrou que o índice único é o invariante errado + já violado. Fix B sem schema change (ver Peça 3).
 2. **T2 — extrair `createTicket` helper** (behavior-preserving) + `/api/tickets` passa a usá-lo. `tsc` + vitest verdes (regressão da suite existente).
-3. **T3 — idempotência CAS** no helper (`conversationId` opt) + testes (corrida, perdeu-corrida, sem-conv).
+3. **T3 — idempotência CAS** no helper (`conversationId` opt). CAS atômico (statement único) — sem índice.
 4. **T4 — tool `escalar_para_humano`** no tool-loop + handler chama `createTicket` no disparo + retorna `escalated`/`ticket_code` + grava telemetria de under-call.
 5. **T5 — front**: passa `name` + `conversation_id`; UX de "ticket criado"; botão idempotente.
 6. **T6 — copy/system_prompt**: acopla tool↔escala; confirma ticket criado; sem promessa passiva. (runtime `ai_config`, backup antes.)
@@ -93,7 +90,7 @@ Aprovou o esqueleto de 3 peças **condicionado a**:
 
 ## Rollback
 
-- Código: Vercel 1-click. Migration: `DROP INDEX uq_ai_conv_ticket` (perde só a trava; tickets intactos). Prompt: restaurar backup do `ai_config`.
+- Código: Vercel 1-click (sem schema change — nada a reverter no banco). Prompt: restaurar backup do `ai_config`.
 - Critério: 500s em `/api/ai/chat` ou `/api/tickets`, OU tickets/e-mails duplicados na corrida, OU queda de tickets legítimos.
 
 ## Monitoramento 48h

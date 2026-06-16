@@ -6,12 +6,21 @@
  * normalizados/válidos (name≥3, description≥20 garantidos pelo CALLER). A validação
  * zod fica na borda HTTP (/api/tickets); aqui é interno e confia no contrato.
  *
- * Idempotência (o bloqueio da A Lenda): quando `conversationId` é passado, a trava
- * mora no BANCO — índice único parcial uq_ai_conv_ticket (migration 019) + CAS:
+ * Idempotência (a preocupação da A Lenda — TOCTOU): quando `conversationId` é passado,
+ * a proteção é um CAS ATÔMICO (statement único, não check-then-act):
  *   UPDATE ai_conversations SET ticket_id=$novo WHERE id=$conv AND ticket_id IS NULL
  * rowCount=0 => perdeu a corrida (auto-create vs clique do botão) => compensa
  * (deleta o ticket recém-criado) e retorna o ticket que já está linkado.
- * Resultado: 1 conversa = 1 ticket = 1 e-mail, enforçado pelo Postgres.
+ * Resultado: 1 conversa = 1 ticket = 1 e-mail.
+ *
+ * NOTA (Bruto, 2026-06-16): A Lenda havia pedido um índice ÚNICO em
+ * ai_conversations(ticket_id) como trava no banco. O pré-check de prod mostrou que
+ * isso enforça o invariante ERRADO (conv:ticket 1:1) e já está violado por 2 conversas
+ * duplicadas de uma corrida PRÉ-EXISTENTE da página de ticket (fora do escopo do Fix B).
+ * A idempotência que o Fix B precisa é POR-CONVERSA (≤1 ticket por conversa) — e como
+ * ticket_id é coluna única, isso é estrutural; o CAS (`WHERE ticket_id IS NULL`, statement
+ * atômico) é a proteção completa contra a corrida do Fix B, sem schema change. A corrida
+ * da página de ticket vira débito separado (Soldier Boy/Trem-Bala), como o ticket_code.
  */
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendEmail } from '@/lib/email/send'

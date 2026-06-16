@@ -516,9 +516,9 @@ Design: `.specs/features/sofia-auto-ticket/design.md`. Motivada pela validação
 - **D1**: SÓ portal form (`/suporte/ajuda`). WhatsApp fora (handler no Fluxon).
 - **D2**: ticket só quando a Sofia DECIDE escalar (não por confiança baixa do RAG).
 
-## Implementado (código verde local, NÃO deployado)
-- **migration 019** `uq_ai_conv_ticket` — índice único parcial em `ai_conversations(ticket_id) WHERE ticket_id IS NOT NULL` (a trava que a A Lenda exigiu).
-- **`src/lib/tickets/create.ts`** — helper `createTicket` (extraído de `/api/tickets`, behavior-preserving) + idempotência **CAS** (`UPDATE ... WHERE ticket_id IS NULL`; perdeu corrida → deleta o ticket novo + devolve o vencedor ANTES de e-mail/mensagens; se vencedor não achado → throw, sem efeito órfão).
+## Implementado (código verde local, NÃO deployado) — SEM schema change
+- ~~migration 019~~ **REMOVIDA** — pré-check de prod achou 2 `ticket_id` duplicados (corrida pré-existente da página de ticket, 2 conversas/mesmo minuto → mesmo ticket). O índice único enforça invariante ERRADO (conv:ticket 1:1) e falharia. **Override do Bruto à A Lenda**: a idempotência do Fix B é por-conversa (≤1 ticket/conversa = estrutural, coluna única); o CAS é a proteção atômica completa, sem índice. Débito separado: corrida da página de ticket → Soldier Boy/Trem-Bala.
+- **`src/lib/tickets/create.ts`** — helper `createTicket` (extraído de `/api/tickets`, behavior-preserving) + idempotência **CAS atômico** (`UPDATE ... WHERE ticket_id IS NULL`, statement único; perdeu corrida → deleta o ticket novo + devolve o vencedor ANTES de e-mail/mensagens; se vencedor não achado → throw, sem efeito órfão).
 - **`src/lib/tickets/normalize.ts`** (puro) — `normalizeTicketMessages` (filtra `role=tool`) + `buildEscalationTicketFields` (garante description≥20). 9 testes.
 - **`/api/tickets`** — refatorado pro helper + aceita `conversation_id` (idempotência).
 - **`/api/ai/chat`** — tool `escalar_para_humano(motivo,resumo)` + PORTA ÚNICA após o tool-loop que cria o ticket (guard: `conversationId && name && email && product_id && category_id`; sem isso, degrada pro fluxo manual). Resposta ganha `escalated`/`ticket_code`/`access_token`.
@@ -532,7 +532,7 @@ A Lenda queria rede de retaguarda determinística JÁ (gpt-4o-mini sub-chama too
 
 ## ⚠️ FALTA (gated — precisa do OK do Eduardo, irreversível)
 - [ ] **Commit** local (feito? ver git log). Push travado (L045 — repo HTTPS, 10 commits à frente).
-- [ ] **Deploy**: pré-check dup `ticket_id` em prod → aplicar migration 019 → `vercel --prod`.
+- [ ] **Deploy**: `vercel --prod` (sem migration — Fix B não tem schema change; rollback 1-clique).
 - [ ] **T6 — copy do `system_prompt`** (runtime `ai_config`, com backup): acoplar tool↔escala ("pra escalar, chame `escalar_para_humano`; nunca prometa retorno passivo").
 - [ ] **Hughie UAT**: escalar de verdade com **e-mail controlado** (sem kill-switch Resend), confirmar 1 ticket / 1 e-mail / botão idempotente.
 - [ ] **Monitoramento 48h**: duplicatas=0, under-call (gate v1.1), volume de tickets/e-mails.
