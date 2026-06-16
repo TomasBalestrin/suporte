@@ -530,12 +530,26 @@ A Lenda queria rede de retaguarda determinística JÁ (gpt-4o-mini sub-chama too
 ## Gates
 🎖️ A Lenda (red-team — veredito: esqueleto aprovado condicionado a UNIQUE+CAS no banco) → ⚔️ Kimiko/Bruto (execute) → ⭐ Luz Estrela (**APROVADO COM RESSALVA** — pegou bug no caminho de compensação do CAS: ticket deletado mas seguia pros efeitos colaterais → FK silenciosa. **Corrigido no gate** com throw explícito). `tsc` 0 · `vitest` 129/129 (+9) · `next build` 0.
 
-## ⚠️ FALTA (gated — precisa do OK do Eduardo, irreversível)
-- [ ] **Commit** local (feito? ver git log). Push travado (L045 — repo HTTPS, 10 commits à frente).
-- [ ] **Deploy**: `vercel --prod` (sem migration — Fix B não tem schema change; rollback 1-clique).
-- [ ] **T6 — copy do `system_prompt`** (runtime `ai_config`, com backup): acoplar tool↔escala ("pra escalar, chame `escalar_para_humano`; nunca prometa retorno passivo").
-- [ ] **Hughie UAT**: escalar de verdade com **e-mail controlado** (sem kill-switch Resend), confirmar 1 ticket / 1 e-mail / botão idempotente.
-- [ ] **Monitoramento 48h**: duplicatas=0, under-call (gate v1.1), volume de tickets/e-mails.
+## ✅ DEPLOYADO E VALIDADO EM PROD (2026-06-16, decided_by: usuário)
+- [x] **Commit** local: `c3e2a0f` (feat) + `95a0175` (revisão CAS-only). Push travado (L045 — repo HTTPS, 11 commits à frente).
+- [x] **Deploy**: `vercel --prod` → `suporte-amber.vercel.app` (deploy `suporte-j9154s2pi`, build 48s). Sem migration. Rollback 1-clique.
+- [x] **T6 — copy do `system_prompt`** aplicada em prod (`ai_config`, 10278→11072 chars). Backup: `system_prompt-backup-2026-06-16.txt`; novo: `system_prompt-NEW-2026-06-16.txt`. Bloco "COMO ESCALAR (ferramenta)" + copy ativa (matou "a equipe retorna por aqui mesmo"). Cache 5min.
+- [x] **Hughie UAT** (e-mail controlado `contato@mv4digital.com.br`): gatilho reembolso → **tool disparou 1×** · resposta = copy ativa nova · **1 ticket auto-criado** `SUP-2026-0405` + conversa linkada 1:1 · **botão idempotente** (POST `/api/tickets` mesma conversa → mesmo SUP-2026-0405, zero duplicata). Ticket de teste **fechado** (cleanup). ✅
+- [ ] **Monitoramento 48h** (a partir de 2026-06-16 ~10:15 UTC): duplicatas (conversas com >1 ticket = 0) · under-call (answer sugere escala E sem tool `escalar_para_humano` E sem ticket → gate da rede de retaguarda v1.1) · volume de tickets auto-criados/dia + e-mails (1 por conversa).
+
+## Rollback (se necessário)
+- Código: Vercel 1-click. Prompt: restaurar `system_prompt-backup-2026-06-16.txt` no `ai_config` (cache 5min). Sem schema a reverter.
+- Critério: 500s em `/api/ai/chat` ou `/api/tickets`, tickets/e-mails duplicados, ou queda de tickets legítimos / explosão de tickets espúrios.
+
+---
+
+# Melhorias da Sofia — M1+M2 (2026-06-16) — investigação dos 7 dias
+
+Investigação read-only (`.specs/features/sofia-melhorias-0616/investigate-7d.mjs`, 150 conversas) → 2 bugs corrigidos (decided_by: usuário). Detalhe em `sofia-melhorias-0616/notes.md`.
+- **M1 (code, deploy `suporte-qxz2an77s`)**: tool `orientar_reembolso` afirmava "7 dias" (13×/7d, viola Regra 19, gera "data no futuro"). Removido param de data + resultado reescrito (reembolso direto Hotmart/PagTrust, sem prazo, escala). **UAT prod ✅** (sem "7 dias", aponta plataforma).
+- **M2 (prompt, ai_config em prod)**: Regra 2 ENUMERAVA URLs proibidas → L034 (elefante rosa) re-injetava `implementacao-cleiton-67` (3×, conf75). Reescrita positiva (acesso = área de membros, nunca /quillforms/). Backup `sofia-melhorias-0616/system_prompt-M2-2026-06-16.txt`. **UAT prod ✅** (zero /quillforms/, área de membros). **Lição: L034 vale pro system_prompt também.**
+- Commit `508e460` (não pushado — L045, repo 12 commits à frente).
+- **Follow-ups não aplicados**: M3 ("esqueci a senha" não aparece), M4 (cobertura de KB — 40% conf=0).
 
 ## Débitos registrados
 - Kill-switch Resend (`RESEND_ENABLED`) — MM. UAT v1 usa e-mail controlado.
@@ -543,3 +557,34 @@ A Lenda queria rede de retaguarda determinística JÁ (gpt-4o-mini sub-chama too
 - Corrida `generate_ticket_code()` (MAX+1 sem lock) — B agrava levemente; Soldier Boy/Trem-Bala.
 - Rede de retaguarda determinística — v1.1.
 - WhatsApp — fora (D1).
+
+---
+
+# Telegram MÃO DUPLA — responder ticket pelo chat do dono (2026-06-16)
+
+Resposta à pergunta do Eduardo "consigo responder direto do Telegram?". Integração era mão única (só notificava); agora o dono dá *Reply* numa notificação (que carrega `SUP-AAAA-XXXX`) e a resposta vira **mensagem de agente** no ticket (reusa `newMessageCustomer`+`sendEmail` do painel admin), status → `in_progress`.
+
+## Arquitetura (red-team A Lenda — 3 fronteiras duras 🔴 implementadas)
+- **Auth = PORTÃO**: `secret_token` no header `X-Telegram-Bot-Api-Secret-Token`, checado PRIMEIRO, **timing-safe** (`crypto.timingSafeEqual` + guard de length), ANTES de parsear body. Depois valida `from.id === TELEGRAM_CHAT_ID` (em chat privado from.id===chat.id). É a única coisa secreta da cadeia (chat_id vaza em screenshot).
+- **Idempotência**: PK em `telegram_processed_updates(update_id)` (migration 019, aplicada em prod via Management API). Insert colide 23505 no retry do Telegram → no-op. Mata e-mail duplicado + replay.
+- **Ordem-C**: claim → insert msg (await, durável) → 200 rápido → `after()` p/ e-mail + confirmação; **✅ no Telegram só após e-mail entregar** (prova de entrega). Falha transitória de infra → `releaseAndRetry` (solta claim + 5xx → Telegram reenvia). Falha de negócio → mantém claim + 200 + ⚠️ visível.
+- Arquivos: `src/app/api/telegram/webhook/route.ts` (novo), `supabase/migrations/019_telegram_processed_updates.sql`, `.env.example` (+`TELEGRAM_WEBHOOK_SECRET`). Webhook registrado (`setWebhook`, `allowed_updates:["message"]`, 0 erros).
+
+## Status (2026-06-16, decided_by: usuário — "vamos aplicar")
+- [x] Commits `1fbde8b` (feat) + `c8e0e5f` (dívida 2). Push travado (L045). Deploys `suporte-443cm6yne` → `suporte-af04uxn5s` (suporte-amber).
+- [x] `tsc` 0 · `eslint` 0. **Luz Estrela: APROVADO p/ merge** (sec-review do webhook público).
+- [x] **UAT 9/10** (simulação de updates c/ secret real, ticket de teste no e-mail do dono, depois limpo): auth 401 ✅, remetente errado mudo ✅, código ausente/ambíguo→⚠️ ✅, caminho feliz 1 msg ✅, **replay idempotente NÃO duplica** ✅, status→in_progress ✅. **V3 (e-mail) falhou — ver achado abaixo.**
+
+## 🔴 ACHADO CRÍTICO (externo à feature, pré-existente) — E-MAIL MORTO EM PROD
+- **`RESEND_API_KEY` e `EMAIL_FROM` NÃO existem nas envs de produção** + `notification_log` **VAZIO** (zero linhas, nem sent nem failed). `sendEmail` bate em `if (!resend) return null` e sai mudo.
+- **Conclusão**: e-mail ao cliente **nunca disparou em prod** — ticket criado (inclui o link de acesso!), resposta de agente, nova mensagem: nenhum. Afeta o **sistema inteiro**, não só o Telegram. (Revê a confiança dos "UAT ✅ + e-mail" anteriores — o ticket cria, mas o e-mail não saía.)
+- O webhook do Telegram **reporta honestamente**: manda ⚠️ "e-mail falhou", não ✅.
+- **Também ausente**: `CRON_SECRET` → crons (automations, kb-health-check) provavelmente rejeitam tudo (401).
+- **DECISÃO PENDENTE DO EDUARDO**: (a) passar `RESEND_API_KEY` → ligo no Vercel + redeploy → e-mail volta pro sistema todo; ou (b) confirmar e-mail desligado de propósito (cliente usa só o portal) → documento e o webhook segue "posta no ticket, sem e-mail". Oferecido **MM** p/ ops-sweep de prod (Resend + CRON_SECRET + o que mais faltar).
+
+## Dívidas registradas (Telegram)
+- **Correlação por parse de texto** (A Lenda): MVP usa regex `SUP-AAAA-XXXX` no `reply_to_message.text`. Migrar p/ mapeamento por ID estável (`message_id → ticket_id`) quando houver **>1 agente** ou notificação **em grupo**. Hoje seguro (1 dono, chat privado, falha sempre visível).
+- **Rate limit ausente no webhook** (Luz Estrela, dívida 1): defesa real é o secret-token; add `rateLimit('telegram:webhook',{limit:30,windowSeconds:60})` após o portão se escalar.
+- **Cast de tipo Supabase** `as unknown as {...}` (dívida 3): some quando o projeto gerar tipos do Supabase.
+- **Aviso de reply-a-mídia** (dívida 4, cosmético): mensagem poderia ser mais específica p/ reply a foto/sticker.
+- **Crash entre claim e insert** (A Lenda): update fica marcado processado sem msg (Telegram não reenvia). Aceitável p/ MVP baixa escala; v2 = dead-letter se necessário.
