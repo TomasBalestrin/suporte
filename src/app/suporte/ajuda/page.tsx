@@ -114,13 +114,14 @@ export default function HelpPage() {
           product_id: data.product_id,
           category_id: data.category_id,
           customer: {
+            name: data.name,
             email: data.email,
             cpf: data.cpf,
             telefone: data.phone,
           },
         }),
       })
- 
+
       const json = await res.json()
 
       if (json.success && json.data?.ai_name) {
@@ -129,6 +130,13 @@ export default function HelpPage() {
 
       if (json.success && json.data?.conversation_id) {
         setConversationId(json.data.conversation_id)
+      }
+
+      // Fix B: Sofia decidiu escalar → ticket já criado no backend. Mostra confirmação.
+      if (json.success && json.data?.escalated && json.data?.ticket_code) {
+        setTicketResult({ ticket_code: json.data.ticket_code, access_token: json.data.access_token })
+        setStep('done')
+        return
       }
 
       if (json.success && json.data?.answer) {
@@ -185,6 +193,7 @@ export default function HelpPage() {
           product_id: formData.product_id,
           category_id: formData.category_id,
           customer: {
+            name: formData.name,
             email: formData.email,
             cpf: formData.cpf,
             telefone: formData.phone,
@@ -196,6 +205,13 @@ export default function HelpPage() {
 
       if (json.success && json.data?.conversation_id) {
         setConversationId(json.data.conversation_id)
+      }
+
+      // Fix B: Sofia decidiu escalar no meio da conversa → ticket já criado no backend.
+      if (json.success && json.data?.escalated && json.data?.ticket_code) {
+        setTicketResult({ ticket_code: json.data.ticket_code, access_token: json.data.access_token })
+        setStep('done')
+        return
       }
 
       if (json.success && json.data?.answer) {
@@ -271,6 +287,7 @@ export default function HelpPage() {
           category_id: formData.category_id,
           title: formData.description.slice(0, 100),
           description: formData.description,
+          conversation_id: conversationId ?? undefined,
           ai_messages: aiMessages,
         }),
       })

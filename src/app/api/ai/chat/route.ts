@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { createTicket } from '@/lib/tickets/create'
+import { buildEscalationTicketFields } from '@/lib/tickets/normalize'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
 import {
   KEYWORDS_ACESSO,
@@ -148,6 +150,21 @@ const TOOLS = [
           motivo: { type: 'string', description: 'Por que precisa dos dados' },
         },
         required: ['motivo'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'escalar_para_humano',
+      description: 'Abre um ticket de atendimento humano. Chame SEMPRE que decidir encaminhar o cliente para a equipe — NUNCA diga ao cliente que vai encaminhar/abrir ticket sem chamar esta ferramenta. Use quando: reembolso/pagamento, o produto mencionado nao consta nas compras, o cliente pediu humano explicitamente, ou o cliente ainda nao resolveu DEPOIS do troubleshooting. NAO use so porque a confianca esta baixa nem antes de tentar resolver com o que voce tem.',
+      parameters: {
+        type: 'object',
+        properties: {
+          motivo: { type: 'string', description: 'Motivo curto da escalacao (ex.: reembolso, produto nao consta, cliente pediu humano, nao resolveu apos troubleshooting)' },
+          resumo: { type: 'string', description: 'Resumo do caso para o atendente humano (1-3 frases com o essencial do que o cliente relatou e o que ja foi tentado)' },
+        },
+        required: ['motivo', 'resumo'],
       },
     },
   }
@@ -394,6 +411,11 @@ NUNCA diga que nao encontrou nada sem usar as ferramentas primeiro.`
     let answer = fallbackMessage
     let iterations = 0
     let toolCallsExecuted: any[] = []
+    // Fix B (sofia-auto-ticket): a tool escalar_para_humano só REGISTRA a intenção aqui;
+    // a criação do ticket é um ÚNICO ponto de decisão após o loop (porta única — A Lenda).
+    let escalationRequested = false
+    let escalationMotivo: string | null = null
+    let escalationResumo: string | null = null
 
     while (iterations < 4) {
       const chatRes = await openai.chat.completions.create({
@@ -424,6 +446,11 @@ NUNCA diga que nao encontrou nada sem usar as ferramentas primeiro.`
             resStr = await executarLegacyTool(name, args, { customer })
           } else if (name === 'solicitar_mais_dados') {
             resStr = JSON.stringify({ ok: true, instrucao: "Peça os dados educadamente." })
+          } else if (name === 'escalar_para_humano') {
+            escalationRequested = true
+            escalationMotivo = typeof args.motivo === 'string' ? args.motivo : null
+            escalationResumo = typeof args.resumo === 'string' ? args.resumo : null
+            resStr = JSON.stringify({ ok: true, instrucao: "Ticket de atendimento humano sera aberto pelo sistema. Confirme ao cliente, de forma acolhedora, que voce abriu o chamado e que ele recebera os detalhes por e-mail e podera acompanhar — NAO peca para ele clicar em nada." })
           }
 
           openaiMessages.push({ role: 'tool', tool_call_id: tc.id, name, content: resStr })
@@ -452,6 +479,45 @@ NUNCA diga que nao encontrou nada sem usar as ferramentas primeiro.`
       await supabase.from('ai_conversations').update({ updated_at: new Date().toISOString() }).eq('id', conversationId)
     }
 
+    // ─── Fix B (sofia-auto-ticket): PORTA ÚNICA de escalonamento → cria o ticket ───
+    // A decisão de escalar (tool escalar_para_humano) PRODUZ o ticket, em vez de
+    // depender do clique "Falar com humano". Idempotente por conversa (CAS + unique 019):
+    // se o cliente clicar o botão depois, /api/tickets devolve este mesmo ticket.
+    // Sem conversationId/name/email/produto/categoria → não auto-cria (degrada pro fluxo
+    // manual; limitação consciente — A Lenda). O e-mail real ao cliente é desejado.
+    let escalatedTicket: { ticket_code: string; access_token: string } | null = null
+    if (escalationRequested && conversationId && customer?.name && customer?.email && product_id && category_id) {
+      try {
+        const { title, description } = buildEscalationTicketFields({
+          motivo: escalationMotivo,
+          resumo: escalationResumo,
+          relato: lastMessageContent,
+        })
+        const ticketMessages = [
+          ...priorMessages.map((m: any) => ({ role: m.role, content: m.content })),
+          { role: 'user', content: lastMessageContent },
+          { role: 'assistant', content: answer },
+        ]
+        const result = await createTicket(
+          {
+            name: String(customer.name),
+            email: String(customer.email),
+            cpf: customer.cpf ? String(customer.cpf) : '',
+            phone: customer.telefone ? String(customer.telefone) : undefined,
+            product_id,
+            category_id,
+            title,
+            description,
+            messages: ticketMessages,
+          },
+          { conversationId, source: 'portal' }
+        )
+        escalatedTicket = { ticket_code: result.ticket_code, access_token: result.access_token }
+      } catch (err) {
+        console.error('[ai/chat] Falha ao auto-criar ticket no escalonamento:', err)
+      }
+    }
+
     return NextResponse.json({
       success: true,
       data: {
@@ -459,7 +525,10 @@ NUNCA diga que nao encontrou nada sem usar as ferramentas primeiro.`
         requires_ticket: bestSimilarity < threshold,
         confidence: computeConfidence(bestSimilarity),
         ai_name: aiName,
-        conversation_id: conversationId
+        conversation_id: conversationId,
+        escalated: escalatedTicket != null,
+        ticket_code: escalatedTicket?.ticket_code ?? null,
+        access_token: escalatedTicket?.access_token ?? null,
       }
     })
   } catch (error) {

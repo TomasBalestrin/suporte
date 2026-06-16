@@ -475,3 +475,71 @@ Prod agora tem A+C **só via `vercel --prod` direto**. São **7 commits locais �
 **Validação 48h do A (rodar a partir de ~2026-06-11):** com C ativo, medir entre conversas `fluxon_identificacao IN (match_*)` E `fluxon_tem_link=true` se a Sofia ainda escala. Se o pre-fetch ACHA a compra e ela ainda escala → A não bastou, investigar prompt; se o pre-fetch NÃO acha (muitos `nao_encontrado` em comprador real) → problema é timing/cobertura do Fluxon, não o prompt.
 
 **Artefatos read-only:** `.specs/features/sofia-anti-escalonamento/` — `audit-escalonamento.mjs`, `probe-*.mjs` (os com PII gitignorados). Token do projeto: `SUPABASE_ACCESS_TOKEN` no `.env.local` (Management API).
+
+## ✅ A+C VALIDADO COM TRÁFEGO REAL (2026-06-16, 🔪 Bruto) — feature `sofia-anti-escalonamento` fechada de vez
+
+Rodada a validação A+C que estava pendente desde 09/06 (janela era 48h; acumulou **7 dias**). Artefato novo read-only `validate-ac.mjs` — segmenta as **152 respostas** pós-deploy (09/06 12:40 → 16/06 12:05 UTC) pelo que o pre-fetch registrou (colunas do fix C) e mede escalonamento por bucket (não o regex cego do monitor).
+
+**Cobertura do pre-fetch (resposta da dúvida do C):**
+- **S1 comprador real + link = 93 (61%)** · S3 `nao_encontrado` = 58 (38%) · S4 sem-prefetch = 1 (1%).
+- raw `fluxon_identificacao`: `match_cpf` 68, `match_email` 19, `match_telefone` 6, `nao_encontrado` 58, null 1.
+- **Conclusão**: o pre-fetch ACHA a compra na maioria (61%). O medo "comprador real cai em nao_encontrado por timing do Fluxon" **não é o gargalo** — os 38% `nao_encontrado` são majoritariamente não-compradores reais (débito `sofia-fluxon-coverage` já dissolvido 2026-05-23: Julia/Cleiton só vendem Hotmart/PagTrust).
+
+**Veredito Fix A (ramo com-compra):**
+- S1 escalonamento bruto 18% → 12% após refinar buckets → **lendo os 11 resíduos um a um, ZERO é o bug que o A mirou** (escalar comprador-com-link em vez de entregar): 5-6 são turnos de follow-up ("espero aqui?", "ok aguardo") após escalonamento já decidido; 3-4 são combo/curso-não-consta (legit, decisão A); 1 cliente pediu humano ("aguardo humano"); 1 falha técnica com troubleshoot antes. **Recaída real do bug-alvo = ~0%. Fix A validado. Feature `sofia-anti-escalonamento` fechada.**
+
+**🆕 Sinal confirmado e recorrente (separado — não é bug de prompt): combo/multi-curso com entrega PARCIAL.**
+- ≥4 compradores distintos (87c42106, 4a2fbf0d, 4a4d8605, 16de4a48): comprou combo/vários cursos, Fluxon mostra só 1 (ex. só REELS MAGNETICOS), cliente quer o resto. Sofia escala CERTO (produto citado não consta nas compras = decisão A). É **upstream Fluxon (fulfillment / combo não ingerido por inteiro)**, não prompt. Mesmo sinal da juliana (09/06), agora com mais volume.
+
+**🎯 Por que isso MOTIVA o Fix B (auto-criar ticket):**
+- Os escalonamentos legítimos (fulfillment parcial, insatisfação, pediu-humano) precisam de humano — e hoje o ticket **só nasce se o cliente clicar "Não Resolvi"** (`ajuda/page.tsx`). Os turnos de follow-up provam o dead-end: clientes dizem "ok, é só aguardar aqui?" acreditando que a equipe vem, **mas nenhum ticket foi criado**. `requires_ticket` segue decorativo. **B é o próximo build certo.**
+
+### ⚠️ L045 — push do `suporte` AINDA travado (NÃO resolvido pelo SSH de 15/06)
+- O fix durável de SSH ed25519 de 15/06 foi pro repo do **hub-lead** (`eduardotkfm-maker` tem permissão lá). O repo `TomasBalestrin/suporte` segue com remote **HTTPS** e push travado.
+- `main` está **9 commits à frente** do `origin/main`, incluindo **`874f9f3` (A+C)** e **`c48a9a5` (anti-escalonamento)** — ambos **vivos em prod só via `vercel --prod`**. Qualquer deploy pelo GitHub reverte os dois.
+- **Ação do Eduardo**: subir via GitHub Desktop (autenticado como Tomás) OU Tomás dar permissão a `eduardotkfm-maker` no repo OU migrar esse remote pra SSH com chave autorizada no repo do Tomás.
+
+## ⭐ RETOMAR DAQUI (2026-06-16) — 🔪 Bruto
+**Onde paramos:** A+C **validado** com 7d de tráfego (fix A seguro, 0 recaída). Feature anti-escalonamento fechada. Próximo build natural = **Fix B (auto-criar ticket no escalonamento)** — agora bem-motivado pelos dados.
+**Frentes, em ordem:**
+1. **[BUILD] Fix B** — tool `escalar_para_humano` → backend cria ticket (helper extraído de `/api/tickets`, sem duplicar) + grava `ai_conversations.ticket_id` (conserta linkagem 8%). Cuidados: e-mail Resend real (testar sem cliente real) · idempotência (Sofia cria + cliente clica "Não Resolvi") · `name`/`description` faltam no input do chat. Gate: Francês/A Lenda (design auto-create + fallback) → Kimiko → Luz Estrela → MM → Hughie UAT → Bruto. Scope Large/Complex, tier Opus.
+2. **[CROSS-REPO, separado] Fulfillment parcial de combo** — investigar no Fluxon por que combo/multi-curso entra só parcial (relacionado a `feat/meta-leads`... não, é fulfillment Hotmart/PagTrust). Débito próprio, fora do Suporte.
+3. **[AÇÃO EDUARDO] Push dos 9 commits** — L045 acima.
+
+---
+
+# Feature `sofia-auto-ticket` (Fix B) — auto-criar ticket no escalonamento (2026-06-16)
+
+Design: `.specs/features/sofia-auto-ticket/design.md`. Motivada pela validação A+C (dead-end: Sofia promete retorno passivo, ticket só nasce no clique).
+
+## Escopo (decided_by: usuário, 2026-06-16)
+- **D1**: SÓ portal form (`/suporte/ajuda`). WhatsApp fora (handler no Fluxon).
+- **D2**: ticket só quando a Sofia DECIDE escalar (não por confiança baixa do RAG).
+
+## Implementado (código verde local, NÃO deployado)
+- **migration 019** `uq_ai_conv_ticket` — índice único parcial em `ai_conversations(ticket_id) WHERE ticket_id IS NOT NULL` (a trava que a A Lenda exigiu).
+- **`src/lib/tickets/create.ts`** — helper `createTicket` (extraído de `/api/tickets`, behavior-preserving) + idempotência **CAS** (`UPDATE ... WHERE ticket_id IS NULL`; perdeu corrida → deleta o ticket novo + devolve o vencedor ANTES de e-mail/mensagens; se vencedor não achado → throw, sem efeito órfão).
+- **`src/lib/tickets/normalize.ts`** (puro) — `normalizeTicketMessages` (filtra `role=tool`) + `buildEscalationTicketFields` (garante description≥20). 9 testes.
+- **`/api/tickets`** — refatorado pro helper + aceita `conversation_id` (idempotência).
+- **`/api/ai/chat`** — tool `escalar_para_humano(motivo,resumo)` + PORTA ÚNICA após o tool-loop que cria o ticket (guard: `conversationId && name && email && product_id && category_id`; sem isso, degrada pro fluxo manual). Resposta ganha `escalated`/`ticket_code`/`access_token`.
+- **`ajuda/page.tsx`** — passa `name`+`conversation_id`; mostra "ticket criado" no auto-escalonamento; botão "Falar com humano" idempotente.
+
+## Sinal de escalonamento — decisão do Bruto (conflito A Lenda × D2)
+A Lenda queria rede de retaguarda determinística JÁ (gpt-4o-mini sub-chama tools). D2 vetou gatilho por confiança-baixa. **Resolução: v1 = tool primária + botão existente como fallback determinístico + instrumentação do under-call** (msg `tool` `escalar_para_humano` persistida + regex no answer). Rede de retaguarda (turnos≥3 = "não resolveu") = v1.1 **gated pelo under-call medido + spike dos 152**. Racional: v1 não pode ser pior que hoje (botão continua); mesma disciplina do A+C.
+
+## Gates
+🎖️ A Lenda (red-team — veredito: esqueleto aprovado condicionado a UNIQUE+CAS no banco) → ⚔️ Kimiko/Bruto (execute) → ⭐ Luz Estrela (**APROVADO COM RESSALVA** — pegou bug no caminho de compensação do CAS: ticket deletado mas seguia pros efeitos colaterais → FK silenciosa. **Corrigido no gate** com throw explícito). `tsc` 0 · `vitest` 129/129 (+9) · `next build` 0.
+
+## ⚠️ FALTA (gated — precisa do OK do Eduardo, irreversível)
+- [ ] **Commit** local (feito? ver git log). Push travado (L045 — repo HTTPS, 10 commits à frente).
+- [ ] **Deploy**: pré-check dup `ticket_id` em prod → aplicar migration 019 → `vercel --prod`.
+- [ ] **T6 — copy do `system_prompt`** (runtime `ai_config`, com backup): acoplar tool↔escala ("pra escalar, chame `escalar_para_humano`; nunca prometa retorno passivo").
+- [ ] **Hughie UAT**: escalar de verdade com **e-mail controlado** (sem kill-switch Resend), confirmar 1 ticket / 1 e-mail / botão idempotente.
+- [ ] **Monitoramento 48h**: duplicatas=0, under-call (gate v1.1), volume de tickets/e-mails.
+
+## Débitos registrados
+- Kill-switch Resend (`RESEND_ENABLED`) — MM. UAT v1 usa e-mail controlado.
+- `createTicket` transacional (RPC) — hoje não-atômico (espelha o handler antigo).
+- Corrida `generate_ticket_code()` (MAX+1 sem lock) — B agrava levemente; Soldier Boy/Trem-Bala.
+- Rede de retaguarda determinística — v1.1.
+- WhatsApp — fora (D1).
