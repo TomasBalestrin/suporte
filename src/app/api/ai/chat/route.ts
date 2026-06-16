@@ -128,14 +128,12 @@ const TOOLS = [
     type: 'function',
     function: {
       name: 'orientar_reembolso',
-      description: 'Retorna instrucoes formais de reembolso conforme plataforma e prazo. Use sempre que cliente solicitar reembolso.',
+      description: 'Retorna a orientacao de reembolso. Use sempre que o cliente solicitar reembolso/estorno/cancelamento.',
       parameters: {
         type: 'object',
         properties: {
-          plataforma: { type: 'string', enum: ['hotmart', 'pagtrust', 'desconhecida'] },
-          dias_desde_compra: { type: 'number', description: 'Dias desde a compra. -1 se desconhecido.' },
+          plataforma: { type: 'string', enum: ['hotmart', 'pagtrust', 'desconhecida'], description: 'Plataforma de compra, se souber' },
         },
-        required: ['plataforma', 'dias_desde_compra'],
       },
     },
   },
@@ -547,7 +545,7 @@ async function executarLegacyTool(name: string, args: any, ctx: any) {
     return JSON.stringify(await res.json())
   }
   if (name === 'orientar_reembolso') {
-    return JSON.stringify({ ok: true, instrucao: "Oriente sobre o prazo de 7 dias." })
+    return JSON.stringify({ ok: true, instrucao: "Reembolso e solicitado DIRETO na plataforma de compra (Hotmart ou PagTrust), nao pelo suporte da Bethel. Oriente o cliente a abrir a solicitacao de reembolso na propria plataforma onde comprou. NAO afirme prazo (ex.: '7 dias') — voce nao tem a data da compra. Em seguida, escale chamando escalar_para_humano para a equipe acompanhar." })
   }
   return "Tool desconhecida"
 }
