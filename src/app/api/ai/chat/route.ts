@@ -523,11 +523,14 @@ NUNCA diga que nao encontrou nada sem usar as ferramentas primeiro.`
     // chat (que pode conter PII) — só evento + produto + confiança + link pro /admin.
     // notifyTg=false vem dos fluxos internos (correção do admin) pra não floodar.
     if (notifyTg) {
+      // await (não void): em serverless o fire-and-forget é morto quando a função
+      // retorna antes do fetch terminar — por isso notificação se perdia. notifyTelegram
+      // nunca lança e tem timeout próprio, então aguardar é seguro e garante a entrega.
       const app = process.env.NEXT_PUBLIC_APP_URL || 'https://suporte.bethelsystems.com.br'
       if (escalatedTicket) {
-        void notifyTelegram(`💬➡️🎫 Sofia escalou · ${productName || '—'} → ticket ${escalatedTicket.ticket_code}\n🔗 ${app}/admin/tickets/${escalatedTicket.ticket_id}`)
+        await notifyTelegram(`💬➡️🎫 Sofia escalou · ${productName || '—'} → ticket ${escalatedTicket.ticket_code}\n🔗 ${app}/admin/tickets/${escalatedTicket.ticket_id}`)
       } else {
-        void notifyTelegram(`💬 Sofia atendeu · ${productName || '—'} · conf=${computeConfidence(bestSimilarity)} (resolvido sem ticket)`)
+        await notifyTelegram(`💬 Sofia atendeu · ${productName || '—'} · conf=${computeConfidence(bestSimilarity)} (resolvido sem ticket)`)
       }
     }
 

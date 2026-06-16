@@ -152,7 +152,8 @@ export async function POST(
     // ─── Telegram do dono: AVISO sem PII + link pro painel (non-blocking) ───
     // Privacy-safe (decisão do dono): não manda o conteúdo da mensagem (pode ter PII).
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://suporte.bethelsystems.com.br'
-    void notifyTelegram(`✉️ Cliente respondeu · ${ticket.ticket_code}\n🔗 ${appUrl}/admin/tickets/${ticket.id}`)
+    // await (não void): serverless mata fire-and-forget pós-resposta. Seguro (não lança + timeout).
+    await notifyTelegram(`✉️ Cliente respondeu · ${ticket.ticket_code}\n🔗 ${appUrl}/admin/tickets/${ticket.id}`)
 
     // ─── Auto-reply da Sofia (assincrono, nao bloqueia retorno) ───
     disparaAutoReply(supabase, request, ticket, body.content.trim()).catch(err =>
