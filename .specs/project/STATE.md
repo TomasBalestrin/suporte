@@ -588,3 +588,11 @@ Resposta à pergunta do Eduardo "consigo responder direto do Telegram?". Integra
 - **Cast de tipo Supabase** `as unknown as {...}` (dívida 3): some quando o projeto gerar tipos do Supabase.
 - **Aviso de reply-a-mídia** (dívida 4, cosmético): mensagem poderia ser mais específica p/ reply a foto/sticker.
 - **Crash entre claim e insert** (A Lenda): update fica marcado processado sem msg (Telegram não reenvia). Aceitável p/ MVP baixa escala; v2 = dead-letter se necessário.
+
+## Incremento — VER CONVERSA SOB DEMANDA (2026-06-17, decided_by: usuário)
+Pergunta do dono "consigo abrir a conversa com o lead no Telegram?". Decisão de privacidade (AskUserQuestion): **sob demanda** (não espelho contínuo — PII só viaja quando ele toca o botão).
+- **Como**: cada notificação de ticket leva botão inline **[👁 Ver conversa]** (`notifyTelegram` ganhou `opts.viewTicketId` → `callback_data view:<id>`; 3 hooks passam o id). Webhook trata `callback_query` (ramo B, READ-ONLY, sem idempotência): auth `from.id===dono` → `answerCallbackQuery` → `buildTicketThread` (últimas 15 msgs customer/ai/agent, sem internal note) → manda a conversa pro chat do dono. Ele responde aquela msg → vira resposta de agente.
+- **Correlação** agora prefere o código da **1ª linha** do texto citado (`extractTicketCodes`) → responder a thread funciona mesmo se uma msg do cliente citar outro SUP no corpo.
+- `setWebhook allowed_updates:["message","callback_query"]`. Commit `b4aa8d2`, deploy `suporte-2bzk5pokr`. **UAT2 6/6**. **Luz Estrela: APROVADO p/ merge** (delta: portão cobre callback, from.id valida dono, thread só vai pro chat do env, sem injection PostgREST, sem vazar internal note).
+- **Dívidas**: thread pode truncar no meio de msg quando 15×350 chars > 3990 (cortar por msg completa — futuro); callback retry manda thread 2× (read-only, aceitável).
+- **⚠️ Ainda bloqueado pelo e-mail**: ver conversa + responder funciona, mas o AVISO ao cliente depende do `RESEND_API_KEY` (ou WhatsApp via Fluxon) — decisão pendente do dono.
