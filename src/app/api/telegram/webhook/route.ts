@@ -9,33 +9,34 @@ import { notifyTelegram } from '@/lib/notify/telegram'
 /**
  * Webhook do Telegram — MÃO DUPLA (responder ticket pelo chat privado do dono).
  *
- * O dono usa "Responder" do Telegram em cima de uma notificação (que carrega o código
- * SUP-AAAA-XXXX no texto) e escreve a resposta. Aqui a resposta vira mensagem de AGENTE
- * no ticket → dispara e-mail pro cliente (mesmo fluxo do painel admin).
+ * Trata dois tipos de update:
+ *  A) message  — o dono dá "Responder" (reply) numa notificação/thread → a resposta vira
+ *     mensagem de AGENTE no ticket → dispara e-mail pro cliente (fluxo do painel admin).
+ *  B) callback_query — o dono toca o botão "👁 Ver conversa" numa notificação → o bot puxa
+ *     as últimas msgs daquele ticket pro Telegram (PII sob demanda, decisão do dono). É
+ *     READ-ONLY (sem efeito externo) → não precisa de idempotência.
  *
  * Fronteiras duras (red-team A Lenda, 2026-06-16):
  *  1. AUTH = PORTÃO: secret-token (header X-Telegram-Bot-Api-Secret-Token) checado PRIMEIRO,
- *     timing-safe, ANTES de parsear o body. É a única coisa secreta da cadeia (chat_id/from_id
- *     vazam em screenshot). Só depois valida from.id (quem escreveu === o dono).
- *  2. IDEMPOTÊNCIA: o Telegram REENVIA o update se não receber 200 rápido. PK em
- *     telegram_processed_updates(update_id) é o lock — insert colide (23505) no retry → no-op.
- *     Sem isso = e-mail duplicado pro cliente.
- *  3. ORDEM-C: claim do update → insert da msg (await, durável) → 200 rápido →
- *     e-mail + confirmação no after() (serverless mata fire-and-forget pós-200). O ✅ no
- *     Telegram só sai DEPOIS do e-mail entregar (prova de entrega, não de intenção).
+ *     timing-safe, ANTES de parsear body. É a única coisa secreta da cadeia (chat_id/from_id
+ *     vazam em screenshot). Depois valida from.id (quem agiu === o dono) em AMBOS os ramos.
+ *  2. IDEMPOTÊNCIA (só ramo message): PK em telegram_processed_updates(update_id) — o Telegram
+ *     reenvia se não receber 200 rápido; insert colide (23505) no retry → no-op (sem e-mail duplo).
+ *  3. ORDEM-C (só ramo message): claim → insert msg (await, durável) → 200 rápido →
+ *     e-mail + confirmação no after(); ✅ no Telegram só DEPOIS do e-mail entregar.
  *
- * Correlação por PARSE DE TEXTO (dívida consciente — MVP): extrai o ticket_code do texto
- * citado (reply_to_message.text) e valida contra o banco. Falha SEMPRE visível (nunca
- * silenciosa) — se não achar/ambíguo, avisa o dono no Telegram. Migrar pra mapeamento por
- * ID estável quando houver >1 agente ou notificação em grupo (ver STATE.md).
+ * Correlação por PARSE DE TEXTO (dívida consciente — MVP): extrai ticket_code preferindo a
+ * 1ª linha do texto citado (notificação e thread têm o código no topo; assim responder a
+ * thread também funciona mesmo que uma msg do cliente cite outro SUP). Valida contra o banco.
+ * Falha SEMPRE visível. Migrar p/ mapeamento por ID estável quando >1 agente / grupo.
  *
  * Isolamento da Sofia: a msg entra como sender_type='agent' inserida DIRETO no banco — o
  * disparaAutoReply da Sofia só roda no endpoint do cliente e só pra sender_type='customer'.
- * Logo, resposta de agente NUNCA gatilha a IA (sem loop de feedback).
  */
 
 export const runtime = 'nodejs' // crypto.timingSafeEqual exige runtime Node
 
+const TELEGRAM_API = 'https://api.telegram.org'
 const TICKET_CODE_RE = /\bSUP-\d{4}-\d{4,}\b/g
 const ok = () => NextResponse.json({ ok: true }, { status: 200 })
 
@@ -44,6 +45,45 @@ function timingSafeEqualStr(a: string, b: string): boolean {
   const bb = Buffer.from(b, 'utf8')
   if (ba.length !== bb.length) return false
   return crypto.timingSafeEqual(ba, bb)
+}
+
+/** Extrai códigos de ticket distintos, preferindo os da 1ª linha (topo = âncora estável). */
+function extractTicketCodes(quoted: string): string[] {
+  const firstLine = quoted.split('\n')[0] || ''
+  const fromFirst = Array.from(new Set(firstLine.match(TICKET_CODE_RE) || []))
+  if (fromFirst.length > 0) return fromFirst
+  return Array.from(new Set(quoted.match(TICKET_CODE_RE) || []))
+}
+
+const SENDER_LABEL: Record<string, string> = { customer: '👤 Cliente', ai: '🤖 Sofia', agent: '🧑‍💼 Agente' }
+
+/** Monta o texto da conversa (últimas msgs) p/ enviar sob demanda ao Telegram do dono. */
+async function buildTicketThread(admin: ReturnType<typeof createAdminClient>, ticketId: string): Promise<string | null> {
+  const { data: ticket } = await admin
+    .from('tickets')
+    .select('ticket_code, status, customer:customers(name)')
+    .eq('id', ticketId)
+    .maybeSingle()
+  if (!ticket) return null
+
+  const { data: msgs } = await admin
+    .from('messages')
+    .select('sender_type, content, created_at')
+    .eq('ticket_id', ticketId)
+    .eq('is_internal_note', false)
+    .in('sender_type', ['customer', 'ai', 'agent'])
+    .order('created_at', { ascending: false })
+    .limit(15)
+
+  const ordered = (msgs || []).slice().reverse()
+  const lines = ordered.map((m) => {
+    const who = SENDER_LABEL[m.sender_type] || m.sender_type
+    const txt = String(m.content || '').slice(0, 350)
+    return `${who}: ${txt}`
+  })
+  const cust = (ticket.customer as unknown as { name?: string } | null)?.name
+  const header = `💬 ${ticket.ticket_code}${cust ? ' · ' + cust : ''} (${ticket.status}) — últimas ${lines.length} msg(s).\nResponda ESTA mensagem pra enviar ao cliente:`
+  return lines.length > 0 ? `${header}\n\n${lines.join('\n\n')}` : `${header}\n\n(sem mensagens ainda)`
 }
 
 export async function POST(request: NextRequest) {
@@ -64,6 +104,11 @@ export async function POST(request: NextRequest) {
       chat?: { id?: number }
       reply_to_message?: { text?: string }
     }
+    callback_query?: {
+      id?: string
+      data?: string
+      from?: { id?: number }
+    }
   }
   try {
     update = await request.json()
@@ -71,13 +116,37 @@ export async function POST(request: NextRequest) {
     return ok() // body inválido — nada a fazer, não reenviar
   }
 
-  const msg = update?.message
-  // Só tratamos mensagem de TEXTO (ignora foto/sticker/edited_message/etc.)
-  if (!msg || typeof msg.text !== 'string') return ok()
-
-  // ── Fronteira 1b: só aceita do DONO (em chat privado from.id === chat.id === TELEGRAM_CHAT_ID) ──
   const ownerId = process.env.TELEGRAM_CHAT_ID
-  if (!ownerId || String(msg.from?.id) !== ownerId || String(msg.chat?.id) !== ownerId) {
+  if (!ownerId) return ok() // sem o dono configurado, não dá pra validar — 200 mudo
+
+  // ── RAMO B: callback do botão "👁 Ver conversa" (READ-ONLY, sob demanda) ──
+  if (update.callback_query) {
+    const cb = update.callback_query
+    if (String(cb.from?.id) !== ownerId) return ok() // só o dono
+    const token = process.env.TELEGRAM_BOT_TOKEN
+    // Para o "loading" do botão (best-effort, não bloqueia o resto).
+    if (token && cb.id) {
+      await fetch(`${TELEGRAM_API}/bot${token}/answerCallbackQuery`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ callback_query_id: cb.id }),
+        signal: AbortSignal.timeout(4000),
+      }).catch(() => {})
+    }
+    const m = String(cb.data || '').match(/^view:(.+)$/)
+    if (!m) return ok()
+    const admin = createAdminClient()
+    const thread = await buildTicketThread(admin, m[1]).catch(() => null)
+    await notifyTelegram(thread || '⚠️ Não consegui carregar a conversa desse ticket.')
+    return ok()
+  }
+
+  // ── RAMO A: mensagem (responder ticket) ──
+  const msg = update.message
+  if (!msg || typeof msg.text !== 'string') return ok() // ignora foto/sticker/edited/etc.
+
+  // ── Fronteira 1b: só aceita do DONO (em chat privado from.id === chat.id === ownerId) ──
+  if (String(msg.from?.id) !== ownerId || String(msg.chat?.id) !== ownerId) {
     return ok() // não é o dono — ignora silenciosamente (200, sem retry)
   }
 
@@ -95,9 +164,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'dedup unavailable' }, { status: 500 }) // transitório → Telegram reenvia
   }
 
-  // A partir daqui o update está reivindicado. Em falha de TRABALHO transitório (DB), soltamos
-  // o claim e devolvemos 5xx pro Telegram reenviar. Em falha de NEGÓCIO (sem código, ticket
-  // fechado, etc.) mantemos o claim e respondemos 200 + aviso visível no Telegram.
+  // Em falha de TRABALHO transitório (DB), solta o claim e devolve 5xx pro Telegram reenviar.
+  // Em falha de NEGÓCIO (sem código, fechado, etc.) mantém o claim e responde 200 + aviso visível.
   const releaseAndRetry = async () => {
     await admin.from('telegram_processed_updates').delete().eq('update_id', updateId).then(
       () => {}, () => {}
@@ -105,10 +173,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'retry' }, { status: 500 })
   }
 
-  // ── Correlação: ticket_code do texto CITADO (reply_to). Falha sempre VISÍVEL ──
+  // ── Correlação: ticket_code do texto CITADO (reply_to), preferindo a 1ª linha. Falha VISÍVEL ──
   const ownText = msg.text.trim()
   const quoted = String(msg.reply_to_message?.text || '')
-  const codes = Array.from(new Set(quoted.match(TICKET_CODE_RE) || []))
+  const codes = extractTicketCodes(quoted)
 
   if (codes.length === 0) {
     await notifyTelegram(
@@ -118,7 +186,7 @@ export async function POST(request: NextRequest) {
   }
   if (codes.length > 1) {
     await notifyTelegram(
-      `⚠️ Achei mais de um ticket na mensagem citada (${codes.join(', ')}). Responda citando a notificação de um ticket só.`
+      `⚠️ Achei mais de um ticket na linha citada (${codes.join(', ')}). Responda citando a notificação de um ticket só.`
     )
     return ok()
   }
@@ -142,7 +210,7 @@ export async function POST(request: NextRequest) {
     return ok()
   }
 
-  // ── Política de estado (item 5): closed recusa; o resto avança pra in_progress ──
+  // ── Política de estado: closed recusa; o resto avança pra in_progress ──
   if (ticket.status === 'closed') {
     await notifyTelegram(`⚠️ ${ticket.ticket_code} está encerrado — não respondi. Reabra no painel se precisar.`)
     return ok()

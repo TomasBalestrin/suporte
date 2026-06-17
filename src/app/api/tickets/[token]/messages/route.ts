@@ -153,7 +153,7 @@ export async function POST(
     // Privacy-safe (decisão do dono): não manda o conteúdo da mensagem (pode ter PII).
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://suporte-amber.vercel.app'
     // await (não void): serverless mata fire-and-forget pós-resposta. Seguro (não lança + timeout).
-    await notifyTelegram(`✉️ Cliente respondeu · ${ticket.ticket_code}\n🔗 ${appUrl}/admin/tickets/${ticket.id}`)
+    await notifyTelegram(`✉️ Cliente respondeu · ${ticket.ticket_code}\n🔗 ${appUrl}/admin/tickets/${ticket.id}`, { viewTicketId: ticket.id })
 
     // ─── Auto-reply da Sofia (assincrono, nao bloqueia retorno) ───
     disparaAutoReply(supabase, request, ticket, body.content.trim()).catch(err =>

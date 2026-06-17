@@ -528,7 +528,7 @@ NUNCA diga que nao encontrou nada sem usar as ferramentas primeiro.`
       // nunca lança e tem timeout próprio, então aguardar é seguro e garante a entrega.
       const app = process.env.NEXT_PUBLIC_APP_URL || 'https://suporte-amber.vercel.app'
       if (escalatedTicket) {
-        await notifyTelegram(`💬➡️🎫 Sofia escalou · ${productName || '—'} → ticket ${escalatedTicket.ticket_code}\n🔗 ${app}/admin/tickets/${escalatedTicket.ticket_id}`)
+        await notifyTelegram(`💬➡️🎫 Sofia escalou · ${productName || '—'} → ticket ${escalatedTicket.ticket_code}\n🔗 ${app}/admin/tickets/${escalatedTicket.ticket_id}`, { viewTicketId: escalatedTicket.ticket_id })
       } else {
         await notifyTelegram(`💬 Sofia atendeu · ${productName || '—'} · conf=${computeConfidence(bestSimilarity)} (resolvido sem ticket)`)
       }

@@ -206,7 +206,7 @@ export async function createTicket(
   if (doNotify) {
     const app = process.env.NEXT_PUBLIC_APP_URL || 'https://suporte-amber.vercel.app'
     // await (não void): serverless mata fire-and-forget pós-resposta. Seguro (não lança + timeout).
-    await notifyTelegram(`🎫 Novo ticket ${ticket.ticket_code}\n🔗 ${app}/admin/tickets/${ticket.id}`)
+    await notifyTelegram(`🎫 Novo ticket ${ticket.ticket_code}\n🔗 ${app}/admin/tickets/${ticket.id}`, { viewTicketId: ticket.id })
   }
 
   return {

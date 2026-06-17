@@ -12,19 +12,32 @@
  */
 const TELEGRAM_API = 'https://api.telegram.org'
 
-export async function notifyTelegram(text: string): Promise<void> {
+export interface NotifyOptions {
+  /**
+   * Anexa o botão inline "👁 Ver conversa" → callback_data `view:<ticketId>`.
+   * O webhook (sob demanda) puxa as últimas msgs do ticket pro Telegram. PII só
+   * viaja quando o dono TOCA o botão (decisão do dono: ver conversa sob demanda).
+   */
+  viewTicketId?: string
+}
+
+export async function notifyTelegram(text: string, opts: NotifyOptions = {}): Promise<void> {
   const token = process.env.TELEGRAM_BOT_TOKEN
   const chatId = process.env.TELEGRAM_CHAT_ID
   if (!token || !chatId) return // desligado até as envs existirem
+  const body: Record<string, unknown> = {
+    chat_id: chatId,
+    text: text.length > 4000 ? text.slice(0, 3990) + '…' : text, // limite Telegram = 4096
+    disable_web_page_preview: true,
+  }
+  if (opts.viewTicketId) {
+    body.reply_markup = { inline_keyboard: [[{ text: '👁 Ver conversa', callback_data: `view:${opts.viewTicketId}` }]] }
+  }
   try {
     await fetch(`${TELEGRAM_API}/bot${token}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: text.length > 4000 ? text.slice(0, 3990) + '…' : text, // limite Telegram = 4096
-        disable_web_page_preview: true,
-      }),
+      body: JSON.stringify(body),
       signal: AbortSignal.timeout(5000),
     })
   } catch (err) {
