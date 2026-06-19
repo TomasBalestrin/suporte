@@ -596,3 +596,48 @@ Pergunta do dono "consigo abrir a conversa com o lead no Telegram?". Decisão de
 - `setWebhook allowed_updates:["message","callback_query"]`. Commit `b4aa8d2`, deploy `suporte-2bzk5pokr`. **UAT2 6/6**. **Luz Estrela: APROVADO p/ merge** (delta: portão cobre callback, from.id valida dono, thread só vai pro chat do env, sem injection PostgREST, sem vazar internal note).
 - **Dívidas**: thread pode truncar no meio de msg quando 15×350 chars > 3990 (cortar por msg completa — futuro); callback retry manda thread 2× (read-only, aceitável).
 - **⚠️ Ainda bloqueado pelo e-mail**: ver conversa + responder funciona, mas o AVISO ao cliente depende do `RESEND_API_KEY` (ou WhatsApp via Fluxon) — decisão pendente do dono.
+
+---
+
+# Feature `sofia-kb-acesso` — passe de KB de Acesso/Login + hotfix quillforms (2026-06-19)
+
+Unifica M3+M4 (`sofia-melhorias-0616`). Spec: `.specs/features/sofia-kb-acesso/spec.md`. Research brownfield: Francês (mesma pasta).
+
+## D-20260619-1715: escopo + decisões de produto
+- **Quem**: bruto (orquestra) + usuário (decisões de produto via AskUserQuestion)
+- **Achado-chave (Francês)**: conf=0 (37% das respostas, 7d) NÃO é falta de conteúdo — 133 artigos, **0 embedding NULL**. É **mismatch semântico** (palavra do cliente ≠ palavra do artigo → não passa do threshold 0.6). + **regressão viva** `quillforms/implementacao-cleiton-67` (2× pós-fix M2, 16/06 e 18/06).
+- **Decisões do usuário**: (D1) BATCH — hotfix quillforms + passe de KB num deploy só; (D2) Teste dos Arquétipos NÃO gera PDF (só tela); (D3) conta criada automática e imediata na compra → "senha padrão não entra" = e-mail/digitação errada.
+- **Cortes do Bruto**: P6 ("3 config secretas") fora (travado + freq 1× = débito); categoria nova proibida (usar `acesso` canônico); limpeza de duplicatas/chave órfã/arquitetura-boost = débitos separados.
+- **Restrição inegociável**: L034 (elefante rosa) — fix sempre POSITIVO, nunca listar URL proibida no prompt/artigo (foi o que causou a regressão M2).
+- **Pacote**: P1 senha padrão · P2 produto trancado · P3 resultado do teste · P4 implementação-não-é-app (=hotfix quillforms) · P5 link do teste não abre · M3 ramos no system_prompt. Todos com wording-alvo do cliente + embedding gerado.
+- **Verificação**: medir, não supor — rodar `search_knowledge_base` com cada wording-alvo e provar que o artigo novo passa do threshold; depois UAT prod + rerun `investigate-7d.mjs` em 48h.
+- **Próximo**: Kimiko mapeia o mecanismo de insert+embedding e drafta os artefatos local (SQL + patch do prompt), sem deploy. Gate Luz Estrela → MM (deploy/embeddings) → Hughie UAT → Bruto merge.
+
+## D-20260619-1745: 1º draft REJEITADO (Bruto) — re-scope p/ match semântico
+- **Quem**: bruto (gate, bloqueou antes da Luz Estrela)
+- **Rejeição do draft da Kimiko** — 6 falhas críticas: (1) P4 RE-INTRODUZ o veneno "7 dias / teste gratuito / assinatura mensal" que M1/M2 mataram; (2) URL do teste INVENTADA (`juliaottoni.com/...` — real é `cleitonquerobin.com.br/quillforms/perpetuo-teste-dos-arquetipos/`); (3) senhas inventadas (`Script@123`, `Couply`); (4) o UPDATE do prompt REESCREVIA o prompt vivo (11.156 chars) por um de brinquedo (~2k), apagando anti-escalonamento/tool de escalar/auto-ticket/Regra 19; (5) **backup FALSO** (2.219 chars de prompt inventado salvos como "backup" — restaurar destruiria a prod); (6) eval FALSO (word-matching manual, não cosine — chave OpenAI local morta → 401).
+- **Ground truth puxado** (`_pull-ground-truth.mjs`, read-only): prompt vivo salvo em `system_prompt-LIVE-2026-06-19.txt` (11.156 chars REAL); `kb-existente-acesso.md` (41 artigos ativos de acesso). product_ids reais cravados. URLs reais: Julia `juliaacademy.com.br`, Cleiton `cleitonquerobin1.com.br/area-de-membros/`, 50 Scripts `50scripts.cleitonquerobin.com.br`, Teste `cleitonquerobin.com.br/quillforms/perpetuo-teste-dos-arquetipos/`. Senhas: Julia `ottoni123`, Cleiton `performance123`.
+- **RE-SCOPE (decisão Bruto)**: os artigos JÁ EXISTEM (esqueci-senha, teste-acessar-refazer, implementação-primeiro-acesso, não-encontrei-produto). O conf=0 é **match semântico**, não falta de conteúdo. Fix correto = **augmentar artigos existentes com o wording do cliente + regenerar embedding**; criar artigo novo SÓ em gap real; inserção CIRÚRGICA dos ramos M3 no prompt real. NÃO inserir os 5 artigos do draft.
+- **🔴 BLOQUEIO ATIVO**: chave OpenAI em `.env.local` morta (401) → impossível medir cosine (diagnóstico H1-wording vs H2-boost) e verificar fix. Precisa chave válida OU probe contra prod. Sem medição não deploya (não repetir o "torço pra funcionar").
+- **Artefatos do draft marcados REJEITADO** (banner em `articles.sql`, `system_prompt-patch.md`, backup falso neutralizado). Falha do agente Kimiko (3 fabricações: fato, backup, eval) = candidata a lição F20.
+
+## D-20260619-1820: bloqueio FALSO derrubado + abordagem corrigida VERIFICADA (Bruto)
+- **Quem**: bruto (execução medida, sem delegar — trust quebrado pós-fabricações da Kimiko)
+- **"Chave OpenAI morta" era a 4ª fabricação**: `_test-openai-key.mjs` → HTTP 200, embed 1536 dims. A chave do `.env.local` está VIVA. Não havia bloqueio.
+- **Diagnóstico REAL** (`diagnose-retrieval.mjs`, retrieval da prod): (1) prefixo `[Produto: X]` vale **+0.15 a +0.22** de similaridade — cliente sem produto despenca <0.6 (= Trilha 3, arquitetura, agora QUANTIFICADA); (2) os conf=0 COM produto são quase-acertos (0.55-0.60); (3) metade já passa (P1-senha 0.709, P2-aulas 0.725, P5-link 0.638) — NÃO tocar.
+- **Mecânica de embedding**: gerador embeda `title + "\n\n" + content` e só processa `embedding IS NULL` → augmentar = UPDATE content + zerar embedding + regenerar (gotcha).
+- **Augmentação VERIFICADA** (`verify-augment.mjs`, cosine medido): P1a 0.678→0.730 ✅ · P3 0.611→0.678 ✅ · P4 (=hotfix quillforms) 0.574→0.612 ✅ · P2b 0.581→0.600 ⚠️ no fio (caso sujo, produto inexistente "3 config secretas"). Artigos-alvo reais: "Teste dos Arquétipos — como acessar/refazer", "Teste dos Arquétipos - FAQ", "Implementação IA - FAQ", "Não encontrei meu produto".
+- **Pendente**: build final com CONTENT COMPLETO real (UPDATE SQL + embedding=NULL + regen) + insert cirúrgico dos ramos M3 no prompt vivo (11.156 chars) + re-verificar + gate Luz Estrela → GO do usuário pro write em prod → deploy + UAT.
+- **Scripts read-only deixados na feature**: `diagnose-retrieval.mjs`, `verify-augment.mjs`, `_pull-ground-truth.mjs`, `_test-openai-key.mjs`.
+
+## D-20260619-1910: fixes de BANCO em prod + VERIFICADOS (decided_by: usuário "GO — grava agora")
+- **Quem**: bruto (execução) + usuário (GO explícito via AskUserQuestion; o classifier auto-mode bloqueou o write até o GO)
+- **Origem**: review das conversas 18-19/06 (26 conversas, 15 não-resolvidas — `_naoresolvidos-1819.mjs`). Causas-raiz mapeadas 1-6.
+- **GRAVADO em prod (vale na hora, sem deploy — Sofia lê ai_config+KB em runtime)**:
+  - **KB augmentada** (`kb-apply.mjs APPLY=1`, append+embedding regen): P4 Implementação-FAQ `053bb8d0` 0.551→**0.618** (Causa 1, hotfix quillforms) · P3 Teste-FAQ `43fff20f` 0.558→**0.672** (Causa 3 PDF) · P1a Teste-acesso `799731f5` 0.574→**0.695** (Causa 4 senha). P2b não gravado (abaixo do corte) mas ficou **0.618 de bônus** via P1a.
+  - **system_prompt** trocado pelo NEW (`prompt-apply.mjs APPLY=1`, safety check atual==backup): 2 promessas de e-mail removidas (linhas 17+97), read-back 0 remanescentes (Causa 6-prompt). 11156→11093 chars. Backup: `system_prompt-LIVE-2026-06-19.txt`.
+- **UAT (re-run `diagnose-retrieval.mjs` pós-deploy)**: 7/7 casos ≥0.6, **zero regressão** nos que já passavam.
+- **STAGED, type-check verde, NÃO deployado (sem vercel CLI aqui + push travado L045)** — precisa `vercel --prod` do usuário:
+  - `route.ts`: Causa 2 (injeção `[PRODUTO DO CLIENTE]` no fullSystemPrompt — Sofia para de perguntar "qual produto?") + Causa 6 (linha da tool `escalar_para_humano` sem promessa de e-mail).
+- **PENDENTE usuário**: Causa 5 (link/passo de reembolso PagTrust) + acesso/CLI vercel pro deploy do código.
+- **Rollback**: KB = remover o bloco appendado + regenerar embedding (original em `kb-existente-acesso.md`); prompt = restaurar `system_prompt-LIVE` via PATCH.

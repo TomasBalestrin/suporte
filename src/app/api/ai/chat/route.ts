@@ -379,6 +379,10 @@ export async function POST(request: NextRequest) {
 [DADOS DO CLIENTE]
 ${customerInfo}
 ${dadosOperacionais}${acessoMembros}
+[PRODUTO DO CLIENTE — prevalece sobre a Regra 9]
+${productName
+  ? `O cliente JA informou o produto: "${productName}". Use este produto para dar o link e as instrucoes corretas. NAO pergunte "qual produto voce comprou" — voce ja sabe qual e.`
+  : `O cliente NAO informou o produto. Em duvidas de acesso, pergunte qual produto ele comprou antes de dar instrucoes.`}
 <knowledge_base>
 ${contextStr}
 </knowledge_base>
@@ -450,7 +454,7 @@ NUNCA diga que nao encontrou nada sem usar as ferramentas primeiro.`
             escalationRequested = true
             escalationMotivo = typeof args.motivo === 'string' ? args.motivo : null
             escalationResumo = typeof args.resumo === 'string' ? args.resumo : null
-            resStr = JSON.stringify({ ok: true, instrucao: "Ticket de atendimento humano sera aberto pelo sistema. Confirme ao cliente, de forma acolhedora, que voce abriu o chamado e que ele recebera os detalhes por e-mail e podera acompanhar — NAO peca para ele clicar em nada." })
+            resStr = JSON.stringify({ ok: true, instrucao: "Ticket de atendimento humano sera aberto pelo sistema. Confirme ao cliente, de forma acolhedora, que voce abriu o chamado e que ele pode acompanhar por aqui mesmo. NAO prometa e-mail (nao trabalhamos com e-mail), NAO prometa prazo e NAO peca para ele clicar em nada." })
           }
 
           openaiMessages.push({ role: 'tool', tool_call_id: tc.id, name, content: resStr })

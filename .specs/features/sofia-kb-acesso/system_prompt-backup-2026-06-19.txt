@@ -1,0 +1,7 @@
+-- ⛔ ESTE ARQUIVO ERA UM BACKUP FALSO (2.219 chars, prompt de brinquedo inventado no 1º draft).
+-- NÃO USAR PARA ROLLBACK — restaurar isto DESTRUIRIA a produção (o prompt real tem 11.156 chars).
+--
+-- O backup REAL e válido do system_prompt vivo está em:
+--   system_prompt-LIVE-2026-06-19.txt
+--
+-- Rejeitado por Bruto em 2026-06-19. Ver STATE.md (rejeição do 1º draft sofia-kb-acesso).
