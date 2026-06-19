@@ -596,13 +596,12 @@ export default function TicketDetailPage() {
       {/* 100dvh: dynamic viewport height — o teclado virtual no mobile não esconde o input (pitfall #3) */}
       <div className="flex h-[calc(100dvh-64px)]">
         {/* Main chat area */}
-        <div className="flex flex-1 flex-col">
-          {/* Messages */}
-          <ScrollArea
-            className="flex-1 p-4"
-            onScrollCapture={(e) => {
-              const target = e.currentTarget.querySelector('[data-radix-scroll-area-viewport]') || e.currentTarget
-              const { scrollTop, scrollHeight, clientHeight } = target
+        <div className="flex min-h-0 flex-1 flex-col">
+          {/* Messages — área que rola; flex-1 + min-h-0 faz crescer e prende o input no rodapé (estilo app) */}
+          <div
+            className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4"
+            onScroll={(e) => {
+              const { scrollTop, scrollHeight, clientHeight } = e.currentTarget
               isNearBottomRef.current = scrollHeight - scrollTop - clientHeight < 100
             }}
           >
@@ -678,9 +677,9 @@ export default function TicketDetailPage() {
               })}
               <div ref={messagesEndRef} />
             </div>
-          </ScrollArea>
+          </div>
 
-          {/* Input area — sticky no rodapé, segue safe-area do iPhone (pitfall #3) */}
+          {/* Input area — fixa no rodapé do chat, segue safe-area do iPhone (estilo app) */}
           <div
             className={`shrink-0 border-t px-4 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] ${isInternalNote ? 'border-yellow-500/30 bg-yellow-500/5' : 'border-border bg-background'}`}
           >
