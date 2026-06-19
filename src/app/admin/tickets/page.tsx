@@ -121,7 +121,7 @@ export default function TicketsPage() {
   return (
     <>
       <Header title="Tickets" />
-      <div className="p-6">
+      <div className="p-4 md:p-6">
         <Card className="border-border bg-card">
           <CardHeader>
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -131,56 +131,61 @@ export default function TicketsPage() {
                   ({total} tickets)
                 </span>
               </CardTitle>
-              <div className="flex flex-wrap gap-3 items-center">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleCorrigirLote(false)}
-                  disabled={isBatchCorrecting}
-                  title="Re-executar Sofia nos últimos 20 tickets abertos — corrige respostas da IA que não batem mais"
-                >
-                  {isBatchCorrecting ? (
-                    <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Wand2 className="mr-1 h-4 w-4" />
-                  )}
-                  Corrigir em lote
-                </Button>
+              {/* Filters — empilhados no mobile, linha no desktop */}
+              <div className="flex flex-col gap-2 md:flex-row md:flex-wrap md:items-center md:gap-3">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     placeholder="Buscar..."
                     value={searchInput}
                     onChange={(e) => handleSearchChange(e.target.value)}
-                    className="bg-muted pl-9 w-[200px]"
+                    className="bg-muted pl-9 w-full md:w-[200px]"
                   />
                 </div>
-                <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1) }}>
-                  <SelectTrigger className="w-[160px] bg-muted">
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos status</SelectItem>
-                    <SelectItem value="open">Aberto</SelectItem>
-                    <SelectItem value="in_progress">Em Andamento</SelectItem>
-                    <SelectItem value="awaiting_customer">Aguardando Cliente</SelectItem>
-                    <SelectItem value="resolved">Resolvido</SelectItem>
-                    <SelectItem value="resolved_ia">Resolvido por IA</SelectItem>
-                    <SelectItem value="closed">Fechado</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select value={priorityFilter} onValueChange={(v) => { setPriorityFilter(v); setPage(1) }}>
-                  <SelectTrigger className="w-[140px] bg-muted">
-                    <SelectValue placeholder="Prioridade" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas</SelectItem>
-                    <SelectItem value="urgent">Urgente</SelectItem>
-                    <SelectItem value="high">Alta</SelectItem>
-                    <SelectItem value="medium">Média</SelectItem>
-                    <SelectItem value="low">Baixa</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="flex gap-2">
+                  <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1) }}>
+                    <SelectTrigger className="flex-1 bg-muted md:w-[160px] md:flex-none">
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos status</SelectItem>
+                      <SelectItem value="open">Aberto</SelectItem>
+                      <SelectItem value="in_progress">Em Andamento</SelectItem>
+                      <SelectItem value="awaiting_customer">Aguardando Cliente</SelectItem>
+                      <SelectItem value="resolved">Resolvido</SelectItem>
+                      <SelectItem value="resolved_ia">Resolvido por IA</SelectItem>
+                      <SelectItem value="closed">Fechado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={priorityFilter} onValueChange={(v) => { setPriorityFilter(v); setPage(1) }}>
+                    <SelectTrigger className="flex-1 bg-muted md:w-[140px] md:flex-none">
+                      <SelectValue placeholder="Prioridade" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas</SelectItem>
+                      <SelectItem value="urgent">Urgente</SelectItem>
+                      <SelectItem value="high">Alta</SelectItem>
+                      <SelectItem value="medium">Média</SelectItem>
+                      <SelectItem value="low">Baixa</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {/* Corrigir em lote — ícone no mobile, texto no desktop */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleCorrigirLote(false)}
+                  disabled={isBatchCorrecting}
+                  title="Re-executar Sofia nos últimos 20 tickets abertos — corrige respostas da IA que não batem mais"
+                  className="min-h-[44px] md:min-h-0"
+                >
+                  {isBatchCorrecting ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Wand2 className="h-4 w-4" />
+                  )}
+                  <span className="ml-1 hidden md:inline">Corrigir em lote</span>
+                </Button>
               </div>
             </div>
           </CardHeader>
@@ -204,7 +209,44 @@ export default function TicketsPage() {
               />
             ) : (
               <>
-                <div className="overflow-x-auto">
+                {/* Mobile: lista de cards (< md) */}
+                <div className="flex flex-col gap-2 md:hidden">
+                  {tickets.map((ticket) => (
+                    <button
+                      key={ticket.id}
+                      type="button"
+                      onClick={() => router.push(`/admin/tickets/${ticket.id}`)}
+                      className="w-full rounded-lg border border-border bg-card p-4 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 min-h-[44px]"
+                    >
+                      {/* Linha 1: código + status */}
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-mono text-sm font-bold text-primary">
+                          {ticket.ticket_code}
+                        </span>
+                        <StatusBadge status={ticket.status} />
+                      </div>
+                      {/* Título — até 2 linhas */}
+                      <p className="mt-1.5 line-clamp-2 text-sm font-medium leading-snug">
+                        {ticket.title}
+                      </p>
+                      {/* Linha 3: cliente · produto */}
+                      <p className="mt-1 truncate text-xs text-muted-foreground">
+                        {ticket.customer?.name || '—'}
+                        {ticket.product?.name ? ` · ${ticket.product.name}` : ''}
+                      </p>
+                      {/* Linha 4: prioridade + atualizado */}
+                      <div className="mt-2 flex items-center justify-between gap-2">
+                        <PriorityBadge priority={ticket.priority} />
+                        <span className="text-xs text-muted-foreground">
+                          {formatRelativeTime(ticket.updated_at)}
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Desktop: tabela (>= md) */}
+                <div className="hidden overflow-x-auto md:block">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -271,6 +313,7 @@ export default function TicketsPage() {
                       size="sm"
                       onClick={() => setPage((p) => Math.max(1, p - 1))}
                       disabled={page <= 1}
+                      className="min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0"
                     >
                       <ChevronLeft className="h-4 w-4" />
                     </Button>
@@ -279,6 +322,7 @@ export default function TicketsPage() {
                       size="sm"
                       onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                       disabled={page >= totalPages}
+                      className="min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0"
                     >
                       <ChevronRight className="h-4 w-4" />
                     </Button>

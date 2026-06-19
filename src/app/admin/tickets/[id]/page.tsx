@@ -495,16 +495,29 @@ export default function TicketDetailPage() {
   return (
     <>
       <Header>
+        {/* Botão Voltar — só ícone no mobile para economizar espaço */}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => router.push('/admin/tickets')}
+          aria-label="Voltar para tickets"
+          className="shrink-0 sm:hidden"
+        >
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
         <Button
           variant="ghost"
           size="sm"
           onClick={() => router.push('/admin/tickets')}
+          className="hidden shrink-0 sm:flex"
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
           Voltar
         </Button>
-        <div className="flex items-center gap-2">
-          <span className="font-mono text-sm font-bold text-primary">
+
+        {/* Código + badges: min-w-0 para não estourar no flex (pitfall #7) */}
+        <div className="flex min-w-0 flex-1 items-center gap-1.5 sm:gap-2">
+          <span className="shrink-0 font-mono text-sm font-bold text-primary">
             {ticket.ticket_code}
           </span>
           <StatusBadge status={ticket.status} />
@@ -513,7 +526,7 @@ export default function TicketDetailPage() {
             role="status"
             aria-label={isConnected ? 'Tempo real ativo' : hasConnectionError ? 'Conexão perdida' : 'Reconectando...'}
             title={isConnected ? 'Tempo real ativo' : hasConnectionError ? 'Conexão perdida — usando polling' : 'Reconectando...'}
-            className="flex items-center gap-1"
+            className="shrink-0 flex items-center"
           >
             {isConnected ? (
               <Wifi className="h-4 w-4 text-green-400" aria-hidden="true" />
@@ -523,43 +536,65 @@ export default function TicketDetailPage() {
               <WifiOff className="h-4 w-4 text-muted-foreground animate-pulse motion-reduce:animate-none" aria-hidden="true" />
             )}
           </div>
-          {hasAIMessage && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleCorrigirIA}
-              disabled={isCorrecting}
-              title="Re-executar Sofia e corrigir a resposta da IA se estiver errada"
-              className="text-primary hover:text-primary"
-            >
-              {isCorrecting ? (
-                <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-              ) : (
-                <Wand2 className="mr-1 h-4 w-4" />
-              )}
-              Corrigir com IA
-            </Button>
-          )}
-          {/* Mobile sidebar trigger */}
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="lg:hidden">
-                <PanelRight className="h-4 w-4" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="right" className="w-80 p-0">
-              <SheetHeader className="px-4 pt-4">
-                <SheetTitle>Detalhes do Ticket</SheetTitle>
-              </SheetHeader>
-              <ScrollArea className="h-[calc(100vh-60px)]">
-                {sidebarContent}
-              </ScrollArea>
-            </SheetContent>
-          </Sheet>
         </div>
+
+        {/* Corrigir com IA — ícone no mobile, texto no desktop */}
+        {hasAIMessage && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleCorrigirIA}
+            disabled={isCorrecting}
+            title="Re-executar Sofia e corrigir a resposta da IA se estiver errada"
+            className="shrink-0 text-primary hover:text-primary sm:hidden"
+            aria-label="Corrigir com IA"
+          >
+            {isCorrecting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Wand2 className="h-4 w-4" />
+            )}
+          </Button>
+        )}
+        {hasAIMessage && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleCorrigirIA}
+            disabled={isCorrecting}
+            title="Re-executar Sofia e corrigir a resposta da IA se estiver errada"
+            className="hidden shrink-0 text-primary hover:text-primary sm:flex"
+          >
+            {isCorrecting ? (
+              <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+            ) : (
+              <Wand2 className="mr-1 h-4 w-4" />
+            )}
+            Corrigir com IA
+          </Button>
+        )}
+
+        {/* Mobile sidebar trigger */}
+        <Sheet>
+          <SheetTrigger asChild>
+            <Button variant="ghost" size="icon" className="shrink-0 lg:hidden" aria-label="Detalhes do ticket">
+              <PanelRight className="h-4 w-4" />
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="right" className="w-80 p-0">
+            <SheetHeader className="px-4 pt-4">
+              <SheetTitle>Detalhes do Ticket</SheetTitle>
+            </SheetHeader>
+            {/* 100dvh: dynamic viewport — barra do browser não engole o scroll (pitfall #3) */}
+            <ScrollArea className="h-[calc(100dvh-60px)]">
+              {sidebarContent}
+            </ScrollArea>
+          </SheetContent>
+        </Sheet>
       </Header>
 
-      <div className="flex h-[calc(100vh-64px)]">
+      {/* 100dvh: dynamic viewport height — o teclado virtual no mobile não esconde o input (pitfall #3) */}
+      <div className="flex h-[calc(100dvh-64px)]">
         {/* Main chat area */}
         <div className="flex flex-1 flex-col">
           {/* Messages */}
@@ -645,8 +680,10 @@ export default function TicketDetailPage() {
             </div>
           </ScrollArea>
 
-          {/* Input area */}
-          <div className={`border-t p-4 ${isInternalNote ? 'border-yellow-500/30 bg-yellow-500/5' : 'border-border'}`}>
+          {/* Input area — sticky no rodapé, segue safe-area do iPhone (pitfall #3) */}
+          <div
+            className={`shrink-0 border-t px-4 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] ${isInternalNote ? 'border-yellow-500/30 bg-yellow-500/5' : 'border-border bg-background'}`}
+          >
             <div className="mx-auto max-w-3xl">
               <div className="mb-2 flex items-center gap-3">
                 <Switch
@@ -676,7 +713,8 @@ export default function TicketDetailPage() {
                   ))}
                 </div>
               )}
-              <div className="flex gap-3">
+              <div className="flex gap-2">
+                {/* Coluna de ícones — alvos ≥44px no mobile (pitfall #20) */}
                 <div className="flex flex-col gap-1">
                   <FileUploadButton
                     ticketId={ticketId}
@@ -689,7 +727,7 @@ export default function TicketDetailPage() {
                     onClick={handleSuggest}
                     disabled={isSuggesting || isInternalNote}
                     title="Sugestão da IA"
-                    className="text-primary hover:text-primary"
+                    className="min-h-[44px] min-w-[44px] text-primary hover:text-primary"
                   >
                     {isSuggesting ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -705,12 +743,12 @@ export default function TicketDetailPage() {
                       setQrFilter('')
                     }}
                     title="Respostas prontas"
-                    className={showQuickReplies ? 'text-primary bg-primary/10 hover:text-primary' : 'text-muted-foreground hover:text-foreground'}
+                    className={`min-h-[44px] min-w-[44px] ${showQuickReplies ? 'text-primary bg-primary/10 hover:text-primary' : 'text-muted-foreground hover:text-foreground'}`}
                   >
                     <MessageSquarePlus className="h-4 w-4" />
                   </Button>
                 </div>
-                <div className="relative flex-1">
+                <div className="relative flex-1 min-w-0">
                   {showQuickReplies && (
                     <div className="absolute bottom-full left-0 right-0 mb-1 max-h-48 overflow-y-auto rounded-lg border border-border bg-card shadow-lg z-10">
                       {quickReplies
@@ -767,14 +805,15 @@ export default function TicketDetailPage() {
                       }
                     }}
                     onBlur={() => setShowQuickReplies(false)}
-                    className="min-h-[60px] max-h-[150px] resize-none bg-muted"
+                    className="min-h-[60px] max-h-[150px] resize-none bg-muted text-base"
                     rows={2}
                   />
                 </div>
+                {/* Botão enviar — alvo ≥44px no mobile */}
                 <Button
                   onClick={handleSend}
                   disabled={(!newMessage.trim() && attachments.length === 0) || isSending}
-                  className={isInternalNote ? 'bg-yellow-600 hover:bg-yellow-700' : ''}
+                  className={`min-h-[44px] min-w-[44px] self-end ${isInternalNote ? 'bg-yellow-600 hover:bg-yellow-700' : ''}`}
                 >
                   {isSending ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -783,7 +822,7 @@ export default function TicketDetailPage() {
                   )}
                 </Button>
               </div>
-              <p className="mt-1 text-xs text-muted-foreground">
+              <p className="mt-1 hidden text-xs text-muted-foreground sm:block">
                 {typeof navigator !== 'undefined' && /Mac/i.test(navigator.userAgent) ? '⌘' : 'Ctrl'}+Enter para enviar
               </p>
             </div>
