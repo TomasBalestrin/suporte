@@ -641,3 +641,25 @@ Unifica M3+M4 (`sofia-melhorias-0616`). Spec: `.specs/features/sofia-kb-acesso/s
   - `route.ts`: Causa 2 (injeção `[PRODUTO DO CLIENTE]` no fullSystemPrompt — Sofia para de perguntar "qual produto?") + Causa 6 (linha da tool `escalar_para_humano` sem promessa de e-mail).
 - **PENDENTE usuário**: Causa 5 (link/passo de reembolso PagTrust) + acesso/CLI vercel pro deploy do código.
 - **Rollback**: KB = remover o bloco appendado + regenerar embedding (original em `kb-existente-acesso.md`); prompt = restaurar `system_prompt-LIVE` via PATCH.
+
+## D-20260619-2010: DEPLOY de produção via API da Vercel (decided_by: usuário "pode subir")
+- **Quem**: bruto (deploy) + usuário (GO + token)
+- **Mecanismo NOVO (sem CLI)**: deploy via **API da Vercel** com o node do Cursor + `VERCEL_TOKEN` (vcp_…) pego do `.env.local` do Disparotey. Script: `.specs/features/sofia-kb-acesso/_deploy-vercel.mjs` (enumera por `git ls-files`, exclui `.claude/.specs/e2e/scripts/supabase/...`, sobe 201 arquivos/1.4MB via `/v2/files`, cria deployment `target:production` via `/v13/deployments`). Poll: `_deploy-poll.mjs`. **Isso destrava o L045 pro deploy** (não dependo mais do `vercel --prod` na máquina do dono nem do push).
+- ⚠️ Pegadinha pega no DRY: a varredura ingênua pegava `.claude/.../.mcp-venv` + modelo ONNX (12k arquivos/489MB). `git ls-files` resolve (respeita .gitignore).
+- **Deployment**: `dpl_4QVbP5GBspGmge6HXXXPMjwuxrzK` → **READY**, alias `suporte-amber.vercel.app`. Build ~30s. Rollback 1-clique.
+- **AGORA LIVE em prod (código)**: Causa 2 (injeção `[PRODUTO DO CLIENTE]` — Sofia para de perguntar "qual produto?") + Causa 6-tool (linha da tool de escalar sem e-mail) + **P0 mobile-first** (lista→cards, chat 100dvh/safe-area, login text-base). Commits `fdd1d61` + `14c5118`.
+- **Pendências**: (1) **verificação visual do mobile no celular do dono** (FileUploadButton/AttachmentPreview a checar no device); (2) **Causa 5 PagTrust** — falta o link de reembolso do dono; (3) L045 — `main` ~22 commits à frente do origin (push segue travado; deploy agora é via API, então não bloqueia mais, mas o git diverge).
+
+## ⭐ RETOMAR DAQUI (2026-06-19, fim do dia — 🔪 Bruto)
+**Entregue hoje (tudo em PROD):**
+- Review das conversas 18-19/06 → 6 causas-raiz → corrigidas. KB (P4/P3/P1a augmentadas, verificado ≥0.6) + system_prompt (sem promessa de e-mail) via service-role; código (Causa 2 = injeção `[PRODUTO DO CLIENTE]` no LLM; Causa 6 = tool sem e-mail) + **P0 mobile-first** via deploy.
+- **Deploy via API da Vercel (mecanismo novo — destrava L045)**: `_deploy-vercel.mjs` (enumera por `git ls-files`, sobe via `/v2/files`, cria `/v13/deployments target:production`) + `_deploy-poll.mjs`. Token: `VERCEL_TOKEN` (vcp_) do `.env.local` do **Disparotey**. Último deploy: `dpl_GDsrvGehYAJxjW74KzXFExW4rY74` (alias `suporte-amber.vercel.app`).
+- **Mobile P0**: lista de tickets→cards, chat `100dvh`+safe-area, login `text-base`. **Fix do input flutuante**: `<ScrollArea>` do Radix não crescia na coluna flex → trocado por `div` puro `flex-1 min-h-0 overflow-y-auto` (prende a barra no rodapé, estilo app). Commits `fdd1d61`/`14c5118`/`673a446`.
+
+**PENDENTE (começar por aqui amanhã):**
+1. **Confirmar o chat mobile no celular do Eduardo** (print anterior mostrava input flutuando). Se AINDA flutuar após o fix → suspeito = `100dvh` não resolve no Android dele → trocar por **altura medida via JS** (não dvh). Verificar também o layout interno do input (ícones anexo/IA/atalho + botão enviar) e `FileUploadButton`/`AttachmentPreview` no device.
+2. **Causa 5 — PagTrust**: aguardando o Eduardo passar o link/passo de reembolso do PagTrust → entra na tool `orientar_reembolso` + KB (hoje a Sofia escala em loop sem dar o link).
+3. **Mobile ondas P1/P2**: dashboard/clientes (P1), settings/analytics (P2) — depois do P0 validado no device.
+4. **L045**: `main` ~24 commits à frente do origin (push travado no `TomasBalestrin/suporte`). Deploy agora é via API (não bloqueia mais), mas o git diverge — destravar o push uma hora.
+
+**Como deployar amanhã**: `DEPLOY=1` + node do Cursor em `_deploy-vercel.mjs`, depois `_deploy-poll.mjs <id>`. (Node NÃO está no PATH — usar `C:\Users\lluys\AppData\Local\Programs\cursor\resources\app\resources\helpers\node.exe`.)
