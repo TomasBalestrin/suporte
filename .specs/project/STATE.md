@@ -727,3 +727,10 @@ Cross-repo, ⭐ Luz Estrela APROVADO (pegou um caminho secundário no 1º round;
 2. **[DEPLOY, GO do Eduardo]** SUPORTE (`vercel --prod` OU `_deploy-vercel.mjs`) com Pacote D + Fix #4 — **stashar o WIP de Atendimento antes** (L060: dirty tree arrasta lixo / quebra build). Fluxon (`npx vercel --prod`) com Fix #4 + env Julia.
 3. **[WIP não commitado] Feature "Atendimento"** — selo Sofia/humano + filtro na lista de tickets (`AtendimentoBadge.tsx` + `admin/tickets` + `types.ts`). Quase pronta, sem review/verificação. Retomar quando quiser.
 4. **[débitos]** Provisão parcial Cleiton (cross-repo Fluxon); Pacote B (augmentar 2 gaps); Mobile P1/P2; `route.ts.backup` é arquivo morto pré-fix (Luz Estrela sugeriu apagar — decisão do Eduardo).
+
+## ✅ FECHADO E VALIDADO EM PROD (2026-07-06 14:48 — 🔪 Bruto)
+- **Julia** — raiz REAL = `WP_JULIA_USERNAME` era o slug (`suporte-julia-ottoni`); o WP autentica pelo **e-mail** `suportejuliaottoni@gmail.com`. Env corrigido na Vercel (production) + app password nova (Eduardo gerou). Fluxon redeployado (`dpl_DVtHCtJ3h6jdtcpxUeBWRjMEQJTf` READY). **Smoke E2E prod**: `consultar-acesso` → `encontrado_em:julia, senha_confirmada:true` (antes "nenhuma"). Sofia enxerga/reseta Julia. **FECHADO.**
+- **Pacote D** — SUPORTE deployado (`dpl_2MnsCfvjHCRjbQzhPW7NLzAbVCsS` READY, suporte-amber). **Smoke E2E prod**: escalação forçada → `ai_unanswered_questions` gravou (question+context); dado de teste limpo. Tabela cega desde 13/05 voltou a medir.
+- **Fix #4** — no ar nos 2 repos (Fluxon `29f8e7b` + SUPORTE `8adcb35`); `senha_confirmada` aparece no retorno = prova de que está ativo.
+- **Deploy do SUPORTE**: WIP de Atendimento stashed durante o deploy (L060) e restaurado (`git stash pop`) — segue no working tree, não commitado.
+- **Débito de config (novo)**: o env WP_JULIA_USERNAME antigo (slug) era inválido desde sempre — qualquer outra integração que dependa da app password da Julia com esse username também estava quebrada. Agora usa e-mail.
