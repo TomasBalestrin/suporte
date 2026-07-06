@@ -50,6 +50,13 @@ async function consultar_wordpress(email: string) {
     })
     if (!wpRes.ok) return `Erro na API do WP: ${wpRes.statusText}`
     const wp = await wpRes.json()
+    // Fix #4 (par do fetchWpContext): se o reset da senha não aplicou (senha_confirmada:false),
+    // o JSON cru não basta — o LLM pode afirmar a senha assim mesmo. Anexa instrução proeminente.
+    const senhaNaoConfirmada = wp?.dados?.senha_confirmada === false
+      || (Array.isArray(wp?.dados_ambas) && wp.dados_ambas.some((d: { senha_confirmada?: boolean }) => d?.senha_confirmada === false))
+    if (senhaNaoConfirmada) {
+      return JSON.stringify({ ...wp, INSTRUCAO_OBRIGATORIA: 'A senha NAO foi confirmada (o reset falhou). NAO diga ao cliente que a senha e X — pode nao estar aplicada. Oriente-o a usar "Esqueci minha senha" na URL da area de membros, ou escale para atendimento humano. Veja o campo "aviso".' })
+    }
     return JSON.stringify(wp)
   } catch (err) {
     return `Erro ao consultar WordPress: ${err instanceof Error ? err.message : String(err)}`
@@ -67,11 +74,17 @@ async function fetchWpContext(email: string): Promise<string | null> {
     })
     if (!wpRes.ok) return null
     const wp = await wpRes.json()
+    // senha_confirmada:false = o reset da senha padrao falhou no WP → NÃO afirmar a senha
+    // (fix #4, par do wordpress-client.ts): sem isso a Sofia promete uma senha não aplicada.
+    const linhaSenha = (d: { senha_lembrete?: string; senha_confirmada?: boolean; aviso?: string }) =>
+      d.senha_confirmada === false
+        ? `senha NAO confirmada — ${d.aviso || 'oriente "Esqueci minha senha" ou escale'}`
+        : `senha: ${d.senha_lembrete}`
     if (wp.encontrado_em === 'julia' || wp.encontrado_em === 'cleiton') {
       const d = wp.dados
-      return `\n- Area: ${d.area} | URL: ${d.url_area_membros}\n- Email: ${d.email}\n- Senha: ${d.senha_lembrete}\n(Use como lembrete da senha — NUNCA diga "resetei sua senha".)`
+      return `\n- Area: ${d.area} | URL: ${d.url_area_membros}\n- Email: ${d.email}\n- ${linhaSenha(d)}\n(Quando a senha estiver confirmada, use como lembrete — NUNCA diga "resetei sua senha".)`
     } else if (wp.encontrado_em === 'ambas') {
-      const itens = wp.dados_ambas.map((d: { area: string; url_area_membros: string; senha_lembrete: string }) => `${d.area}: ${d.url_area_membros} | senha: ${d.senha_lembrete}`).join(' | ')
+      const itens = wp.dados_ambas.map((d: { area: string; url_area_membros: string; senha_lembrete?: string; senha_confirmada?: boolean; aviso?: string }) => `${d.area}: ${d.url_area_membros} | ${linhaSenha(d)}`).join(' | ')
       return `\nEncontrado em AMBAS as areas — pergunte qual produto antes de mandar credenciais. Opcoes: ${itens}`
     }
     return null
@@ -101,7 +114,7 @@ const TOOLS = [
     type: 'function',
     function: {
       name: 'consultar_wordpress',
-      description: 'Verifica se o cliente tem conta nas areas de membros (Tutor LMS) e gera uma senha temporaria/lembrete de acesso. Use se o cliente disser que perdeu a senha ou o acesso ao portal.',
+      description: 'Verifica se o cliente tem conta nas areas de membros (Tutor LMS) e gera uma senha temporaria/lembrete de acesso. Use se o cliente disser que perdeu a senha ou o acesso ao portal. IMPORTANTE: se o retorno trouxer senha_confirmada:false, um campo "aviso" ou "INSTRUCAO_OBRIGATORIA", NAO afirme a senha ao cliente — siga o aviso (oriente "Esqueci minha senha" na URL da area, ou escale para humano).',
       parameters: {
         type: 'object',
         properties: {
