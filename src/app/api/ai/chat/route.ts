@@ -156,7 +156,7 @@ const TOOLS = [
     type: 'function',
     function: {
       name: 'escalar_para_humano',
-      description: 'Abre um ticket de atendimento humano. Chame SEMPRE que decidir encaminhar o cliente para a equipe — NUNCA diga ao cliente que vai encaminhar/abrir ticket sem chamar esta ferramenta. Use quando: reembolso/pagamento, o produto mencionado nao consta nas compras, o cliente pediu humano explicitamente, ou o cliente ainda nao resolveu DEPOIS do troubleshooting. NAO use so porque a confianca esta baixa nem antes de tentar resolver com o que voce tem.',
+      description: 'Abre um ticket de atendimento humano. Chame SEMPRE que decidir encaminhar o cliente para a equipe — NUNCA diga ao cliente que vai encaminhar/abrir ticket sem chamar esta ferramenta. Use quando: o produto mencionado nao consta nas compras, o cliente pediu humano explicitamente, problema de pagamento, ou o cliente ainda nao resolveu DEPOIS do troubleshooting. Para REEMBOLSO, NAO escale no pedido simples (use orientar_reembolso e responda voce mesma) — escale reembolso SO se ja passou dos 7 dias, ja solicitou e nao recebeu, ou ha fraude/propaganda enganosa/juridico. NAO use so porque a confianca esta baixa nem antes de tentar resolver com o que voce tem.',
       parameters: {
         type: 'object',
         properties: {
@@ -522,6 +522,27 @@ NUNCA diga que nao encontrou nada sem usar as ferramentas primeiro.`
       }
     }
 
+    // ─── Pacote D (medição): registra a pergunta não-resolvida quando a Sofia escala ───
+    // Religa ai_unanswered_questions (congelada desde 13/05 — o "Sofia v2 Refactor" largou
+    // o insert). Sinal = escalação (a Sofia decidiu que não resolve sozinha), NÃO confiança
+    // baixa do RAG (que dá falso-miss quando ela resolve via Fluxon). O motivo vai em
+    // `context` pra análise offline separar miss de KB (acesso/técnico) de escalação legítima
+    // (reembolso/pediu-humano). ticket_id linka ao ticket auto-criado (null = escalou mas o
+    // ticket não nasceu = sinal de dead-end). Non-blocking: medição nunca derruba a resposta.
+    if (escalationRequested) {
+      try {
+        await supabase.from('ai_unanswered_questions').insert({
+          question: lastMessageContent,
+          ticket_id: escalatedTicket?.ticket_id ?? null,
+          context: [escalationMotivo, escalationResumo].filter(Boolean).join(' · ') || null,
+          similarity_score: bestSimilarity,
+          closest_article_id: (articles?.[0] as { id?: string } | undefined)?.id ?? null,
+        })
+      } catch (err) {
+        console.error('[ai/chat] Falha ao registrar unanswered (Pacote D):', err)
+      }
+    }
+
     // ─── Telegram do dono: AVISO sem PII + link pro painel (non-blocking) ───
     // Privacy-safe (decisão do dono): NÃO manda CPF/e-mail/telefone nem o conteúdo do
     // chat (que pode conter PII) — só evento + produto + confiança + link pro /admin.
@@ -567,7 +588,15 @@ async function executarLegacyTool(name: string, args: any, ctx: any) {
     return JSON.stringify(await res.json())
   }
   if (name === 'orientar_reembolso') {
-    return JSON.stringify({ ok: true, instrucao: "Reembolso e solicitado DIRETO na plataforma de compra (Hotmart ou PagTrust), nao pelo suporte da Bethel. Oriente o cliente a abrir a solicitacao de reembolso na propria plataforma onde comprou. NAO afirme prazo (ex.: '7 dias') — voce nao tem a data da compra. Em seguida, escale chamando escalar_para_humano para a equipe acompanhar." })
+    const HOTMART = 'https://help.hotmart.com/pt-br/article/360061973392/como-solicitar-o-reembolso-da-minha-compra'
+    const PAGTRUST = 'https://dashboard.pagtrust.com.br/reembolso.html'
+    const plat = String(args?.plataforma || 'desconhecida')
+    const link = plat === 'hotmart'
+      ? `Hotmart: ${HOTMART}`
+      : plat === 'pagtrust'
+        ? `PagTrust: ${PAGTRUST}`
+        : `Hotmart: ${HOTMART} | PagTrust: ${PAGTRUST} (passe o link da plataforma onde o cliente comprou; na duvida, ofereca os dois)`
+    return JSON.stringify({ ok: true, instrucao: `Para PEDIDO SIMPLES de reembolso: RESPONDA VOCE MESMA, nao escale. O reembolso e solicitado DIRETO na plataforma de compra (a Bethel nao processa pelo suporte). Passe o link oficial -> ${link}. Diga a politica geral (prazo de ate 7 dias apos a data da compra), mas NAO afirme que o cliente especifico esta dentro do prazo (voce nao tem a data). SO escale (escalar_para_humano) se: o cliente disser que JA passou dos 7 dias, que JA solicitou e o estorno nao chegou, ou se houver sinais de fraude/propaganda enganosa/juridico.` })
   }
   return "Tool desconhecida"
 }
