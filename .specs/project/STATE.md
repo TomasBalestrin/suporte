@@ -663,3 +663,67 @@ Unifica M3+M4 (`sofia-melhorias-0616`). Spec: `.specs/features/sofia-kb-acesso/s
 4. **L045**: `main` ~24 commits à frente do origin (push travado no `TomasBalestrin/suporte`). Deploy agora é via API (não bloqueia mais), mas o git diverge — destravar o push uma hora.
 
 **Como deployar amanhã**: `DEPLOY=1` + node do Cursor em `_deploy-vercel.mjs`, depois `_deploy-poll.mjs <id>`. (Node NÃO está no PATH — usar `C:\Users\lluys\AppData\Local\Programs\cursor\resources\app\resources\helpers\node.exe`.)
+
+## D-20260626-XXXX: re-diagnose produto IA (113 abertos) — corte 0.6 ainda vaza (🔪 Bruto)
+- **Quem**: bruto (re-investigação a pedido do usuário "ver reclamações do produto IA / problemas em aberto")
+- **Escopo**: produto `Implementacao da Ferramenta de Inteligencia Artificial` (id `a2000000-...-005`). 214 tickets total, **113 EM ABERTO** (38 open + 44 in_progress + 31 awaiting_customer). Categorias: ~½ reembolso/cancelamento, ~¼ acesso/login, ~12% técnico NextApp, resto expectativa/combo/loop.
+- **Reconhecimento do trabalho de 19/06**: KB augmentada + system_prompt limpo + Causa 2 (injeção `[PRODUTO]`) JÁ estão LIVE e ajudaram (ia-não-funciona 0.696, acesso 0.617, senha 0.601, reembolso 0.605 hoje passam).
+- **PROVA NOVA (`_reprobe-ia-2606.mjs`, retrieval prod-like COM prefixo de produto)**: **6/10 clusters ainda FALHAM no corte 0.6** — vários em 0.575–0.592 (logo abaixo): número-fixo/OTP 0.592, nunca-recebi/pix 0.589, email-inválido 0.575, expectativa/cancel 0.575, combo-1de4 0.537, questionário-loop 0.502.
+- **Achado 1 — corte mal calibrado**: 0.6 corta 4 clusters de alto volume que estão a <0.03 da linha. **0.55 recupera número-fixo, email-inválido, nunca-recebi, expectativa**; faixa 0.55–0.6 só traz artigo do tema certo. (Migration 009 já quis 0.5; alguém pôs 0.6. `knowledge_base_threshold=0.7` é config MORTA — código lê `confidence_threshold`.)
+- **Achado 2 — injeção de produto é faca de 2 gumes**: pra troubleshooting específico, prefixar o nome do produto genérico PUXA o FAQ genérico e DERRUBA o artigo específico (número-fixo: certo perdeu pro FAQ; nunca-recebi 0.607→0.589; reembolso 0.686→0.605). A Causa 2 ajuda caso genérico mas prejudica caso específico.
+- **Gaps de conteúdo reais (não é só threshold)**: `questionário em loop` (0.502, nenhum artigo cobre o re-preenchimento do formulário) e `combo 4 cursos só liberou 1` (0.537).
+- **Medição cega**: `ai_unanswered_questions` NÃO é mais populado pelo route.ts atual (só dados históricos) → hoje não dá pra medir miss-rate da Sofia.
+- **Recomendação Bruto (hybrid, pendente GO do usuário)**: (A) `confidence_threshold` 0.6→0.55 [config, instantâneo, reversível 1-clique]; (B) augmentar 2 gaps reais (questionário-loop, combo) pelo método 19/06 (UPDATE content + embedding=NULL + regen); (C) Causa 5 PagTrust (pendente de 19/06; reembolso = 52/113 = maior balde); (D) religar insert em `ai_unanswered_questions` no branch de escalação (medição). Considerar limitar injeção de produto pra intents de troubleshooting.
+- **Scripts read-only deixados**: `.specs/features/sofia-kb-acesso/_reprobe-ia-2606.mjs`; em `scripts/`: `_reclamacoes-ia-aberto.ps1`, `_categorizar-ia-aberto.ps1`, `_confirma-sofia.ps1`, `_rag-threshold-probe.ps1`, `_kb-saude.ps1`.
+
+## D-20260626-2130: C+A aplicados em prod — Sofia para de escalar reembolso simples (decided_by: usuário "C+A" + "os dois")
+- **Quem**: bruto (execução medida) + usuário (GO explícito em cada write via AskUserQuestion; classifier barrou 4x até o GO).
+- **Frente escolhida**: código (Sofia parar de vazar ticket) → pacote **C (reembolso)** + **A (corte 0.55)**.
+- **Causa-raiz do reembolso (52/113)**: escalação HARDCODED em 2 lugares — system_prompt linha 24 ("reembolso → ESCALAÇÃO IMEDIATA") + tool `orientar_reembolso` (route.ts:570) que mandava "em seguida escale" e **não carregava os links**. KB já tinha os links (quick_replies + artigos ativos), mas o prompt/tool venciam → todo reembolso virava ticket humano.
+- **GRAVADO em prod (ai_config, vale na hora — Sofia lê em runtime)**:
+  - `confidence_threshold` **0.6 → 0.55** (A). Probe prod-like: recuperou **4→8/10 clusters** (número-fixo, email-inválido, nunca-recebi, expectativa entraram). Restam 2 gaps de conteúdo (combo 0.537, questionário-loop 0.502 = pacote B, não pedido).
+  - `system_prompt` (C): regra de reembolso virou condicional (responde o link sozinha p/ pedido simples; escala SÓ fora-do-prazo / já-pediu-não-veio / fraude/propaganda enganosa). Depois refinada p/ forçar `orientar_reembolso` + colar URL completa. 11093 → 11664 chars. Backup: `system_prompt-LIVE-2026-06-26.txt` + `threshold-LIVE-2026-06-26.txt`.
+- **DEPLOYADO (route.ts, `dpl_2N9TQ75HYgN1dt9Kq1FW2XYUzFsz` READY, alias suporte-amber)**:
+  - `orientar_reembolso` agora devolve os links determinísticos (Hotmart `help.hotmart.com/.../360061973392`, PagTrust `dashboard.pagtrust.com.br/reembolso.html`) + instrução "não escale pedido simples".
+  - `escalar_para_humano` description: removido reembolso da lista de escala automática (só edge cases).
+- **VERIFICADO (E2E local, gpt-4o-mini + prompt vivo + tools novas, `_e2e-reembolso.mjs`)**: reembolso simples → entrega URL sem escalar (2/2) ✅; "quero cancelar" → retenção 1x antes do link (por design) ✅; fora-do-prazo + propaganda enganosa → escala ✅✅.
+- **Achado lateral (débito)**: a injeção de produto (`[Produto:X]`, Causa 2 de 19/06) às vezes ATRAPALHA o troubleshooting específico (puxa o FAQ genérico, derruba o artigo certo; ex.: número-fixo, nunca-recebi). Considerar não-prefixar p/ intents específicos.
+- **NÃO resolve**: os 113 tickets JÁ abertos (precisam de ops — responder/reembolsar/liberar/fechar). Este fix impede o PRÓXIMO fluxo de reembolso de virar ticket.
+- **Pendente (não pedido)**: B (augmentar combo + questionário-loop), D (religar `ai_unanswered_questions` p/ medir miss-rate), fila ops dos 113, auto-close de ticket resolvido.
+- **Rollback**: ai_config = restaurar backups (PATCH system_prompt + threshold); route.ts = redeploy do commit anterior / promover deployment anterior na Vercel (1-clique).
+- **Scripts read-only deixados**: `_reprobe-ia-2606.mjs`, `_e2e-reembolso.mjs`, `reembolso-apply.mjs`, `refine-reembolso-prompt.mjs` (feature); `scripts/_reclamacoes-ia-aberto.ps1`, `_categorizar-ia-aberto.ps1`, `_confirma-sofia.ps1`, `_rag-threshold-probe.ps1`, `_kb-saude.ps1`, `_reembolso-fonte.ps1`.
+
+---
+
+# ⭐ RETOMAR DAQUI (2026-07-06 — 🔪 Bruto)
+
+## Verificação dos 3 pacotes pendentes (pedido do Eduardo: "veja se já não foram resolvidos")
+Medido no sistema VIVO (não no STATE): **os 3 seguem ABERTOS.**
+- **Pacote B (gaps de KB)** — combo `0.537` + questionário-loop `0.502` furam o corte 0.55, número idêntico a 26/06. Ninguém augmentou. (probe `_reprobe-ia-2606.mjs`, corte 0.55 confirmado VIVO: 8/10 clusters passam.)
+- **Pacote D (medição)** — `ai_unanswered_questions` congelada desde 13/05; `route.ts` sem insert. → **RESOLVIDO nesta sessão** (abaixo).
+- **Mobile P1/P2** — dashboard/customers/customers[id]/analytics + settings(products/users/categories/quick-replies) = tabela desktop crua sem cards. Só `sla/tags/ai` ok. `settings/page` é redirect. (Explore mapeou; padrão a replicar = `tickets/page.tsx:226-325`.)
+- Fila cresceu: **118 tickets IA abertos** (era 113), 251 geral.
+
+## ✅ Pacote D — religado (commit `16db5bf`, APROVADO, DEPLOY PENDENTE)
+`route.ts`: insert em `ai_unanswered_questions` no branch de escalação (`escalationRequested`) — question + context(motivo) + ticket_id + similarity + closest_article_id; non-blocking. Inclui housekeeping do reembolso de 26/06 (mesmo arquivo, já em prod). ⭐ Luz Estrela APROVADO COM RESSALVA (ao ler a métrica, segmentar por `context` — reembolso/pediu-humano ≠ miss-de-KB). tsc 0, vitest 129/129.
+- **PENDENTE**: `vercel --prod` (GO do Eduardo). Sem deploy, a tabela continua sem popular.
+
+## 🔴 Diagnóstico "senha errada mesmo com senha padrão" (Julia + Cleiton) — reproduzido AO VIVO
+Cliente paga, pega login+senha, não entra. Fonte da senha = Fluxon `consultar_wordpress` → `/api/support/wordpress/consultar-acesso` (que RESETA a senha pra padrão via `setarSenhaPadrao` e comunica como lembrete). Achados (teste ao vivo no WP, GO do Eduardo):
+1. **🔴 Julia — app password INVÁLIDA** (`WP_JULIA_USERNAME=suporte-julia-ottoni` → `rest_not_logged_in`). A Sofia opera **anônima** na Julia → `buscarAlunoWP('julia')` sempre vazio → nunca acha/reseta. **Raiz do lado Julia.** Fix = regenerar Application Password de um admin no `juliaacademy.com.br` + atualizar env Fluxon + redeploy. **[AÇÃO EDUARDO — pendente]**
+2. **🟢 Cleiton — saudável** (admin `carla123`, reset HTTP 200, login por e-mail + `performance123` ENTRA). Provado com `adrianomalafaia` (acesso consertado no teste).
+3. Contas Julia logam com e-mail + `ottoni123` (senha padrão certa; WP aceita e-mail — confirmado com Eduardo e ao vivo).
+4. **🟠 Provisão parcial Cleiton** — 3 de 6 clientes reclamando NÃO têm conta no WP (compra não provisionou / e-mail divergente). Débito próprio (investigar webhook de compra do Fluxon).
+5. **🟠 Bug de código #4** — `consultarAcessoAluno` (Fluxon) descartava o resultado do reset e sempre afirmava a senha. → **CORRIGIDO** (abaixo).
+
+## ✅ Fix #4 — Sofia não promete senha que o reset não aplicou (APROVADO, DEPLOY PENDENTE)
+Cross-repo, ⭐ Luz Estrela APROVADO (pegou um caminho secundário no 1º round; the-boys-verify verde nos 2 repos).
+- **Fluxon** (commit `29f8e7b`, branch `feat/fluxo-followup`): `wordpress-client.ts` — `montarDados` marca `senha_confirmada:false` + `aviso` quando o reset falha (mantém `senha_lembrete` compat); ramo `ambas` em `Promise.all`. `sofia/tools.ts` — description instrui a Sofia a seguir o aviso.
+- **SUPORTE** (commit `8adcb35`, main): `route.ts` — `fetchWpContext`/`linhaSenha` (pre-fetch) + `consultar_wordpress` (tool call) anexam `INSTRUCAO_OBRIGATORIA` quando senha não confirmada. Ambos os caminhos cobertos.
+- **PENDENTE**: deploy dos 2 lados. Fluxon idealmente junto com a app password nova da Julia.
+
+## Pendências (ordem)
+1. **[EDUARDO] Application Password nova da Julia** (admin) → me passar user+senha → eu atualizo `WP_JULIA_USERNAME`/`WP_JULIA_APP_PASSWORD` no Fluxon + deploy + re-teste ao vivo.
+2. **[DEPLOY, GO do Eduardo]** SUPORTE (`vercel --prod` OU `_deploy-vercel.mjs`) com Pacote D + Fix #4 — **stashar o WIP de Atendimento antes** (L060: dirty tree arrasta lixo / quebra build). Fluxon (`npx vercel --prod`) com Fix #4 + env Julia.
+3. **[WIP não commitado] Feature "Atendimento"** — selo Sofia/humano + filtro na lista de tickets (`AtendimentoBadge.tsx` + `admin/tickets` + `types.ts`). Quase pronta, sem review/verificação. Retomar quando quiser.
+4. **[débitos]** Provisão parcial Cleiton (cross-repo Fluxon); Pacote B (augmentar 2 gaps); Mobile P1/P2; `route.ts.backup` é arquivo morto pré-fix (Luz Estrela sugeriu apagar — decisão do Eduardo).
