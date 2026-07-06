@@ -734,3 +734,33 @@ Cross-repo, ⭐ Luz Estrela APROVADO (pegou um caminho secundário no 1º round;
 - **Fix #4** — no ar nos 2 repos (Fluxon `29f8e7b` + SUPORTE `8adcb35`); `senha_confirmada` aparece no retorno = prova de que está ativo.
 - **Deploy do SUPORTE**: WIP de Atendimento stashed durante o deploy (L060) e restaurado (`git stash pop`) — segue no working tree, não commitado.
 - **Débito de config (novo)**: o env WP_JULIA_USERNAME antigo (slug) era inválido desde sempre — qualquer outra integração que dependa da app password da Julia com esse username também estava quebrada. Agora usa e-mail.
+
+---
+
+# ⭐ Fila de suporte — mutirão de resolução (2026-07-06, tarde — 🔪 Bruto)
+
+Pedido do Eduardo: "consegue buscar e resolver os casos pendentes?". Interpretado (confirmado pela fila viva): a **fila ops de tickets IA abertos** represados enquanto o mecanismo estava quebrado — não os débitos técnicos. Fila IA: **118 abertos → 99** (−19). Tudo medido por probes read-only (scratchpad) + verificação independente.
+
+## Decisões do usuário (AskUserQuestion)
+- **Acesso → só portal**: reset (Fluxon `consultar-acesso`) + resposta no portal + status `resolved`; sem disparo externo (e-mail morto em prod; WhatsApp recusado p/ não custar/massa).
+- **Reembolso → não toco**: aprovar/negar devolução é do dono. Os ~55 tickets de reembolso/cancelamento (49 no balde + 6 espalhados) ficam intactos.
+
+## ✅ RESOLVIDO — 19 compradores reais destravados (acesso)
+Método por ticket: Fluxon `/api/support/lead` (comprou?) → `consultar-acesso` (reseta senha padrão) → insert `messages` (sender_type agent) + PATCH `tickets` status=resolved. **Verificação independente**: 19/19 status=resolved + última msg agent com a resposta; resolved_at hoje.
+- **15 diretos** (balde Acesso, Julia/Cleiton com conta): 0421 0443 0433 0422 0419 0415 0396 0355 0317 0313 0290 0279 0256 0234 0209.
+- **3 especiais**: 0388 (conta em AMBAS as áreas) · 0385 (conta sob e-mail com typo `icoud.com` sem "l" — informado ao cliente) · 0212 (conta sob `diegho.vendas@` divergente do e-mail do ticket; CPF bate).
+- **1 login puro fora do balde**: 0452 (categoria Uso, mas era senha).
+
+## 🟠 NÃO resolvido — precisa de decisão/ação além de reset (triado, na mesa do Eduardo)
+- **Reembolso/cancelamento (~55)** — decisão do dono (não toco).
+- **Combo não liberado (4 tickets, 2 clientes)**: juliana (0375, 0382) + sarah (0442, 0440) compraram combo de 4 cursos, só 1 liberado na área. = liberação/enrollment (mecanismo desconhecido — Tutor LMS?). Provável mesma raiz do gap "combo 0.537". **Ação: liberar os produtos faltantes / investigar provisão do combo.**
+- **Provisão faltante (conta nunca criada)**: 0230 vanessa (comprou Julia match_cpf, sem conta WP). Débito de provisão parcial confirmado — criar conta manual OU investigar por que a compra não provisionou.
+- **Questionário-loop (0299 + outros)**: responde a pesquisa e o produto não libera. Gap conhecido (0.502). Fluxo do produto (NextApp), não senha.
+- **Técnico/infra**: 0228 "This Account has been suspended" (hosting — meus resets de hoje funcionaram, infra parece de pé; verificar) · 0261 site não abre · 0222 IA configurada não responde · 0397/0339 número FIXO não cadastra (limitação do produto) · 0337 "IA não funciona" · 0195 página de planos não carrega. → dev/infra.
+- **Uso/dúvida (vários)**: "não sei instalar", "como faço a call", "parei no 6º vídeo". → orientação/conteúdo/humano (ou re-rodar a Sofia consertada via `sofia-corrigir-lote`).
+- **Não-compradores (nao_encontrado no Fluxon, vários)**: dizem ter comprado mas Fluxon não acha por email/cpf/telefone → pedir e-mail/CPF exato da compra + plataforma.
+- **Vendas (0431, 0423, 0262)**: "quero comprar" — não é suporte.
+
+## Notas
+- **E-mail morto em prod (RESEND ausente)**: os resolvidos NÃO recebem push; a resposta fica no portal (via access_token). Decisão consciente do dono ("só portal"). Fechar o loop de verdade exigiria religar RESEND ou disparar WhatsApp (Fluxon) — pendente.
+- Scripts read-only/ops no scratchpad: `triagem-2`, `acesso-x-fluxon`, `piloto-consultar`, `resolver-acesso` (APPLY), `resolver-3-especiais`, `verif-e-resto`, `triagem-resto`, `acesso2-detalhe`, `contagem-final`.
