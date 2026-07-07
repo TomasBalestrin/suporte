@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/select'
 import { StatusBadge } from '@/components/common/StatusBadge'
 import { PriorityBadge } from '@/components/common/PriorityBadge'
+import { AtendimentoBadge } from '@/components/common/AtendimentoBadge'
 import { EmptyState } from '@/components/common/EmptyState'
 import { LoadingState } from '@/components/common/LoadingState'
 import { Search, Ticket, ChevronLeft, ChevronRight, AlertTriangle, RefreshCw, Wand2, Loader2 } from 'lucide-react'
@@ -40,6 +41,7 @@ export default function TicketsPage() {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [priorityFilter, setPriorityFilter] = useState<string>('all')
+  const [atendimentoFilter, setAtendimentoFilter] = useState<string>('all')
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [total, setTotal] = useState(0)
@@ -87,6 +89,7 @@ export default function TicketsPage() {
       params.set('limit', '20')
       if (statusFilter !== 'all') params.set('status', statusFilter)
       if (priorityFilter !== 'all') params.set('priority', priorityFilter)
+      if (atendimentoFilter !== 'all') params.set('atendimento', atendimentoFilter)
       if (search) params.set('search', search)
 
       const res = await adminFetch(`/api/admin/tickets?${params}`)
@@ -107,7 +110,7 @@ export default function TicketsPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [page, statusFilter, priorityFilter, search])
+  }, [page, statusFilter, priorityFilter, atendimentoFilter, search])
 
   useEffect(() => {
     loadTickets()
@@ -167,6 +170,17 @@ export default function TicketsPage() {
                       <SelectItem value="high">Alta</SelectItem>
                       <SelectItem value="medium">Média</SelectItem>
                       <SelectItem value="low">Baixa</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={atendimentoFilter} onValueChange={(v) => { setAtendimentoFilter(v); setPage(1) }}>
+                    <SelectTrigger className="flex-1 bg-muted md:w-[170px] md:flex-none">
+                      <SelectValue placeholder="Atendimento" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todo atendimento</SelectItem>
+                      <SelectItem value="sofia">🤖 Só Sofia</SelectItem>
+                      <SelectItem value="humano">👤 Teve humano</SelectItem>
+                      <SelectItem value="aguardando">⏳ Cliente aguardando</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -234,7 +248,11 @@ export default function TicketsPage() {
                         {ticket.customer?.name || '—'}
                         {ticket.product?.name ? ` · ${ticket.product.name}` : ''}
                       </p>
-                      {/* Linha 4: prioridade + atualizado */}
+                      {/* Linha 4: atendimento (Sofia/humano + última resposta) */}
+                      <div className="mt-2">
+                        <AtendimentoBadge sofiaOnly={ticket.sofia_only} lastSender={ticket.last_sender} />
+                      </div>
+                      {/* Linha 5: prioridade + atualizado */}
                       <div className="mt-2 flex items-center justify-between gap-2">
                         <PriorityBadge priority={ticket.priority} />
                         <span className="text-xs text-muted-foreground">
@@ -256,6 +274,7 @@ export default function TicketsPage() {
                         <TableHead>Produto</TableHead>
                         <TableHead>Prioridade</TableHead>
                         <TableHead>Status</TableHead>
+                        <TableHead>Atendimento</TableHead>
                         <TableHead>Agente</TableHead>
                         <TableHead>Atualizado</TableHead>
                       </TableRow>
@@ -287,6 +306,9 @@ export default function TicketsPage() {
                           </TableCell>
                           <TableCell>
                             <StatusBadge status={ticket.status} />
+                          </TableCell>
+                          <TableCell>
+                            <AtendimentoBadge sofiaOnly={ticket.sofia_only} lastSender={ticket.last_sender} />
                           </TableCell>
                           <TableCell className="text-muted-foreground">
                             {ticket.assigned_agent?.name || (

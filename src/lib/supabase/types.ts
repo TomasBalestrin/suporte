@@ -615,4 +615,8 @@ export type TicketWithRelations = Ticket & {
   category?: Category | null
   assigned_agent?: User | null
   tags?: Tag[]
+  /** Derivado na listagem: nenhum agente humano respondeu (atendido só pela Sofia) */
+  sofia_only?: boolean
+  /** Derivado na listagem: sender_type da última mensagem ('ai' | 'agent' | 'customer') */
+  last_sender?: string | null
 }
