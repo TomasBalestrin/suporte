@@ -98,7 +98,7 @@ export default function CustomersPage() {
   return (
     <>
       <Header title="Clientes" />
-      <div className="p-6">
+      <div className="p-4 md:p-6">
         <Card className="border-border bg-card">
           <CardHeader>
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -114,7 +114,7 @@ export default function CustomersPage() {
                   placeholder="Buscar por nome, e-mail ou CPF..."
                   value={searchInput}
                   onChange={(e) => handleSearchChange(e.target.value)}
-                  className="bg-muted pl-9 w-[280px]"
+                  className="bg-muted pl-9 w-full sm:w-[280px]"
                 />
               </div>
             </div>
@@ -139,7 +139,50 @@ export default function CustomersPage() {
               />
             ) : (
               <>
-                <div className="overflow-x-auto">
+                {/* Mobile: lista de cards (< md) */}
+                <div className="flex flex-col gap-2 md:hidden">
+                  {customers.map((customer) => (
+                    <button
+                      key={customer.id}
+                      type="button"
+                      onClick={() => router.push(`/admin/customers/${customer.id}`)}
+                      className="w-full rounded-lg border border-border bg-card p-4 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 min-h-[44px]"
+                    >
+                      {/* Avatar + nome + email */}
+                      <div className="flex items-start gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/20 text-sm font-bold text-primary">
+                          {customer.name?.charAt(0)?.toUpperCase() || '?'}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate font-medium text-foreground">{customer.name}</p>
+                          <p className="truncate text-xs text-muted-foreground">{customer.email}</p>
+                        </div>
+                      </div>
+                      {/* Contadores + último contato */}
+                      <div className="mt-3 flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-3 font-mono text-xs tabular-nums">
+                          <span className="inline-flex items-center gap-1 text-muted-foreground">
+                            <Ticket className="h-3.5 w-3.5" aria-hidden />
+                            {customer.ticket_count}
+                          </span>
+                          {customer.open_ticket_count > 0 ? (
+                            <span className="font-semibold text-yellow-500">
+                              {customer.open_ticket_count} abertos
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">0 abertos</span>
+                          )}
+                        </div>
+                        <span className="text-xs text-muted-foreground">
+                          {customer.last_ticket_at ? formatRelativeTime(customer.last_ticket_at) : '-'}
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Desktop: tabela (>= md) */}
+                <div className="hidden overflow-x-auto md:block">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -172,18 +215,18 @@ export default function CustomersPage() {
                           <TableCell className="font-mono text-xs text-muted-foreground">
                             {formatCpf(customer.cpf)}
                           </TableCell>
-                          <TableCell className="text-muted-foreground">
+                          <TableCell className="font-mono text-sm tabular-nums text-muted-foreground">
                             {customer.phone ? formatPhone(customer.phone) : '-'}
                           </TableCell>
                           <TableCell className="text-center">
-                            <span className="inline-flex items-center gap-1">
-                              <Ticket className="h-3.5 w-3.5 text-muted-foreground" />
+                            <span className="inline-flex items-center gap-1 font-mono tabular-nums">
+                              <Ticket className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
                               {customer.ticket_count}
                             </span>
                           </TableCell>
-                          <TableCell className="text-center">
+                          <TableCell className="text-center font-mono tabular-nums">
                             {customer.open_ticket_count > 0 ? (
-                              <span className="font-medium text-yellow-500">{customer.open_ticket_count}</span>
+                              <span className="font-semibold text-yellow-500">{customer.open_ticket_count}</span>
                             ) : (
                               <span className="text-muted-foreground">0</span>
                             )}
@@ -208,6 +251,8 @@ export default function CustomersPage() {
                       size="sm"
                       onClick={() => setPage((p) => Math.max(1, p - 1))}
                       disabled={page <= 1}
+                      aria-label="Página anterior"
+                      className="min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0"
                     >
                       <ChevronLeft className="h-4 w-4" />
                     </Button>
@@ -216,6 +261,8 @@ export default function CustomersPage() {
                       size="sm"
                       onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                       disabled={page >= totalPages}
+                      aria-label="Próxima página"
+                      className="min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0"
                     >
                       <ChevronRight className="h-4 w-4" />
                     </Button>

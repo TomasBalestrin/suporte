@@ -20,7 +20,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Badge } from '@/components/ui/badge'
+import { StatCard } from '@/components/common/StatCard'
+import { PriorityBadge } from '@/components/common/PriorityBadge'
 import { LoadingState } from '@/components/common/LoadingState'
 import {
   BarChart3,
@@ -28,10 +29,13 @@ import {
   Bot,
   Star,
   Clock,
-  Loader2,
   Download,
   AlertTriangle,
   RefreshCw,
+  LineChart,
+  SmilePlus,
+  Flag,
+  Users,
 } from 'lucide-react'
 import { PRIORITY_LABELS } from '@/lib/utils/constants'
 
@@ -61,6 +65,167 @@ function formatMinutes(minutes: number): string {
   if (minutes >= 1440) return `${Math.floor(minutes / 1440)}d ${Math.floor((minutes % 1440) / 60)}h`
   if (minutes >= 60) return `${Math.floor(minutes / 60)}h ${minutes % 60}m`
   return `${minutes}m`
+}
+
+function formatDay(dateStr: string): string {
+  return new Date(dateStr + 'T12:00:00').toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+  })
+}
+
+/** Arredonda o topo do eixo Y para um valor "limpo" (sempre par → tick do meio inteiro). */
+function niceMax(v: number): number {
+  if (v <= 4) return 4
+  if (v <= 40) return Math.ceil(v / 4) * 4
+  if (v <= 100) return Math.ceil(v / 10) * 10
+  return Math.ceil(v / 50) * 50
+}
+
+const DATA = {
+  blue: '#3b82f6',
+  emerald: '#059669',
+  amber: '#f59e0b',
+  red: '#dc2626',
+  cyan: '#0891b2',
+  grid: 'rgba(30,41,59,.07)',
+} as const
+
+const PRIORITY_BAR: Record<string, string> = {
+  low: '#64748b',
+  medium: DATA.blue,
+  high: DATA.amber,
+  urgent: DATA.red,
+}
+
+/** Gráfico de linha/área SVG: Criados (azul, área) vs Resolvidos (esmeralda, linha). */
+function TicketsChart({ series }: { series: Array<{ date: string; created: number; resolved: number }> }) {
+  const W = 560
+  const H = 210
+  const padL = 30
+  const padR = 12
+  const padT = 14
+  const padB = 26
+  const innerW = W - padL - padR
+  const innerH = H - padT - padB
+  const n = series.length
+
+  const rawMax = Math.max(1, ...series.map((d) => Math.max(d.created, d.resolved)))
+  const top = niceMax(rawMax)
+  const baseY = padT + innerH
+
+  const x = (i: number) => (n <= 1 ? padL + innerW / 2 : padL + (i / (n - 1)) * innerW)
+  const y = (v: number) => padT + innerH - (v / top) * innerH
+
+  const createdPts = series.map((d, i) => `${x(i).toFixed(1)},${y(d.created).toFixed(1)}`).join(' ')
+  const resolvedPts = series.map((d, i) => `${x(i).toFixed(1)},${y(d.resolved).toFixed(1)}`).join(' ')
+  const areaPath =
+    `M ${x(0).toFixed(1)} ${baseY.toFixed(1)} ` +
+    series.map((d, i) => `L ${x(i).toFixed(1)} ${y(d.created).toFixed(1)}`).join(' ') +
+    ` L ${x(n - 1).toFixed(1)} ${baseY.toFixed(1)} Z`
+
+  const gridFracs = [0, 0.25, 0.5, 0.75, 1]
+  const yLabelFracs = [0, 0.5, 1]
+  const xIdx = n <= 1 ? [0] : [0, Math.floor((n - 1) / 2), n - 1]
+
+  const last = n - 1
+  const lastCreated = series[last]
+  const lastResolved = series[last]
+
+  return (
+    <svg
+      viewBox={`0 0 ${W} ${H}`}
+      className="h-auto w-full"
+      role="img"
+      aria-label="Gráfico de tickets criados versus resolvidos por dia no período"
+    >
+      <defs>
+        <linearGradient id="createdArea" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={DATA.blue} stopOpacity="0.20" />
+          <stop offset="100%" stopColor={DATA.blue} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+
+      {/* grid horizontal */}
+      {gridFracs.map((f) => {
+        const gy = padT + innerH - f * innerH
+        return (
+          <line
+            key={f}
+            x1={padL}
+            x2={W - padR}
+            y1={gy}
+            y2={gy}
+            stroke={DATA.grid}
+            strokeWidth={1}
+          />
+        )
+      })}
+
+      {/* rótulos eixo Y */}
+      {yLabelFracs.map((f) => {
+        const val = Math.round(top * f)
+        return (
+          <text
+            key={f}
+            x={padL - 7}
+            y={padT + innerH - f * innerH + 3}
+            textAnchor="end"
+            className="font-mono tabular-nums"
+            fontSize={10}
+            fill="rgba(17,24,39,0.50)"
+          >
+            {val}
+          </text>
+        )
+      })}
+
+      {/* área criados */}
+      <path d={areaPath} fill="url(#createdArea)" />
+
+      {/* linha criados */}
+      <polyline
+        points={createdPts}
+        fill="none"
+        stroke={DATA.blue}
+        strokeWidth={2}
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
+      {/* linha resolvidos */}
+      <polyline
+        points={resolvedPts}
+        fill="none"
+        stroke={DATA.emerald}
+        strokeWidth={2}
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
+
+      {/* pontos finais */}
+      {last >= 0 && (
+        <>
+          <circle cx={x(last)} cy={y(lastResolved.resolved)} r={3.4} fill={DATA.emerald} stroke="#fff" strokeWidth={1.5} />
+          <circle cx={x(last)} cy={y(lastCreated.created)} r={3.4} fill={DATA.blue} stroke="#fff" strokeWidth={1.5} />
+        </>
+      )}
+
+      {/* rótulos eixo X */}
+      {xIdx.map((i, k) => (
+        <text
+          key={i}
+          x={x(i)}
+          y={H - 8}
+          textAnchor={k === 0 ? 'start' : k === xIdx.length - 1 ? 'end' : 'middle'}
+          className="font-mono tabular-nums"
+          fontSize={10}
+          fill="rgba(17,24,39,0.50)"
+        >
+          {series[i] ? formatDay(series[i].date) : ''}
+        </text>
+      ))}
+    </svg>
+  )
 }
 
 export default function AnalyticsPage() {
@@ -104,15 +269,18 @@ export default function AnalyticsPage() {
     URL.revokeObjectURL(url)
   }
 
+  const resolutionRate =
+    data && data.totalTickets > 0 ? Math.round((data.resolvedCount / data.totalTickets) * 100) : 0
+
   return (
     <>
       <Header title="Analytics" />
-      <div className="p-6 space-y-6">
+      <div className="space-y-6 p-6">
         {/* Header controls */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-2xl font-bold">Dashboard Analítico</h2>
-            <p className="text-sm text-muted-foreground">
+            <h2 className="text-2xl font-bold text-foreground">Dashboard Analítico</h2>
+            <p className="text-sm text-[var(--text-secondary)]">
               Métricas e performance do sistema de suporte
             </p>
           </div>
@@ -138,8 +306,8 @@ export default function AnalyticsPage() {
           <LoadingState />
         ) : hasError || !data ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">
-            <AlertTriangle className="mb-4 h-10 w-10 text-muted-foreground" />
-            <p className="mb-4 text-muted-foreground">Erro ao carregar dados analíticos</p>
+            <AlertTriangle className="mb-4 h-10 w-10 text-[var(--text-muted)]" />
+            <p className="mb-4 text-[var(--text-secondary)]">Erro ao carregar dados analíticos</p>
             <Button variant="outline" onClick={() => setRetryCount((c) => c + 1)} className="gap-2">
               <RefreshCw className="h-4 w-4" />
               Tentar novamente
@@ -149,196 +317,143 @@ export default function AnalyticsPage() {
           <>
             {/* Top KPI Cards */}
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <Card className="border-border bg-card">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Total de Tickets</p>
-                      <p className="mt-1 text-3xl font-bold">{data.totalTickets}</p>
-                    </div>
-                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-500/10">
-                      <TrendingUp className="h-6 w-6 text-blue-400" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-border bg-card">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Resolvidos</p>
-                      <p className="mt-1 text-3xl font-bold">{data.resolvedCount}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {data.totalTickets > 0 ? Math.round((data.resolvedCount / data.totalTickets) * 100) : 0}% taxa de resolução
-                      </p>
-                    </div>
-                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-green-500/10">
-                      <BarChart3 className="h-6 w-6 text-green-400" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-border bg-card">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Resolvidos por IA</p>
-                      <p className="mt-1 text-3xl font-bold">{data.aiResolvedCount}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {data.aiResolutionRate}% do total
-                      </p>
-                    </div>
-                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-purple-500/10">
-                      <Bot className="h-6 w-6 text-purple-400" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-border bg-card">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">CSAT Médio</p>
-                      <p className="mt-1 text-3xl font-bold">{data.csat.average || '-'}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {data.csat.total} avaliações
-                      </p>
-                    </div>
-                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-yellow-500/10">
-                      <Star className="h-6 w-6 text-yellow-400" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+              <StatCard
+                label="Total de Tickets"
+                value={data.totalTickets}
+                icon={TrendingUp}
+                hint={`Últimos ${data.period} dias`}
+              />
+              <StatCard
+                label="Resolvidos"
+                value={data.resolvedCount}
+                icon={BarChart3}
+                hint={`${resolutionRate}% de resolução`}
+                hintTone="up"
+              />
+              <StatCard
+                label="Resolvidos por IA"
+                value={data.aiResolvedCount}
+                icon={Bot}
+                hint={`${data.aiResolutionRate}% do total`}
+              />
+              <StatCard
+                label="CSAT Médio"
+                value={data.csat.average > 0 ? data.csat.average.toFixed(1) : '—'}
+                icon={Star}
+                hint={`${data.csat.total} avaliações`}
+              />
             </div>
 
             {/* Charts area */}
             <div className="grid gap-4 lg:grid-cols-2">
-              {/* Daily tickets chart (text-based bar chart) */}
-              <Card className="border-border bg-card">
+              {/* Daily tickets — SVG line/area chart */}
+              <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">Tickets por Dia</CardTitle>
-                  <CardDescription>Criados vs Resolvidos</CardDescription>
+                  <CardTitle className="flex items-center gap-2 text-base text-foreground">
+                    <LineChart className="h-4 w-4 text-primary" />
+                    Tickets por Dia
+                  </CardTitle>
+                  <CardDescription className="text-[var(--text-secondary)]">
+                    Criados vs Resolvidos
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-2 max-h-64 overflow-y-auto">
-                    {data.dailyData.slice(-14).map((d) => {
-                      const maxVal = Math.max(
-                        ...data.dailyData.slice(-14).map((dd) => Math.max(dd.created, dd.resolved)),
-                        1
-                      )
-                      return (
-                        <div key={d.date} className="flex items-center gap-3 text-sm">
-                          <span className="w-20 shrink-0 text-xs text-muted-foreground">
-                            {new Date(d.date + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
-                          </span>
-                          <div className="flex-1 space-y-1">
-                            <div className="flex items-center gap-2">
-                              <div
-                                className="h-3 rounded bg-blue-500"
-                                style={{ width: `${(d.created / maxVal) * 100}%`, minWidth: d.created > 0 ? '4px' : '0' }}
-                              />
-                              <span className="text-xs">{d.created}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <div
-                                className="h-3 rounded bg-green-500"
-                                style={{ width: `${(d.resolved / maxVal) * 100}%`, minWidth: d.resolved > 0 ? '4px' : '0' }}
-                              />
-                              <span className="text-xs">{d.resolved}</span>
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                  <div className="mt-3 flex items-center gap-4 text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <div className="h-2 w-2 rounded bg-blue-500" /> Criados
+                  {data.dailyData.length === 0 ? (
+                    <p className="py-8 text-center text-sm text-[var(--text-muted)]">
+                      Sem dados no período
+                    </p>
+                  ) : (
+                    <TicketsChart series={data.dailyData} />
+                  )}
+                  <div className="mt-3 flex items-center gap-4 text-xs text-[var(--text-secondary)]">
+                    <span className="flex items-center gap-1.5">
+                      <span className="h-2 w-2 rounded-full" style={{ background: DATA.blue }} /> Criados
                     </span>
-                    <span className="flex items-center gap-1">
-                      <div className="h-2 w-2 rounded bg-green-500" /> Resolvidos
+                    <span className="flex items-center gap-1.5">
+                      <span className="h-2 w-2 rounded-full" style={{ background: DATA.emerald }} /> Resolvidos
                     </span>
                   </div>
                 </CardContent>
               </Card>
 
               {/* CSAT Distribution */}
-              <Card className="border-border bg-card">
+              <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">Satisfação do Cliente (CSAT)</CardTitle>
-                  <CardDescription>Distribuição de avaliações</CardDescription>
+                  <CardTitle className="flex items-center gap-2 text-base text-foreground">
+                    <SmilePlus className="h-4 w-4 text-primary" />
+                    Satisfação do Cliente (CSAT)
+                  </CardTitle>
+                  <CardDescription className="text-[var(--text-secondary)]">
+                    Distribuição de avaliações
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3">
+                  <div className="space-y-2.5">
                     {[5, 4, 3, 2, 1].map((star) => {
-                      const count = data.csat.distribution[star - 1]
-                      const percentage = data.csat.total > 0
-                        ? Math.round((count / data.csat.total) * 100)
-                        : 0
+                      const count = data.csat.distribution[star - 1] ?? 0
+                      const percentage =
+                        data.csat.total > 0 ? Math.round((count / data.csat.total) * 100) : 0
                       return (
                         <div key={star} className="flex items-center gap-3">
-                          <div className="flex w-14 items-center gap-1">
-                            <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                            <span className="text-sm font-medium">{star}</span>
+                          <div className="flex w-10 shrink-0 items-center gap-1">
+                            <span className="font-mono text-sm font-semibold tabular-nums text-foreground">
+                              {star}
+                            </span>
+                            <Star className="h-3.5 w-3.5 fill-[#f59e0b] text-[#f59e0b]" aria-hidden />
                           </div>
-                          <div className="flex-1 h-4 rounded-full bg-muted">
+                          <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-[rgba(30,41,59,0.06)]">
                             <div
-                              className="h-full rounded-full bg-yellow-500 transition-all"
-                              style={{ width: `${percentage}%` }}
+                              className="h-full rounded-full"
+                              style={{ width: `${percentage}%`, background: DATA.amber }}
                             />
                           </div>
-                          <span className="w-12 text-right text-sm text-muted-foreground">
-                            {count} ({percentage}%)
+                          <span className="w-16 shrink-0 text-right font-mono text-xs tabular-nums text-[var(--text-secondary)]">
+                            {count} · {percentage}%
                           </span>
                         </div>
                       )
                     })}
                   </div>
-                  <div className="mt-4 text-center">
-                    <p className="text-2xl font-bold">
-                      {data.csat.average > 0 ? data.csat.average.toFixed(1) : '-'}
-                      <span className="text-base text-muted-foreground"> / 5.0</span>
+                  <div className="mt-4 border-t border-[var(--hairline)] pt-4 text-center">
+                    <p className="font-mono text-2xl font-bold tabular-nums text-foreground">
+                      {data.csat.average > 0 ? data.csat.average.toFixed(1) : '—'}
+                      <span className="text-base font-normal text-[var(--text-muted)]"> / 5.0</span>
                     </p>
-                    <p className="text-sm text-muted-foreground">{data.csat.total} avaliações no período</p>
+                    <p className="text-sm text-[var(--text-secondary)]">
+                      {data.csat.total} avaliações no período
+                    </p>
                   </div>
                 </CardContent>
               </Card>
 
               {/* Priority Distribution */}
-              <Card className="border-border bg-card">
+              <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">Distribuição por Prioridade</CardTitle>
+                  <CardTitle className="flex items-center gap-2 text-base text-foreground">
+                    <Flag className="h-4 w-4 text-primary" />
+                    Distribuição por Prioridade
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-2 gap-4">
-                    {Object.entries(PRIORITY_LABELS).map(([key, label]) => {
+                  <div className="space-y-3">
+                    {Object.keys(PRIORITY_LABELS).map((key) => {
                       const count = data.priorityCounts[key] || 0
-                      const percentage = data.totalTickets > 0
-                        ? Math.round((count / data.totalTickets) * 100)
-                        : 0
-                      const colors: Record<string, string> = {
-                        low: 'bg-zinc-500',
-                        medium: 'bg-blue-500',
-                        high: 'bg-orange-500',
-                        urgent: 'bg-red-500',
-                      }
+                      const percentage =
+                        data.totalTickets > 0 ? Math.round((count / data.totalTickets) * 100) : 0
                       return (
-                        <div key={key} className="rounded-lg border border-border p-3">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-sm font-medium">{label}</span>
-                            <Badge variant="secondary">{count}</Badge>
+                        <div key={key} className="flex items-center gap-3">
+                          <div className="w-24 shrink-0">
+                            <PriorityBadge priority={key} />
                           </div>
-                          <div className="h-2 rounded-full bg-muted">
+                          <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-[rgba(30,41,59,0.06)]">
                             <div
-                              className={`h-full rounded-full ${colors[key]}`}
-                              style={{ width: `${percentage}%` }}
+                              className="h-full rounded-full"
+                              style={{ width: `${percentage}%`, background: PRIORITY_BAR[key] }}
                             />
                           </div>
-                          <p className="mt-1 text-xs text-muted-foreground">{percentage}%</p>
+                          <span className="w-16 shrink-0 text-right font-mono text-xs tabular-nums text-[var(--text-secondary)]">
+                            {count} · {percentage}%
+                          </span>
                         </div>
                       )
                     })}
@@ -347,54 +462,75 @@ export default function AnalyticsPage() {
               </Card>
 
               {/* Agent Performance */}
-              <Card className="border-border bg-card">
+              <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">Performance dos Agentes</CardTitle>
+                  <CardTitle className="flex items-center gap-2 text-base text-foreground">
+                    <Users className="h-4 w-4 text-primary" />
+                    Performance dos Agentes
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
                   {data.agentPerformance.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-4">
+                    <p className="py-8 text-center text-sm text-[var(--text-muted)]">
                       Nenhum agente com tickets no período
                     </p>
                   ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Agente</TableHead>
-                          <TableHead className="text-center">Tickets</TableHead>
-                          <TableHead className="text-center">Resolvidos</TableHead>
-                          <TableHead className="text-center">Taxa</TableHead>
-                          <TableHead className="text-center">Tempo Médio</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {data.agentPerformance.map((agent) => (
-                          <TableRow key={agent.name}>
-                            <TableCell className="font-medium">
-                              <div className="flex items-center gap-2">
-                                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/20 text-xs font-medium text-primary">
-                                  {agent.name.charAt(0)}
-                                </div>
-                                {agent.name}
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-center">{agent.total}</TableCell>
-                            <TableCell className="text-center">{agent.resolved}</TableCell>
-                            <TableCell className="text-center">
-                              <span className={agent.resolutionRate >= 80 ? 'text-green-400' : agent.resolutionRate >= 50 ? 'text-yellow-400' : 'text-red-400'}>
-                                {agent.resolutionRate}%
-                              </span>
-                            </TableCell>
-                            <TableCell className="text-center">
-                              <div className="flex items-center justify-center gap-1 text-muted-foreground">
-                                <Clock className="h-3 w-3" />
-                                {agent.avgResponseMinutes > 0 ? formatMinutes(agent.avgResponseMinutes) : '-'}
-                              </div>
-                            </TableCell>
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="text-[var(--text-secondary)]">Agente</TableHead>
+                            <TableHead className="text-right text-[var(--text-secondary)]">Tickets</TableHead>
+                            <TableHead className="text-right text-[var(--text-secondary)]">Resolvidos</TableHead>
+                            <TableHead className="text-right text-[var(--text-secondary)]">Taxa</TableHead>
+                            <TableHead className="text-right text-[var(--text-secondary)]">Tempo Médio</TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                        </TableHeader>
+                        <TableBody>
+                          {data.agentPerformance.map((agent) => (
+                            <TableRow key={agent.name}>
+                              <TableCell className="font-medium text-foreground">
+                                <div className="flex items-center gap-2">
+                                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-semibold text-primary">
+                                    {agent.name.charAt(0).toUpperCase()}
+                                  </div>
+                                  <span className="truncate">{agent.name}</span>
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-right font-mono tabular-nums text-foreground">
+                                {agent.total}
+                              </TableCell>
+                              <TableCell className="text-right font-mono tabular-nums text-foreground">
+                                {agent.resolved}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <span
+                                  className="font-mono font-semibold tabular-nums"
+                                  style={{
+                                    color:
+                                      agent.resolutionRate >= 80
+                                        ? '#16a34a'
+                                        : agent.resolutionRate >= 50
+                                          ? '#ca8a04'
+                                          : '#dc2626',
+                                  }}
+                                >
+                                  {agent.resolutionRate}%
+                                </span>
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <div className="flex items-center justify-end gap-1 font-mono tabular-nums text-[var(--text-secondary)]">
+                                  <Clock className="h-3 w-3 shrink-0" aria-hidden />
+                                  {agent.avgResponseMinutes > 0
+                                    ? formatMinutes(agent.avgResponseMinutes)
+                                    : '—'}
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
                   )}
                 </CardContent>
               </Card>

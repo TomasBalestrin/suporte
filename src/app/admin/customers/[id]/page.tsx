@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/table'
 import { StatusBadge } from '@/components/common/StatusBadge'
 import { PriorityBadge } from '@/components/common/PriorityBadge'
+import { StatCard } from '@/components/common/StatCard'
 import { LoadingState } from '@/components/common/LoadingState'
 import {
   ArrowLeft,
@@ -150,7 +151,7 @@ export default function CustomerDetailPage({
           Voltar
         </Button>
       </Header>
-      <div className="space-y-6 p-6">
+      <div className="space-y-6 p-4 md:p-6">
         {/* Customer Info */}
         <Card className="border-border bg-card">
           <CardContent className="p-6">
@@ -167,13 +168,13 @@ export default function CustomerDetailPage({
                   </span>
                   {customer.phone && (
                     <span className="flex items-center gap-1.5">
-                      <Phone className="h-4 w-4" />
-                      {formatPhone(customer.phone)}
+                      <Phone className="h-4 w-4 shrink-0" aria-hidden />
+                      <span className="font-mono tabular-nums">{formatPhone(customer.phone)}</span>
                     </span>
                   )}
                   <span className="flex items-center gap-1.5">
-                    <CreditCard className="h-4 w-4" />
-                    {formatCpf(customer.cpf)}
+                    <CreditCard className="h-4 w-4 shrink-0" aria-hidden />
+                    <span className="font-mono tabular-nums">{formatCpf(customer.cpf)}</span>
                   </span>
                   <span className="flex items-center gap-1.5">
                     <Calendar className="h-4 w-4" />
@@ -200,41 +201,21 @@ export default function CustomerDetailPage({
 
         {/* Stats */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-          <Card className="border-border bg-card">
-            <CardContent className="p-4 text-center">
-              <Ticket className="mx-auto mb-1 h-5 w-5 text-muted-foreground" />
-              <p className="text-2xl font-bold">{stats.total_tickets}</p>
-              <p className="text-xs text-muted-foreground">Total de tickets</p>
-            </CardContent>
-          </Card>
-          <Card className="border-border bg-card">
-            <CardContent className="p-4 text-center">
-              <Ticket className="mx-auto mb-1 h-5 w-5 text-yellow-500" />
-              <p className="text-2xl font-bold">{stats.open_tickets}</p>
-              <p className="text-xs text-muted-foreground">Abertos</p>
-            </CardContent>
-          </Card>
-          <Card className="border-border bg-card">
-            <CardContent className="p-4 text-center">
-              <CheckCircle className="mx-auto mb-1 h-5 w-5 text-green-500" />
-              <p className="text-2xl font-bold">{stats.resolved_tickets}</p>
-              <p className="text-xs text-muted-foreground">Resolvidos</p>
-            </CardContent>
-          </Card>
-          <Card className="border-border bg-card">
-            <CardContent className="p-4 text-center">
-              <Bot className="mx-auto mb-1 h-5 w-5 text-blue-500" />
-              <p className="text-2xl font-bold">{stats.resolved_by_ai}</p>
-              <p className="text-xs text-muted-foreground">Resolvidos por IA</p>
-            </CardContent>
-          </Card>
-          <Card className="border-border bg-card">
-            <CardContent className="p-4 text-center">
-              <Star className="mx-auto mb-1 h-5 w-5 text-amber-500" />
-              <p className="text-2xl font-bold">{stats.avg_satisfaction ?? '-'}</p>
-              <p className="text-xs text-muted-foreground">Satisfação média</p>
-            </CardContent>
-          </Card>
+          <StatCard label="Total de tickets" value={stats.total_tickets} icon={Ticket} />
+          <StatCard
+            label="Abertos"
+            value={stats.open_tickets}
+            icon={Ticket}
+            valueClassName={stats.open_tickets > 0 ? 'text-[#d97706]' : undefined}
+          />
+          <StatCard label="Resolvidos" value={stats.resolved_tickets} icon={CheckCircle} />
+          <StatCard label="Resolvidos por IA" value={stats.resolved_by_ai} icon={Bot} />
+          <StatCard
+            label="Satisfação média"
+            value={stats.avg_satisfaction ?? '-'}
+            icon={Star}
+            hint={stats.avg_satisfaction != null ? 'de 5' : undefined}
+          />
         </div>
 
         {/* Tickets Table */}

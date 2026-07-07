@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/table'
 import { StatusBadge } from '@/components/common/StatusBadge'
 import { PriorityBadge } from '@/components/common/PriorityBadge'
+import { StatCard } from '@/components/common/StatCard'
 import { LoadingState } from '@/components/common/LoadingState'
 import {
   Ticket,
@@ -39,10 +40,23 @@ import {
   Users,
   Zap,
   MessageSquareText,
+  Sparkles,
 } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { formatRelativeTime, formatMinutesToHuman } from '@/lib/utils/format'
 import { adminFetch } from '@/lib/fetch'
 import { TICKET_STATUS_LABELS, TICKET_STATUS_COLORS } from '@/lib/utils/constants'
+
+// Paleta de dados (hex) por status — mesma família dos badges, tom sólido suave
+// para barras/segmentos. Semântica separada do accent azul da UI.
+const STATUS_HEX: Record<string, string> = {
+  open: '#3b82f6',
+  in_progress: '#0891b2',
+  awaiting_customer: '#f59e0b',
+  resolved: '#059669',
+  resolved_ia: '#10b981',
+  closed: '#94a3b8',
+}
 
 interface CategoryData {
   id: string
@@ -236,35 +250,36 @@ export default function DashboardPage() {
     )
   }
 
-  const kpiCards = [
+  const resolvedByIA = data.statusCounts?.resolved_ia ?? 0
+  const kpiCards: {
+    label: string
+    value: string | number
+    icon: LucideIcon
+    hint?: string
+    hintTone?: 'up' | 'down' | 'neutral'
+    valueClassName?: string
+  }[] = [
+    { label: 'Tickets Abertos', value: data.openTickets, icon: Ticket },
+    { label: 'Meus Tickets', value: data.myTickets, icon: UserCheck },
     {
-      title: 'Tickets Abertos',
-      value: data.openTickets,
-      icon: Ticket,
-      color: 'text-blue-400',
-      bg: 'bg-blue-500/10',
-    },
-    {
-      title: 'Meus Tickets',
-      value: data.myTickets,
-      icon: UserCheck,
-      color: 'text-cyan-400',
-      bg: 'bg-cyan-500/10',
-    },
-    {
-      title: 'SLA Estourado',
+      label: 'SLA Estourado',
       value: data.slaBreached,
       icon: AlertTriangle,
-      color: data.slaBreached > 0 ? 'text-red-400' : 'text-green-400',
-      bg: data.slaBreached > 0 ? 'bg-red-500/10' : 'bg-green-500/10',
+      valueClassName: data.slaBreached > 0 ? 'text-[#dc2626]' : undefined,
+      hint: data.slaBreached > 0 ? 'Fora do prazo' : 'Tudo no prazo',
+      hintTone: data.slaBreached > 0 ? 'down' : 'up',
     },
     {
-      title: data.resolvedLabel || 'Resolvidos Hoje',
+      label: data.resolvedLabel || 'Resolvidos Hoje',
       value: data.resolvedToday,
       icon: CheckCircle,
-      color: 'text-green-400',
-      bg: 'bg-green-500/10',
     },
+    {
+      label: 'Tempo Médio',
+      value: data.avgResolutionMinutes != null ? formatMinutesToHuman(data.avgResolutionMinutes) : '—',
+      icon: Clock,
+    },
+    { label: 'Resolvidos por IA', value: resolvedByIA, icon: Sparkles },
   ]
 
   return (
@@ -386,40 +401,18 @@ export default function DashboardPage() {
         </Card>
 
         {/* KPI Cards */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           {kpiCards.map((card) => (
-            <Card key={card.title} className="border-border bg-card">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">{card.title}</p>
-                    <p className="mt-1 text-3xl font-bold">{card.value}</p>
-                  </div>
-                  <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${card.bg}`}>
-                    <card.icon className={`h-6 w-6 ${card.color}`} />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <StatCard
+              key={card.label}
+              label={card.label}
+              value={card.value}
+              icon={card.icon}
+              hint={card.hint}
+              hintTone={card.hintTone}
+              valueClassName={card.valueClassName}
+            />
           ))}
-          {/* Avg Resolution Time KPI */}
-          <Card className="border-border bg-card">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Tempo Médio Resolução</p>
-                  <p className="mt-1 text-3xl font-bold">
-                    {data.avgResolutionMinutes != null
-                      ? formatMinutesToHuman(data.avgResolutionMinutes)
-                      : '-'}
-                  </p>
-                </div>
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-violet-500/10">
-                  <Clock className="h-6 w-6 text-violet-400" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
         </div>
 
         {/* Top Categories - Kanban */}
@@ -427,7 +420,7 @@ export default function DashboardPage() {
           <Card className="border-border bg-card">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
-                <FolderOpen className="h-5 w-5 text-muted-foreground" />
+                <FolderOpen className="h-5 w-5 text-[var(--text-muted)]" />
                 Problemas Mais Comuns
               </CardTitle>
             </CardHeader>
@@ -435,27 +428,29 @@ export default function DashboardPage() {
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {data.topCategories.map((cat) => {
                   const statusSegments = [
-                    { key: 'open', label: 'Aberto', count: cat.open, color: 'bg-blue-500' },
-                    { key: 'in_progress', label: 'Em Andamento', count: cat.in_progress, color: 'bg-cyan-500' },
-                    { key: 'awaiting_customer', label: 'Aguardando', count: cat.awaiting_customer, color: 'bg-yellow-500' },
-                    { key: 'resolved', label: 'Resolvido', count: cat.resolved, color: 'bg-green-500' },
-                    { key: 'resolved_ia', label: 'Resolvido IA', count: cat.resolved_ia, color: 'bg-emerald-500' },
-                    { key: 'closed', label: 'Fechado', count: cat.closed, color: 'bg-zinc-500' },
+                    { key: 'open', label: 'Aberto', count: cat.open },
+                    { key: 'in_progress', label: 'Em Andamento', count: cat.in_progress },
+                    { key: 'awaiting_customer', label: 'Aguardando', count: cat.awaiting_customer },
+                    { key: 'resolved', label: 'Resolvido', count: cat.resolved },
+                    { key: 'resolved_ia', label: 'Resolvido IA', count: cat.resolved_ia },
+                    { key: 'closed', label: 'Fechado', count: cat.closed },
                   ].filter((s) => s.count > 0)
 
                   return (
-                    <div key={cat.id} className="rounded-xl border border-border p-4">
-                      <div className="mb-3 flex items-center justify-between">
-                        <h4 className="text-sm font-semibold text-foreground">{cat.name}</h4>
-                        <span className="text-lg font-bold text-foreground">{cat.total}</span>
+                    <div
+                      key={cat.id}
+                      className="rounded-xl border border-[var(--hairline)] bg-[rgb(var(--t-elevated))] p-4"
+                    >
+                      <div className="mb-3 flex items-center justify-between gap-2">
+                        <h4 className="truncate text-sm font-semibold text-foreground">{cat.name}</h4>
+                        <span className="font-mono text-lg font-bold tabular-nums text-foreground">{cat.total}</span>
                       </div>
                       {/* Stacked bar */}
-                      <div className="mb-3 flex h-3 overflow-hidden rounded-full bg-muted">
+                      <div className="mb-3 flex h-2.5 overflow-hidden rounded-full bg-[var(--hairline)]">
                         {statusSegments.map((seg) => (
                           <div
                             key={seg.key}
-                            className={`${seg.color} transition-all`}
-                            style={{ width: `${(seg.count / cat.total) * 100}%` }}
+                            style={{ width: `${(seg.count / cat.total) * 100}%`, backgroundColor: STATUS_HEX[seg.key] }}
                             title={`${seg.label}: ${seg.count}`}
                           />
                         ))}
@@ -463,9 +458,13 @@ export default function DashboardPage() {
                       {/* Legend */}
                       <div className="flex flex-wrap gap-x-3 gap-y-1">
                         {statusSegments.map((seg) => (
-                          <span key={seg.key} className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <span className={`inline-block h-2 w-2 rounded-full ${seg.color}`} />
-                            {seg.count}
+                          <span key={seg.key} className="flex items-center gap-1.5 text-xs text-[var(--text-secondary)]">
+                            <span
+                              aria-hidden
+                              className="inline-block h-2 w-2 rounded-full"
+                              style={{ backgroundColor: STATUS_HEX[seg.key] }}
+                            />
+                            <span className="font-mono tabular-nums">{seg.count}</span>
                           </span>
                         ))}
                       </div>
@@ -482,56 +481,59 @@ export default function DashboardPage() {
           <Card className="border-border bg-card">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
-                <Users className="h-5 w-5 text-muted-foreground" />
+                <Users className="h-5 w-5 text-[var(--text-muted)]" />
                 Performance dos Agentes
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {agentData.map((agent) => (
-                  <div key={agent.name} className="rounded-xl border border-border p-4">
+                  <div
+                    key={agent.name}
+                    className="rounded-xl border border-[var(--hairline)] bg-[rgb(var(--t-elevated))] p-4"
+                  >
                     <div className="mb-3 flex items-center gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/20 text-sm font-bold text-primary">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--brand-soft)] font-mono text-sm font-bold text-primary">
                         {agent.name.charAt(0).toUpperCase()}
                       </div>
                       <div className="min-w-0">
                         <h4 className="truncate text-sm font-semibold text-foreground">{agent.name}</h4>
-                        <p className="text-xs text-muted-foreground">{agent.total} tickets atribuídos</p>
+                        <p className="text-xs text-[var(--text-muted)]">
+                          <span className="font-mono tabular-nums">{agent.total}</span> tickets atribuídos
+                        </p>
                       </div>
                     </div>
                     {/* Stats grid */}
                     <div className="grid grid-cols-3 gap-2">
-                      <div className="rounded-lg bg-muted/50 p-2 text-center">
+                      <div className="rounded-lg border border-[var(--hairline)] bg-[rgb(var(--t-bg))] p-2 text-center">
                         <div className="flex items-center justify-center gap-1">
-                          <CheckCircle className="h-3 w-3 text-green-500" />
-                          <span className="text-sm font-bold">{agent.resolved}</span>
+                          <CheckCircle className="h-3 w-3 text-[#059669]" />
+                          <span className="font-mono text-sm font-bold tabular-nums text-foreground">{agent.resolved}</span>
                         </div>
-                        <p className="text-[10px] text-muted-foreground">Resolvidos</p>
+                        <p className="mt-0.5 text-[10px] uppercase tracking-wide text-[var(--text-muted)]">Resolvidos</p>
                       </div>
-                      <div className="rounded-lg bg-muted/50 p-2 text-center">
+                      <div className="rounded-lg border border-[var(--hairline)] bg-[rgb(var(--t-bg))] p-2 text-center">
                         <div className="flex items-center justify-center gap-1">
-                          <Zap className="h-3 w-3 text-amber-500" />
-                          <span className="text-sm font-bold">{agent.resolutionRate}%</span>
+                          <Zap className="h-3 w-3 text-[#f59e0b]" />
+                          <span className="font-mono text-sm font-bold tabular-nums text-foreground">{agent.resolutionRate}%</span>
                         </div>
-                        <p className="text-[10px] text-muted-foreground">Taxa</p>
+                        <p className="mt-0.5 text-[10px] uppercase tracking-wide text-[var(--text-muted)]">Taxa</p>
                       </div>
-                      <div className="rounded-lg bg-muted/50 p-2 text-center">
+                      <div className="rounded-lg border border-[var(--hairline)] bg-[rgb(var(--t-bg))] p-2 text-center">
                         <div className="flex items-center justify-center gap-1">
-                          <MessageSquareText className="h-3 w-3 text-blue-500" />
-                          <span className="text-sm font-bold">{agent.avgResponseMinutes > 0 ? formatMinutesToHuman(agent.avgResponseMinutes) : '-'}</span>
+                          <MessageSquareText className="h-3 w-3 text-[#3b82f6]" />
+                          <span className="font-mono text-sm font-bold tabular-nums text-foreground">{agent.avgResponseMinutes > 0 ? formatMinutesToHuman(agent.avgResponseMinutes) : '—'}</span>
                         </div>
-                        <p className="text-[10px] text-muted-foreground">Resposta</p>
+                        <p className="mt-0.5 text-[10px] uppercase tracking-wide text-[var(--text-muted)]">Resposta</p>
                       </div>
                     </div>
-                    {/* Resolution bar */}
-                    <div className="mt-3">
-                      <div className="flex h-2 overflow-hidden rounded-full bg-muted">
-                        <div
-                          className="bg-green-500 transition-all"
-                          style={{ width: `${agent.resolutionRate}%` }}
-                          title={`Taxa de resolução: ${agent.resolutionRate}%`}
-                        />
-                      </div>
+                    {/* Resolution bar (accent) */}
+                    <div className="mt-3 h-2 overflow-hidden rounded-full bg-[var(--hairline)]">
+                      <div
+                        className="h-full rounded-full bg-primary"
+                        style={{ width: `${agent.resolutionRate}%` }}
+                        title={`Taxa de resolução: ${agent.resolutionRate}%`}
+                      />
                     </div>
                   </div>
                 ))}
@@ -547,7 +549,7 @@ export default function DashboardPage() {
               <CardTitle className="text-base">Tickets por Status</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
+              <div className="space-y-3.5">
                 {Object.entries(TICKET_STATUS_LABELS).map(([status, label]) => {
                   const count = data.statusCounts[status] || 0
                   const percentage = data.totalTickets > 0
@@ -557,19 +559,13 @@ export default function DashboardPage() {
                   return (
                     <div key={status}>
                       <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">{label}</span>
-                        <span className="font-medium">{count}</span>
+                        <span className="text-[var(--text-secondary)]">{label}</span>
+                        <span className="font-mono font-semibold tabular-nums text-foreground">{count}</span>
                       </div>
-                      <div className="mt-1 h-2 rounded-full bg-muted">
+                      <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-[var(--hairline)]">
                         <div
-                          className={`h-full rounded-full transition-all ${
-                            status === 'open' ? 'bg-blue-500' :
-                            status === 'in_progress' ? 'bg-cyan-500' :
-                            status === 'awaiting_customer' ? 'bg-yellow-500' :
-                            status === 'resolved' || status === 'resolved_ia' ? 'bg-green-500' :
-                            'bg-zinc-500'
-                          }`}
-                          style={{ width: `${percentage}%` }}
+                          className="h-full rounded-full"
+                          style={{ width: `${percentage}%`, backgroundColor: STATUS_HEX[status] || '#94a3b8' }}
                         />
                       </div>
                     </div>
@@ -589,32 +585,32 @@ export default function DashboardPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Código</TableHead>
-                      <TableHead>Título</TableHead>
-                      <TableHead>Cliente</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Prioridade</TableHead>
-                      <TableHead>Quando</TableHead>
+                      <TableHead className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Código</TableHead>
+                      <TableHead className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Título</TableHead>
+                      <TableHead className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Cliente</TableHead>
+                      <TableHead className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Status</TableHead>
+                      <TableHead className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Prioridade</TableHead>
+                      <TableHead className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">Quando</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {data.recentTickets.map((ticket) => (
                       <TableRow
                         key={ticket.id}
-                        className="cursor-pointer hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+                        className="cursor-pointer hover:bg-[rgb(var(--t-elevated))] focus-visible:bg-[rgb(var(--t-elevated))] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
                         onClick={() => router.push(`/admin/tickets/${ticket.id}`)}
                         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); router.push(`/admin/tickets/${ticket.id}`) } }}
                         tabIndex={0}
                         role="link"
                       >
-                        <TableCell className="font-mono text-sm font-medium text-primary">
+                        <TableCell className="whitespace-nowrap font-mono text-sm font-semibold text-primary">
                           {ticket.ticket_code}
                         </TableCell>
-                        <TableCell className="max-w-[200px] truncate">
+                        <TableCell className="max-w-[200px] truncate text-foreground">
                           {ticket.title}
                         </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {ticket.customer?.name || '-'}
+                        <TableCell className="text-[var(--text-secondary)]">
+                          {ticket.customer?.name || '—'}
                         </TableCell>
                         <TableCell>
                           <StatusBadge status={ticket.status} />
@@ -622,14 +618,14 @@ export default function DashboardPage() {
                         <TableCell>
                           <PriorityBadge priority={ticket.priority} />
                         </TableCell>
-                        <TableCell className="text-muted-foreground text-sm">
+                        <TableCell className="whitespace-nowrap font-mono text-xs tabular-nums text-[var(--text-muted)]">
                           {formatRelativeTime(ticket.created_at)}
                         </TableCell>
                       </TableRow>
                     ))}
                     {data.recentTickets.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center text-muted-foreground">
+                        <TableCell colSpan={6} className="text-center text-[var(--text-muted)]">
                           Nenhum ticket encontrado
                         </TableCell>
                       </TableRow>
