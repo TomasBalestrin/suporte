@@ -52,6 +52,8 @@ import {
   PanelRight,
   MessageSquarePlus,
   Wand2,
+  MessageCircle,
+  FileText,
 } from 'lucide-react'
 import { formatDate, formatRelativeTime, formatPhone } from '@/lib/utils/format'
 import { SENDER_TYPE_LABELS, TICKET_STATUS_LABELS, PRIORITY_LABELS } from '@/lib/utils/constants'
@@ -71,6 +73,7 @@ export default function TicketDetailPage() {
   const [newMessage, setNewMessage] = useState('')
   const [isInternalNote, setIsInternalNote] = useState(false)
   const [isSending, setIsSending] = useState(false)
+  const [isSendingWa, setIsSendingWa] = useState(false)
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const [isSuggesting, setIsSuggesting] = useState(false)
   const [isCorrecting, setIsCorrecting] = useState(false)
@@ -187,6 +190,39 @@ export default function TicketDetailPage() {
       toast.error('Erro ao enviar mensagem')
     } finally {
       setIsSending(false)
+    }
+  }
+
+  // Envio pelo WhatsApp oficial (Bethel 2103) via Fluxon. tipo='text' só dentro da
+  // janela de 24h; 'template' reabre a conversa. Registra no thread do ticket.
+  async function handleSendWhatsApp(tipo: 'text' | 'template' = 'text') {
+    if (isSendingWa) return
+    if (tipo === 'text' && !newMessage.trim()) return
+    setIsSendingWa(true)
+    try {
+      const res = await adminFetch(`/api/admin/tickets/${ticketId}/whatsapp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(tipo === 'text' ? { tipo: 'text', content: newMessage.trim() } : { tipo: 'template' }),
+      })
+      const json = await res.json()
+      if (json.success) {
+        if (tipo === 'text') setNewMessage('')
+        if (!isConnected) loadMessages()
+        loadTicket()
+        toast.success(tipo === 'template' ? 'Template enviado no WhatsApp' : 'Enviado no WhatsApp')
+      } else if (json.janela_expirada) {
+        toast.error('Janela de 24h fechada', {
+          description: 'O cliente precisa responder, ou envie o template de retomada para reabrir a conversa.',
+          action: { label: 'Enviar template', onClick: () => handleSendWhatsApp('template') },
+        })
+      } else {
+        toast.error(json.error || 'Falha no envio pelo WhatsApp')
+      }
+    } catch {
+      toast.error('Erro ao enviar pelo WhatsApp')
+    } finally {
+      setIsSendingWa(false)
     }
   }
 
@@ -319,6 +355,7 @@ export default function TicketDetailPage() {
   }
 
   const customer = ticket.customer as TicketWithRelations['customer']
+  const canWa = !!customer?.phone
 
   const sidebarContent = (
     <div className="p-4 space-y-6">
@@ -692,13 +729,25 @@ export default function TicketDetailPage() {
                 />
                 <Label htmlFor="internal" className="text-sm">
                   {isInternalNote ? (
-                    <span className="flex items-center gap-1 text-yellow-400">
+                    <span className="flex items-center gap-1 text-[#a16207]">
                       <Lock className="h-3 w-3" /> Nota interna
                     </span>
                   ) : (
                     'Resposta para o cliente'
                   )}
                 </Label>
+                {canWa && !isInternalNote && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleSendWhatsApp('template')}
+                    disabled={isSendingWa}
+                    title="Enviar o template de retomada pelo WhatsApp (reabre a janela de 24h)"
+                    className="ml-auto h-8 gap-1.5 text-xs"
+                  >
+                    <FileText className="h-3.5 w-3.5" /> Enviar template
+                  </Button>
+                )}
               </div>
               {/* Attachment previews */}
               {attachments.length > 0 && (
@@ -808,18 +857,37 @@ export default function TicketDetailPage() {
                     rows={2}
                   />
                 </div>
-                {/* Botão enviar — alvo ≥44px no mobile */}
-                <Button
-                  onClick={handleSend}
-                  disabled={(!newMessage.trim() && attachments.length === 0) || isSending}
-                  className={`min-h-[44px] min-w-[44px] self-end ${isInternalNote ? 'bg-yellow-600 hover:bg-yellow-700' : ''}`}
-                >
-                  {isSending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Send className="h-4 w-4" />
+                {/* Envio — WhatsApp (2103) + ticket. Alvos ≥44px no mobile */}
+                <div className="flex flex-col gap-1 self-end">
+                  {canWa && !isInternalNote && (
+                    <Button
+                      onClick={() => handleSendWhatsApp('text')}
+                      disabled={!newMessage.trim() || isSendingWa}
+                      title="Enviar no WhatsApp (Bethel 2103)"
+                      aria-label="Enviar no WhatsApp"
+                      className="min-h-[44px] min-w-[44px] bg-[#16a34a] text-white hover:bg-[#15803d]"
+                    >
+                      {isSendingWa ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <MessageCircle className="h-4 w-4" />
+                      )}
+                    </Button>
                   )}
-                </Button>
+                  <Button
+                    onClick={handleSend}
+                    disabled={(!newMessage.trim() && attachments.length === 0) || isSending}
+                    title={isInternalNote ? 'Salvar nota interna' : 'Registrar resposta no ticket (e-mail)'}
+                    aria-label={isInternalNote ? 'Salvar nota interna' : 'Registrar no ticket'}
+                    className={`min-h-[44px] min-w-[44px] ${isInternalNote ? 'bg-[#ca8a04] text-white hover:bg-[#a16207]' : ''}`}
+                  >
+                    {isSending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Send className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
               </div>
               <p className="mt-1 hidden text-xs text-muted-foreground sm:block">
                 {typeof navigator !== 'undefined' && /Mac/i.test(navigator.userAgent) ? '⌘' : 'Ctrl'}+Enter para enviar
