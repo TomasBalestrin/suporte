@@ -31,6 +31,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { StatusBadge } from '@/components/common/StatusBadge'
@@ -63,6 +68,7 @@ import {
   MessageCircle,
   FileText,
   Reply,
+  Plus,
 } from 'lucide-react'
 
 // Template de retomada aprovado na Meta (WABA Bethel 2103). Preview fiel ao que o cliente recebe.
@@ -93,6 +99,7 @@ export default function TicketDetailPage() {
   const [isSending, setIsSending] = useState(false)
   const [isSendingWa, setIsSendingWa] = useState(false)
   const [showTplPreview, setShowTplPreview] = useState(false)
+  const [showTools, setShowTools] = useState(false)
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const [isSuggesting, setIsSuggesting] = useState(false)
   const [isCorrecting, setIsCorrecting] = useState(false)
@@ -781,38 +788,86 @@ export default function TicketDetailPage() {
                 </div>
               )}
               <div className="flex items-end gap-1.5">
-                {/* Ações — compactas, inline (estilo WhatsApp) */}
-                <FileUploadButton
-                  ticketId={ticketId}
-                  onUpload={(att) => setAttachments((prev) => [...prev, att])}
-                  disabled={isSending}
-                />
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={handleSuggest}
-                  disabled={isSuggesting || isInternalNote}
-                  title="Sugestão da IA"
-                  className="h-10 w-10 shrink-0 text-primary hover:text-primary"
-                >
-                  {isSuggesting ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Sparkles className="h-4 w-4" />
-                  )}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => {
-                    setShowQuickReplies(!showQuickReplies)
-                    setQrFilter('')
-                  }}
-                  title="Respostas prontas"
-                  className={`h-10 w-10 shrink-0 ${showQuickReplies ? 'text-primary bg-primary/10 hover:text-primary' : 'text-muted-foreground hover:text-foreground'}`}
-                >
-                  <MessageSquarePlus className="h-4 w-4" />
-                </Button>
+                {/* Ações secundárias — inline no desktop, colapsadas num "+" no mobile (estilo WhatsApp) */}
+                <div className="hidden items-end gap-1.5 sm:flex">
+                  <FileUploadButton
+                    ticketId={ticketId}
+                    onUpload={(att) => setAttachments((prev) => [...prev, att])}
+                    disabled={isSending}
+                  />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleSuggest}
+                    disabled={isSuggesting || isInternalNote}
+                    title="Sugestão da IA"
+                    className="h-10 w-10 shrink-0 text-primary hover:text-primary"
+                  >
+                    {isSuggesting ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-4 w-4" />
+                    )}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      setShowQuickReplies(!showQuickReplies)
+                      setQrFilter('')
+                    }}
+                    title="Respostas prontas"
+                    className={`h-10 w-10 shrink-0 ${showQuickReplies ? 'text-primary bg-primary/10 hover:text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+                  >
+                    <MessageSquarePlus className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                {/* Mobile: "+" agrupa anexo/IA/respostas pra sobrar largura pro campo (estilo WhatsApp) */}
+                <Popover open={showTools} onOpenChange={setShowTools}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-10 w-10 shrink-0 text-muted-foreground hover:text-foreground sm:hidden"
+                      aria-label="Mais ações"
+                    >
+                      <Plus className="h-5 w-5" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent side="top" align="start" className="w-auto p-1.5">
+                    <div className="flex items-center gap-1">
+                      <FileUploadButton
+                        ticketId={ticketId}
+                        onUpload={(att) => { setAttachments((prev) => [...prev, att]); setShowTools(false) }}
+                        disabled={isSending}
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => { setShowTools(false); handleSuggest() }}
+                        disabled={isSuggesting || isInternalNote}
+                        title="Sugestão da IA"
+                        className="h-10 w-10 text-primary hover:text-primary"
+                      >
+                        {isSuggesting ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Sparkles className="h-4 w-4" />
+                        )}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => { setShowTools(false); setShowQuickReplies(true); setQrFilter('') }}
+                        title="Respostas prontas"
+                        className="h-10 w-10 text-muted-foreground hover:text-foreground"
+                      >
+                        <MessageSquarePlus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </PopoverContent>
+                </Popover>
                 <div className="relative flex-1 min-w-0">
                   {showQuickReplies && (
                     <div className="absolute bottom-full left-0 right-0 mb-1 max-h-48 overflow-y-auto rounded-lg border border-border bg-card shadow-lg z-10">
