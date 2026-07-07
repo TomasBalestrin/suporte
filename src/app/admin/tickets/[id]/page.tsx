@@ -17,6 +17,14 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet'
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog'
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -54,7 +62,17 @@ import {
   Wand2,
   MessageCircle,
   FileText,
+  Reply,
 } from 'lucide-react'
+
+// Template de retomada aprovado na Meta (WABA Bethel 2103). Preview fiel ao que o cliente recebe.
+const TEMPLATE_RETOMADA = {
+  nome: 'bethel_suporte_chamado_respondido',
+  body: (primeiroNome: string) =>
+    `Olá, ${primeiroNome}! 👋\n\nSeu atendimento no suporte da Bethel Educação foi respondido pela nossa equipe.\n\nQuer continuar a conversa ou tirar outra dúvida? Toque no botão abaixo ou responda esta mensagem que a gente segue te ajudando por aqui.\n\nEstamos à disposição. 💙`,
+  footer: 'Bethel Educação · Suporte',
+  botao: 'Continuar atendimento',
+}
 import { formatDate, formatRelativeTime, formatPhone } from '@/lib/utils/format'
 import { SENDER_TYPE_LABELS, TICKET_STATUS_LABELS, PRIORITY_LABELS } from '@/lib/utils/constants'
 import { toast } from 'sonner'
@@ -74,6 +92,7 @@ export default function TicketDetailPage() {
   const [isInternalNote, setIsInternalNote] = useState(false)
   const [isSending, setIsSending] = useState(false)
   const [isSendingWa, setIsSendingWa] = useState(false)
+  const [showTplPreview, setShowTplPreview] = useState(false)
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const [isSuggesting, setIsSuggesting] = useState(false)
   const [isCorrecting, setIsCorrecting] = useState(false)
@@ -740,9 +759,9 @@ export default function TicketDetailPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => handleSendWhatsApp('template')}
+                    onClick={() => setShowTplPreview(true)}
                     disabled={isSendingWa}
-                    title="Enviar o template de retomada pelo WhatsApp (reabre a janela de 24h)"
+                    title="Pré-visualizar e enviar o template de retomada pelo WhatsApp (reabre a janela de 24h)"
                     className="ml-auto h-8 gap-1.5 text-xs"
                   >
                     <FileText className="h-3.5 w-3.5" /> Enviar template
@@ -761,41 +780,39 @@ export default function TicketDetailPage() {
                   ))}
                 </div>
               )}
-              <div className="flex gap-2">
-                {/* Coluna de ícones — alvos ≥44px no mobile (pitfall #20) */}
-                <div className="flex flex-col gap-1">
-                  <FileUploadButton
-                    ticketId={ticketId}
-                    onUpload={(att) => setAttachments((prev) => [...prev, att])}
-                    disabled={isSending}
-                  />
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={handleSuggest}
-                    disabled={isSuggesting || isInternalNote}
-                    title="Sugestão da IA"
-                    className="min-h-[44px] min-w-[44px] text-primary hover:text-primary"
-                  >
-                    {isSuggesting ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Sparkles className="h-4 w-4" />
-                    )}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => {
-                      setShowQuickReplies(!showQuickReplies)
-                      setQrFilter('')
-                    }}
-                    title="Respostas prontas"
-                    className={`min-h-[44px] min-w-[44px] ${showQuickReplies ? 'text-primary bg-primary/10 hover:text-primary' : 'text-muted-foreground hover:text-foreground'}`}
-                  >
-                    <MessageSquarePlus className="h-4 w-4" />
-                  </Button>
-                </div>
+              <div className="flex items-end gap-1.5">
+                {/* Ações — compactas, inline (estilo WhatsApp) */}
+                <FileUploadButton
+                  ticketId={ticketId}
+                  onUpload={(att) => setAttachments((prev) => [...prev, att])}
+                  disabled={isSending}
+                />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleSuggest}
+                  disabled={isSuggesting || isInternalNote}
+                  title="Sugestão da IA"
+                  className="h-10 w-10 shrink-0 text-primary hover:text-primary"
+                >
+                  {isSuggesting ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-4 w-4" />
+                  )}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => {
+                    setShowQuickReplies(!showQuickReplies)
+                    setQrFilter('')
+                  }}
+                  title="Respostas prontas"
+                  className={`h-10 w-10 shrink-0 ${showQuickReplies ? 'text-primary bg-primary/10 hover:text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+                >
+                  <MessageSquarePlus className="h-4 w-4" />
+                </Button>
                 <div className="relative flex-1 min-w-0">
                   {showQuickReplies && (
                     <div className="absolute bottom-full left-0 right-0 mb-1 max-h-48 overflow-y-auto rounded-lg border border-border bg-card shadow-lg z-10">
@@ -844,54 +861,53 @@ export default function TicketDetailPage() {
                       }
                     }}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                      // Enter envia (estilo WhatsApp); Shift+Enter quebra linha
+                      if (e.key === 'Enter' && !e.shiftKey && !showQuickReplies) {
                         e.preventDefault()
-                        handleSend()
+                        if (canWa && !isInternalNote) handleSendWhatsApp('text')
+                        else handleSend()
                       }
                       if (e.key === 'Escape') {
                         setShowQuickReplies(false)
                       }
                     }}
                     onBlur={() => setShowQuickReplies(false)}
-                    className="min-h-[60px] max-h-[150px] resize-none bg-muted text-base"
-                    rows={2}
+                    className="min-h-[44px] max-h-[120px] resize-none rounded-2xl bg-muted px-4 py-2.5 text-base"
+                    rows={1}
                   />
                 </div>
-                {/* Envio — WhatsApp (2103) + ticket. Alvos ≥44px no mobile */}
-                <div className="flex flex-col gap-1 self-end">
-                  {canWa && !isInternalNote && (
-                    <Button
-                      onClick={() => handleSendWhatsApp('text')}
-                      disabled={!newMessage.trim() || isSendingWa}
-                      title="Enviar no WhatsApp (Bethel 2103)"
-                      aria-label="Enviar no WhatsApp"
-                      className="min-h-[44px] min-w-[44px] bg-[#16a34a] text-white hover:bg-[#15803d]"
-                    >
-                      {isSendingWa ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <MessageCircle className="h-4 w-4" />
-                      )}
-                    </Button>
-                  )}
+                {/* Envio — WhatsApp (2103, primário) + ticket. Circulares, inline (estilo WhatsApp) */}
+                {canWa && !isInternalNote && (
                   <Button
-                    onClick={handleSend}
-                    disabled={(!newMessage.trim() && attachments.length === 0) || isSending}
-                    title={isInternalNote ? 'Salvar nota interna' : 'Registrar resposta no ticket (e-mail)'}
-                    aria-label={isInternalNote ? 'Salvar nota interna' : 'Registrar no ticket'}
-                    className={`min-h-[44px] min-w-[44px] ${isInternalNote ? 'bg-[#ca8a04] text-white hover:bg-[#a16207]' : ''}`}
+                    size="icon"
+                    onClick={() => handleSendWhatsApp('text')}
+                    disabled={!newMessage.trim() || isSendingWa}
+                    title="Enviar no WhatsApp (Bethel 2103)"
+                    aria-label="Enviar no WhatsApp"
+                    className="h-11 w-11 shrink-0 rounded-full bg-[#16a34a] text-white hover:bg-[#15803d]"
                   >
-                    {isSending ? (
+                    {isSendingWa ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
-                      <Send className="h-4 w-4" />
+                      <MessageCircle className="h-[18px] w-[18px]" />
                     )}
                   </Button>
-                </div>
+                )}
+                <Button
+                  size="icon"
+                  onClick={handleSend}
+                  disabled={(!newMessage.trim() && attachments.length === 0) || isSending}
+                  title={isInternalNote ? 'Salvar nota interna' : 'Registrar resposta no ticket (e-mail)'}
+                  aria-label={isInternalNote ? 'Salvar nota interna' : 'Registrar no ticket'}
+                  className={`h-11 w-11 shrink-0 rounded-full ${isInternalNote ? 'bg-[#ca8a04] text-white hover:bg-[#a16207]' : ''}`}
+                >
+                  {isSending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Send className="h-[18px] w-[18px]" />
+                  )}
+                </Button>
               </div>
-              <p className="mt-1 hidden text-xs text-muted-foreground sm:block">
-                {typeof navigator !== 'undefined' && /Mac/i.test(navigator.userAgent) ? '⌘' : 'Ctrl'}+Enter para enviar
-              </p>
             </div>
           </div>
         </div>
@@ -903,6 +919,52 @@ export default function TicketDetailPage() {
           </ScrollArea>
         </div>
       </div>
+
+      {/* Preview do template de retomada antes de enviar no WhatsApp */}
+      <Dialog open={showTplPreview} onOpenChange={setShowTplPreview}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Enviar template de retomada</DialogTitle>
+            <DialogDescription>
+              Isto será enviado ao cliente pelo WhatsApp (Bethel 2103) para reabrir a janela de 24h. Confira antes de enviar.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="rounded-xl bg-[var(--wa-thread)] p-4">
+            <div className="mx-auto max-w-sm overflow-hidden rounded-2xl rounded-tr-md border border-[var(--border-mid)] bg-white shadow-sm">
+              <p className="whitespace-pre-wrap px-3.5 py-2.5 text-sm leading-relaxed text-[#111b21]">
+                {TEMPLATE_RETOMADA.body((customer?.name || '').trim().split(/\s+/)[0] || 'tudo bem')}
+              </p>
+              <p className="px-3.5 pb-2 text-[11px] text-muted-foreground">{TEMPLATE_RETOMADA.footer}</p>
+              <div className="flex items-center justify-center gap-1.5 border-t border-[var(--hairline)] py-2.5 text-sm font-semibold text-primary">
+                <Reply className="h-4 w-4" /> {TEMPLATE_RETOMADA.botao}
+              </div>
+            </div>
+          </div>
+
+          <p className="text-xs text-muted-foreground">
+            Template <span className="font-mono text-[11px]">{TEMPLATE_RETOMADA.nome}</span> · a variável {'{{1}}'} é o primeiro nome do cliente.
+          </p>
+
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button variant="outline" onClick={() => setShowTplPreview(false)} disabled={isSendingWa}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => { setShowTplPreview(false); handleSendWhatsApp('template') }}
+              disabled={isSendingWa}
+              className="bg-[#16a34a] text-white hover:bg-[#15803d]"
+            >
+              {isSendingWa ? (
+                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+              ) : (
+                <MessageCircle className="mr-1.5 h-4 w-4" />
+              )}
+              Enviar template
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }
