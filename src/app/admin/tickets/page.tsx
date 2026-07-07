@@ -263,20 +263,20 @@ export default function TicketsPage() {
                   ))}
                 </div>
 
-                {/* Desktop: tabela (>= md) */}
-                <div className="hidden overflow-x-auto md:block">
-                  <Table>
+                {/* Desktop: tabela densa que cabe sem rolar (>= md).
+                    table-fixed + w-full = a tabela nunca ultrapassa a tela; larguras enxutas
+                    nos badges; Produto vira subtítulo de "Assunto"; Agente+Atualizado empilham. */}
+                <div className="hidden md:block">
+                  <Table className="table-fixed w-full">
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Código</TableHead>
-                        <TableHead>Título</TableHead>
-                        <TableHead>Cliente</TableHead>
-                        <TableHead>Produto</TableHead>
-                        <TableHead>Prioridade</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Atendimento</TableHead>
-                        <TableHead>Agente</TableHead>
-                        <TableHead>Atualizado</TableHead>
+                        <TableHead className="w-[112px]">Código</TableHead>
+                        <TableHead>Assunto</TableHead>
+                        <TableHead className="w-[124px]">Cliente</TableHead>
+                        <TableHead className="w-[100px]">Prioridade</TableHead>
+                        <TableHead className="w-[152px]">Status</TableHead>
+                        <TableHead className="w-[120px]">Atendimento</TableHead>
+                        <TableHead className="w-[120px]">Agente</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -289,17 +289,20 @@ export default function TicketsPage() {
                           tabIndex={0}
                           role="link"
                         >
-                          <TableCell className="font-mono text-sm font-medium text-primary">
-                            {ticket.ticket_code}
+                          <TableCell className="font-mono text-xs font-medium text-primary">
+                            <span className="block truncate">{ticket.ticket_code}</span>
                           </TableCell>
-                          <TableCell className="max-w-[200px] truncate">
-                            {ticket.title}
+                          {/* Assunto = título + produto (subtítulo), os dois truncados */}
+                          <TableCell>
+                            <div className="truncate text-sm font-medium">{ticket.title}</div>
+                            {ticket.product?.name && (
+                              <div className="truncate text-xs text-muted-foreground">
+                                {ticket.product.name}
+                              </div>
+                            )}
                           </TableCell>
                           <TableCell className="text-muted-foreground">
-                            {ticket.customer?.name || '-'}
-                          </TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {ticket.product?.name || '-'}
+                            <span className="block truncate text-sm">{ticket.customer?.name || '-'}</span>
                           </TableCell>
                           <TableCell>
                             <PriorityBadge priority={ticket.priority} />
@@ -310,13 +313,16 @@ export default function TicketsPage() {
                           <TableCell>
                             <AtendimentoBadge sofiaOnly={ticket.sofia_only} lastSender={ticket.last_sender} />
                           </TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {ticket.assigned_agent?.name || (
-                              <span className="text-yellow-400">Não atribuído</span>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-muted-foreground text-sm">
-                            {formatRelativeTime(ticket.updated_at)}
+                          {/* Agente + quando foi atualizado, empilhados pra economizar coluna */}
+                          <TableCell>
+                            <div className="truncate text-sm">
+                              {ticket.assigned_agent?.name || (
+                                <span className="text-amber-600">Não atribuído</span>
+                              )}
+                            </div>
+                            <div className="truncate text-xs text-muted-foreground">
+                              {formatRelativeTime(ticket.updated_at)}
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
