@@ -93,11 +93,14 @@ export function Sidebar() {
       >
         {/* Header */}
         <div className="flex h-16 items-center justify-between px-6">
-          <Link href="/admin/dashboard" className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-              <span className="text-sm font-bold text-primary-foreground">B</span>
+          <Link href="/admin/dashboard" className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-[#c9a86a] to-[#a8814c] shadow-sm">
+              <span className="text-sm font-extrabold text-[#001321]">B</span>
             </div>
-            <span className="text-lg font-bold text-sidebar-foreground">Suporte</span>
+            <span className="flex flex-col leading-none">
+              <span className="text-[15px] font-bold text-sidebar-foreground">Suporte</span>
+              <span className="text-[10.5px] font-medium text-sidebar-foreground/45">Bethel Educação</span>
+            </span>
           </Link>
           <Button
             variant="ghost"
@@ -135,7 +138,7 @@ export function Sidebar() {
 
           {isAdmin && (
             <>
-              <div className="mt-6 mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <div className="mt-6 mb-2 px-3 text-[11px] font-semibold uppercase tracking-wider text-sidebar-foreground/40">
                 Configurações
               </div>
               <nav className="space-y-1">
@@ -157,7 +160,7 @@ export function Sidebar() {
                 ))}
               </nav>
 
-              <div className="mt-6 mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <div className="mt-6 mb-2 px-3 text-[11px] font-semibold uppercase tracking-wider text-sidebar-foreground/40">
                 Inteligência Artificial
               </div>
               <nav className="space-y-1">
@@ -179,7 +182,7 @@ export function Sidebar() {
                 ))}
               </nav>
 
-              <div className="mt-6 mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <div className="mt-6 mb-2 px-3 text-[11px] font-semibold uppercase tracking-wider text-sidebar-foreground/40">
                 Sistema
               </div>
               <nav className="space-y-1">
@@ -216,7 +219,7 @@ export function Sidebar() {
               <p className="truncate text-sm font-medium text-sidebar-foreground">
                 {user?.name || 'Carregando...'}
               </p>
-              <p className="truncate text-xs text-muted-foreground">
+              <p className="truncate text-xs text-sidebar-foreground/50">
                 {user?.role === 'admin' ? 'Administrador' : 'Agente'}
               </p>
             </div>
@@ -224,7 +227,7 @@ export function Sidebar() {
               variant="ghost"
               size="icon"
               onClick={handleLogout}
-              className="text-muted-foreground hover:text-destructive"
+              className="text-sidebar-foreground/60 hover:bg-white/10 hover:text-white"
               aria-label="Sair"
             >
               <LogOut className="h-4 w-4" />

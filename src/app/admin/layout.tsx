@@ -116,12 +116,12 @@ export default function AdminLayout({
 
   // Login page doesn't need the sidebar
   if (pathname === '/admin/login') {
-    return <>{children}</>
+    return <div className="admin">{children}</div>
   }
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="admin flex min-h-screen items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     )
@@ -135,14 +135,14 @@ export default function AdminLayout({
       router.replace('/admin/login?error=session_expired')
     }
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="admin flex min-h-screen items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="admin min-h-screen">
       <Sidebar />
       <main className="lg:pl-64">
         {children}
