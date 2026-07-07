@@ -15,11 +15,12 @@ export function PriorityBadge({ priority, className }: PriorityBadgeProps) {
       role="status"
       aria-label={`Prioridade: ${label}`}
       className={cn(
-        'text-xs font-medium',
-        PRIORITY_COLORS[priority] || 'bg-zinc-500/20 text-zinc-500',
+        'gap-1.5 rounded-full border font-mono text-[11px] font-semibold tracking-wide',
+        PRIORITY_COLORS[priority] || 'bg-slate-100 text-slate-500 border-slate-200',
         className
       )}
     >
+      <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-current" />
       {label}
     </Badge>
   )

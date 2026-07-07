@@ -10,13 +10,15 @@ export const TICKET_STATUS_LABELS: Record<string, string> = {
   closed: 'Fechado',
 }
 
+// Soft+color (tema claro) — pastel sólido de fundo + texto escuro legível.
+// Compartilhado admin (.admin) + portal (.portal-light), ambos claros.
 export const TICKET_STATUS_COLORS: Record<string, string> = {
-  open: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-  awaiting_customer: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-  in_progress: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
-  resolved: 'bg-green-500/20 text-green-400 border-green-500/30',
-  resolved_ia: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-  closed: 'bg-zinc-500/20 text-zinc-300 border-zinc-500/30',
+  open: 'bg-blue-100 text-blue-700 border-blue-200',
+  awaiting_customer: 'bg-amber-100 text-amber-700 border-amber-200',
+  in_progress: 'bg-cyan-100 text-cyan-700 border-cyan-200',
+  resolved: 'bg-green-100 text-green-700 border-green-200',
+  resolved_ia: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+  closed: 'bg-slate-200 text-slate-600 border-slate-300',
 }
 
 export const PRIORITY_LABELS: Record<string, string> = {
@@ -27,10 +29,10 @@ export const PRIORITY_LABELS: Record<string, string> = {
 }
 
 export const PRIORITY_COLORS: Record<string, string> = {
-  low: 'bg-zinc-500/20 text-zinc-300 border-zinc-500/30',
-  medium: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-  high: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
-  urgent: 'bg-red-500/20 text-red-400 border-red-500/30',
+  low: 'bg-slate-100 text-slate-500 border-slate-200',
+  medium: 'bg-blue-100 text-blue-700 border-blue-200',
+  high: 'bg-orange-100 text-orange-700 border-orange-200',
+  urgent: 'bg-red-100 text-red-700 border-red-200',
 }
 
 export const SENDER_TYPE_LABELS: Record<string, string> = {

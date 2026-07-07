@@ -15,11 +15,12 @@ export function StatusBadge({ status, className }: StatusBadgeProps) {
       role="status"
       aria-label={`Status: ${label}`}
       className={cn(
-        'text-xs font-medium',
-        TICKET_STATUS_COLORS[status] || 'bg-zinc-500/20 text-zinc-500',
+        'gap-1.5 rounded-full border font-mono text-[11px] font-semibold tracking-wide',
+        TICKET_STATUS_COLORS[status] || 'bg-slate-100 text-slate-500 border-slate-200',
         className
       )}
     >
+      <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-current" />
       {label}
     </Badge>
   )
