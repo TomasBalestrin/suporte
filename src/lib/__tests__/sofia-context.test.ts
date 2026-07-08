@@ -316,11 +316,15 @@ describe('sofia/context', () => {
       expect(b).not.toContain('DIVERGENCIA')
     })
 
-    it('REGRESSÃO Josy: form "50 Scripts" mas compra real "Formatos de Conteúdos" → entrega a REAL, mencionando', () => {
+    it('REGRESSÃO Josy: form "50 Scripts" mas compra real "Formatos de Conteúdos" → entrega a REAL, sem perguntar', () => {
       const b = buildProdutoContextBlock('50 Scripts Prontos para o WhatsApp', ['Formatos de Conteúdos'])
-      expect(b).toContain('DIVERGENCIA')
-      expect(b).toContain('A COMPRA REAL PREVALECE')
+      // lidera com a AÇÃO: entrega o acesso da compra real
+      expect(b).toContain('ENTREGUE o link')
       expect(b).toContain('"Formatos de Conteúdos"')
+      // a compra real prevalece sobre o dropdown
+      expect(b).toContain('PREVALECE')
+      // CRÍTICO (furo do smoke E2E): proíbe perguntar qual produto — ela já sabe
+      expect(b).toContain('NAO pergunte "qual produto voce comprou"')
       // menciona ao cliente (decisão do dono)
       expect(b).toContain('localizou a compra dele como')
       // e proíbe mandar o produto errado do dropdown

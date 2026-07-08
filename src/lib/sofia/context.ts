@@ -152,7 +152,7 @@ export function buildProdutoContextBlock(productName: string | null, produtosCom
   // Form DIVERGE das compras reais.
   if (produtosComprados.length === 1) {
     // 1 compra → entrega a REAL, mencionando a divergência (decisão do dono 2026-07-08).
-    return `${header}\nATENCAO — DIVERGENCIA: o cliente selecionou "${productName}" no formulario, mas a compra REAL registrada e ${lista}. A COMPRA REAL PREVALECE. Atenda pelo produto ${lista}: de o link e as instrucoes da compra real e mencione ao cliente, de forma natural, que voce localizou a compra dele como ${lista}. NAO mande o link nem as instrucoes de "${productName}" — ele NAO comprou esse produto. NAO escale por causa desta divergencia: o cliente TEM compra real, resolva entregando o acesso dela.`
+    return `${header}\nO cliente TEM 1 compra real registrada no Fluxon: ${lista}. Use ${lista} como o produto e ENTREGUE o link e as instrucoes de acesso de ${lista} AGORA. NAO pergunte "qual produto voce comprou" — voce ja sabe qual e (e ${lista}). O formulario trazia "${productName}", mas a compra REAL ${lista} PREVALECE: mencione de forma natural que localizou a compra dele como ${lista} e NAO mande o link nem as instrucoes de "${productName}" (ele nao comprou esse). NAO escale por causa desta divergencia.`
   }
   // N compras, nenhuma bate → lista e confirma.
   return `${header}\nATENCAO — DIVERGENCIA: o cliente selecionou "${productName}" no formulario, mas isso NAO consta nas compras reais dele. As compras REAIS sao: ${lista}. NAO mande instrucoes de "${productName}". Liste as compras reais e confirme com o cliente qual delas ele precisa acessar antes de mandar credenciais.`
