@@ -788,3 +788,17 @@ O bloco em si está correto, testado e é uma melhoria real sobre o bug relatado
 - L034 (elefante rosa) checado: a negação mora no system_prompt (não no doc de RAG), consistente com o canon; produto certo aparece 3x vs. produto errado 2x no bloco de divergência — risco baixo.
 
 **Decided_by**: ⭐ Luz Estrela, 2026-07-08 (gate pré-deploy). Bruto pode anular a ressalva 1/2, mas registra o motivo aqui se anular.
+
+## 🔪 Fechamento do Bruto — deploy + smoke E2E revelou raiz mais profunda (2026-07-08)
+
+**Ressalva 2 da Luz Estrela RESOLVIDA** (Bruto leu o prompt vivo de HOJE via Management API — snapshot em `scratchpad/sofia-system-prompt-LIVE.txt`): a seção "PRODUTO DO FORMULÁRIO" do system_prompt vivo trata de eixo DIFERENTE (form × o que o cliente ESCREVE no chat) e é CONSISTENTE com o novo bloco. O prompt vivo já prega a mesma hierarquia: L32 "o bloco de dados operacionais SEMPRE prevalece" + L82 "na divergência, mencione UMA vez (vi que sua compra está registrada como X)". Sem conflito — o bloco de código VELHO é que contradizia o prompt (dava autoridade imperativa ao dropdown). O fix ALINHA o código com o prompt.
+
+**Deploy**: commits `79313ac` (fix) + `b9498b6` (reforço "não perguntar" pós-smoke). Deploy via API Vercel `dpl_5s2zo3x3aQzN2cBPtyg4xjD2nd7Z` READY (alias `suporte-amber`). tsc limpo + 144/144. Rollback: Vercel 1-click.
+
+**🔴 SMOKE E2E revelou raiz MAIS PROFUNDA (NÃO resolvida — decisão do dono)**: reproduzido o caso Josy ao vivo em prod 2× (customer=Josy, product_id=50 Scripts, pergunta de acesso genérica). O pre-fetch do Fluxon RODOU e achou "Formatos de Conteúdos" (`match_email`, `tem_link=true`), mas a Sofia respondeu "qual produto você comprou?" as DUAS vezes. Causa = **o prompt vivo (Regra 2 INEGOCIÁVEL) PROÍBE links `/quillforms/`** (endurecido pós-incidente Teste dos Arquétipos 21/05: "a ÚNICA /quillforms/ válida é o Teste dos Arquétipos; se não sabe o link, NÃO chute: pergunte"). "Formatos de Conteúdos" é entregue por `cleitonquerobin.com.br/quillforms/perpetuo-formatos-de-conteudos/` e NÃO consta na lista de produtos do prompt → a Sofia se recusa a mandar o quillforms e pergunta (comportamento correto DADO o prompt atual). O fix de código resolve a camada "Sofia AFIRMA produto errado"; a camada "Sofia pergunta / não entrega produto quillforms" mora no prompt vivo.
+
+**PENDÊNCIA (retomar) — ajuste do prompt vivo (`ai_config.system_prompt`, runtime, vale na hora sem deploy)**: exceção cirúrgica na Regra 2 — "quando os DADOS OPERACIONAIS trazem o `link_acesso` da compra real, USE esse link como veio (mesmo /quillforms/); a proibição de /quillforms/ vale só quando você NÃO tem o link (pra não chutar)". Preserva a proteção anti-chute do incidente Teste dos Arquétipos E destrava produtos quillforms legítimos. **Impacto amplo**: afeta TODOS os produtos entregues por quillforms, não só a Josy. Fazer com BACKUP do prompt + redação POSITIVA (L034 elefante-rosa) + re-smoke ao vivo.
+
+**Ressalva 1 (RAG enviesado pelo produto do form no embedding) = fatia 2** — confirmada como débito, não neste deploy.
+
+**Decided_by**: usuário 2026-07-08 — "só o fix de código (já no ar), prompt depois". Fix de código LIVE e verificado; raiz do quillforms + RAG adiadas conscientemente.
