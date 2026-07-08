@@ -190,6 +190,7 @@ export default function HelpPage() {
         body: JSON.stringify({
           question: message, // fallback
           messages: newMessages, // historico
+          conversation_id: conversationId, // Fix D-CTX: reusa a MESMA conversa (nao fragmenta a memoria por mensagem)
           product_id: formData.product_id,
           category_id: formData.category_id,
           customer: {

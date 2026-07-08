@@ -253,6 +253,38 @@ export async function POST(request: NextRequest) {
       if (existingByWa) conversationId = existingByWa.id
     }
 
+    // Fix D-CTX — reuso defensivo: antes de criar conversa NOVA, procura uma conversa
+    // recente do MESMO cliente (janela 15min). Sem isso, cada mensagem que chega sem
+    // conversation_id vira uma conversa nova e estilhaça a memoria (caso Kassia SUP-0465:
+    // 1 sessao virou 4 conversas). Defense in depth caso um front esqueca de mandar o id.
+    if (!conversationId && customer) {
+      const CONV_REUSE_WINDOW_MS = 15 * 60 * 1000
+      const sinceIso = new Date(Date.now() - CONV_REUSE_WINDOW_MS).toISOString()
+      const cpfNorm = customer.cpf ? String(customer.cpf).replace(/\D/g, '') : null
+      // Sanitiza pro literal quoted do PostgREST .or(): tira " (fecha o literal) e \ (escaparia
+      // a aspa de fechamento e vazaria pro proximo filtro). email/cpf/telefone nunca os contem.
+      const q = (v: unknown) => String(v).replace(/["\\]/g, '')
+      const orParts: string[] = []
+      if (customer.email) orParts.push(`customer_email.eq."${q(customer.email)}"`)
+      if (cpfNorm) orParts.push(`customer_cpf.eq.${cpfNorm}`)
+      if (customer.telefone) orParts.push(`customer_telefone.eq."${q(customer.telefone)}"`)
+      if (orParts.length > 0) {
+        try {
+          const { data: recent } = await supabase
+            .from('ai_conversations')
+            .select('id')
+            .gte('updated_at', sinceIso)
+            .or(orParts.join(','))
+            .order('updated_at', { ascending: false })
+            .limit(1)
+            .maybeSingle()
+          if (recent) conversationId = recent.id
+        } catch (err) {
+          console.error('Falha ao reusar conversa recente:', err)
+        }
+      }
+    }
+
     if (!conversationId && customer) {
       try {
         const { data: created } = await supabase
