@@ -802,3 +802,21 @@ O bloco em si está correto, testado e é uma melhoria real sobre o bug relatado
 **Ressalva 1 (RAG enviesado pelo produto do form no embedding) = fatia 2** — confirmada como débito, não neste deploy.
 
 **Decided_by**: usuário 2026-07-08 — "só o fix de código (já no ar), prompt depois". Fix de código LIVE e verificado; raiz do quillforms + RAG adiadas conscientemente.
+
+## 🔪 Fechamento do Bruto — fragmentação de memória da Sofia (portal) RESOLVIDA (2026-07-08)
+
+**Gatilho**: Eduardo mostrou o ticket SUP-2026-0465 (Kássia Azevedo) — a Sofia perdia contexto muito rápido. "Antes de testarmos precisamos melhorar a configuração da sofia."
+
+**Raiz (NÃO era config/prompt — era código)**: o portal `/suporte/ajuda` `handleFollowUp` mandava as mensagens de follow-up **sem `conversation_id`**. O backend (`route.ts`, cadeia `if (!conversationId && customer) { criar nova }`) criava **uma conversa nova a cada mensagem** → a sessão da Kássia virou **4 `ai_conversations`** (18f68889, 07ea5dc3, f0ac1c79, f70c0d46). As 3 primeiras (onde ela descreveu o problema real) ficaram órfãs sem `ticket_id`; ao escalar, o ticket herdou só a última → contexto perdido → reset pro "como posso te ajudar hoje?".
+
+**Fix (2 camadas — GO do Eduardo "pode tocar as duas")**:
+- **Front** `src/app/suporte/ajuda/page.tsx` — `handleFollowUp` agora envia `conversation_id: conversationId` → toda a sessão persiste em UMA conversa; ao escalar, `createTicket` faz o CAS `ticket_id` nessa conversa e o ticket herda o histórico completo.
+- **Backend** `src/app/api/ai/chat/route.ts` — reuso defensivo: antes de criar conversa nova, procura conversa recente do mesmo cliente (email/cpf/telefone, janela 15min via `updated_at`) e reusa. Defense in depth. **Security (Luz Estrela)**: valores sanitizados pro literal quoted do PostgREST `.or()` (tira `"` e `\` — valor terminando em `\` escaparia a aspa de fechamento e vazaria pro próximo filtro).
+
+**Gate**: tsc limpo · 144/144 vitest · security review. **Commit** `9ae0f54` · **deploy** `dpl_E8J7DtUFPZ8cANA2DpyueAvh9qDM` READY (`suporte-amber`). **Verificado ao vivo em prod**: (A) follow-up com id reusou a conversa; (B) msg sem id do mesmo cliente na janela reusou também (prova o backend defensivo). Rollback: Vercel 1-click. Lição registrada no brain: **L068**.
+
+**Nota**: deixada 1 conversa de teste em prod (`3fc079e9`, customer "TESTE Contexto Bruto") — lixo inofensivo/identificável, limpar quando conveniente.
+
+**PENDÊNCIAS pro próximo teste** (Eduardo: "mais tarde faremos mais testes"): (1) teste real da Sofia no WhatsApp do Eduardo — Sofia do **Fluxon** (`suporte-handler.ts`, outra base, sem RAG), flag `sofia_suporte_teste_telefone=5551996149270`; (2) antes de liberar, checar se a Sofia-WhatsApp fragmenta memória própria; (3) prompt vivo quillforms (seção acima); (4) +13 entregas fantasma de Formatos de Conteúdos; (5) RAG enviesado (fatia 2).
+
+**Decided_by**: 🔪 Bruto, 2026-07-08 — fix + deploy autorizados (código de produção, reversível 1-click, gate verde + smoke ao vivo).
