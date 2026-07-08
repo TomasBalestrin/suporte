@@ -9,6 +9,7 @@ import {
   computeConfidence,
   buildFluxonContext,
   buildDadosOperacionais,
+  buildProdutoContextBlock,
   buildWpCandidates,
   annotateWpDivergence,
 } from '@/lib/sofia/context'
@@ -344,6 +345,7 @@ export async function POST(request: NextRequest) {
     let fluxonCanonicalEmail: string | null = null
     let fluxonIdentificacao: string | null = null
     let fluxonTemLink: boolean | null = null
+    let fluxonProdutosComprados: string[] = []
     if (customer && (customer.cpf || customer.email || customer.telefone) && process.env.FLUXON_SUPPORT_API_KEY && process.env.FLUXON_BASE_URL) {
       try {
         const params = new URLSearchParams()
@@ -362,6 +364,7 @@ export async function POST(request: NextRequest) {
           fluxonCanonicalEmail = result.fluxonCanonicalEmail
           fluxonIdentificacao = result.identificacao
           fluxonTemLink = result.temLink
+          fluxonProdutosComprados = result.produtosComprados
         }
       } catch (err) {
         console.error('[ai/chat] Falha ao consultar Fluxon (pre-fetch):', err)
@@ -392,10 +395,7 @@ export async function POST(request: NextRequest) {
 [DADOS DO CLIENTE]
 ${customerInfo}
 ${dadosOperacionais}${acessoMembros}
-[PRODUTO DO CLIENTE — prevalece sobre a Regra 9]
-${productName
-  ? `O cliente JA informou o produto: "${productName}". Use este produto para dar o link e as instrucoes corretas. NAO pergunte "qual produto voce comprou" — voce ja sabe qual e.`
-  : `O cliente NAO informou o produto. Em duvidas de acesso, pergunte qual produto ele comprou antes de dar instrucoes.`}
+${buildProdutoContextBlock(productName, fluxonProdutosComprados)}
 <knowledge_base>
 ${contextStr}
 </knowledge_base>

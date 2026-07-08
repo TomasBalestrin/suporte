@@ -4,6 +4,8 @@ import {
   computeConfidence,
   buildFluxonContext,
   buildDadosOperacionais,
+  buildProdutoContextBlock,
+  produtoConstaNasCompras,
   buildWpCandidates,
   annotateWpDivergence,
 } from '@/lib/sofia/context'
@@ -75,6 +77,25 @@ describe('sofia/context', () => {
       // fix C — observabilidade do pre-fetch
       expect(result.identificacao).toBe('match_cpf')
       expect(result.temLink).toBe(true)
+      // fix produto-divergente (2026-07-08) — expõe as compras reais p/ reconciliar com o form
+      expect(result.produtosComprados).toEqual(['Curso ABC'])
+    })
+
+    it('produtosComprados lista todas as compras e ignora produto vazio', () => {
+      const fl = {
+        cliente: { email: 'u@e.com' },
+        compras: [
+          { produto: 'Formatos de Conteúdos', plataforma: 'pagtrust', dias_desde_compra: 1 },
+          { produto: '  ', plataforma: 'pagtrust', dias_desde_compra: 1 },
+          { produto: '50 Scripts', plataforma: 'hotmart', dias_desde_compra: 2 },
+        ],
+      }
+      const result = buildFluxonContext(fl)
+      expect(result.produtosComprados).toEqual(['Formatos de Conteúdos', '50 Scripts'])
+    })
+
+    it('produtosComprados=[] quando não há compra', () => {
+      expect(buildFluxonContext({ compras: [] }).produtosComprados).toEqual([])
     })
 
     it('temLink=false when compra has no link_acesso (fix C)', () => {
@@ -243,6 +264,89 @@ describe('sofia/context', () => {
       const context = 'Access info here'
       const result = annotateWpDivergence(context, 'matched@example.com', undefined as any)
       expect(result).toBe(context)
+    })
+  })
+
+  // ─── produtoConstaNasCompras ───
+  describe('produtoConstaNasCompras', () => {
+    it('match exato normalizado (acento/caixa irrelevantes)', () => {
+      expect(produtoConstaNasCompras('Formatos de Conteúdos', ['formatos de conteudos'])).toBe(true)
+    })
+    it('match por inclusão de substring (nomes divergem entre catálogos)', () => {
+      expect(produtoConstaNasCompras('Formatos de Conteúdos', ['Formatos de Conteúdos — Cleiton Querobin'])).toBe(true)
+      expect(produtoConstaNasCompras('Implementação da Ferramenta de IA', ['Implementação da Ferramenta'])).toBe(true)
+    })
+    it('limitação conhecida: sigla vs extenso NÃO casa (falso-divergente, mas conduta segura)', () => {
+      // "IA" não é substring de "Inteligência Artificial" → vira divergente.
+      // Aceito por design: na divergência de 1 compra a Sofia entrega a compra REAL
+      // mencionando, então o cliente ainda recebe o acesso certo (só nomeado pelo rótulo do Fluxon).
+      expect(produtoConstaNasCompras('Implementação IA', ['Implementação da Ferramenta de Inteligência Artificial'])).toBe(false)
+    })
+    it('NÃO casa produtos genuinamente diferentes (caso Josy)', () => {
+      expect(produtoConstaNasCompras('50 Scripts Prontos para o WhatsApp', ['Formatos de Conteúdos'])).toBe(false)
+    })
+    it('acha o produto quando há várias compras', () => {
+      expect(produtoConstaNasCompras('50 Scripts', ['Formatos de Conteúdos', '50 Scripts Prontos'])).toBe(true)
+    })
+    it('false para nome vazio ou lista vazia', () => {
+      expect(produtoConstaNasCompras('', ['Curso ABC'])).toBe(false)
+      expect(produtoConstaNasCompras('Curso ABC', [])).toBe(false)
+    })
+  })
+
+  // ─── buildProdutoContextBlock ───
+  describe('buildProdutoContextBlock', () => {
+    it('sem compra no Fluxon + produto do form → confia no dropdown (legado)', () => {
+      const b = buildProdutoContextBlock('Curso ABC', [])
+      expect(b).toContain('informou o produto no formulario: "Curso ABC"')
+      expect(b).toContain('NAO pergunte')
+      expect(b).not.toContain('DIVERGENCIA')
+    })
+
+    it('sem compra e sem produto → pergunta qual produto', () => {
+      const b = buildProdutoContextBlock(null, [])
+      expect(b).toContain('NAO informou o produto')
+      expect(b).toContain('pergunte qual produto')
+    })
+
+    it('form bate com a compra real → usa e não pergunta', () => {
+      const b = buildProdutoContextBlock('Formatos de Conteúdos', ['Formatos de Conteúdos'])
+      expect(b).toContain('ISSO CONSTA nas compras reais')
+      expect(b).toContain('NAO pergunte')
+      expect(b).not.toContain('DIVERGENCIA')
+    })
+
+    it('REGRESSÃO Josy: form "50 Scripts" mas compra real "Formatos de Conteúdos" → entrega a REAL, mencionando', () => {
+      const b = buildProdutoContextBlock('50 Scripts Prontos para o WhatsApp', ['Formatos de Conteúdos'])
+      expect(b).toContain('DIVERGENCIA')
+      expect(b).toContain('A COMPRA REAL PREVALECE')
+      expect(b).toContain('"Formatos de Conteúdos"')
+      // menciona ao cliente (decisão do dono)
+      expect(b).toContain('localizou a compra dele como')
+      // e proíbe mandar o produto errado do dropdown
+      expect(b).toContain('NAO mande o link nem as instrucoes de "50 Scripts Prontos para o WhatsApp"')
+      // guarda anti-conflito com [DADOS OPERACIONAIS]: não escalar por causa da divergência
+      expect(b).toContain('NAO escale por causa desta divergencia')
+    })
+
+    it('form vazio mas há 1 compra → usa a compra real sem perguntar', () => {
+      const b = buildProdutoContextBlock(null, ['Formatos de Conteúdos'])
+      expect(b).toContain('compra(s) REAL(is)')
+      expect(b).toContain('"Formatos de Conteúdos"')
+      expect(b).toContain('NAO pergunte')
+    })
+
+    it('form vazio com N compras → confirma qual', () => {
+      const b = buildProdutoContextBlock(null, ['Curso A', 'Curso B'])
+      expect(b).toContain('confirme qual')
+    })
+
+    it('divergência com N compras (nenhuma bate) → lista e confirma', () => {
+      const b = buildProdutoContextBlock('Produto X', ['Curso A', 'Curso B'])
+      expect(b).toContain('DIVERGENCIA')
+      expect(b).toContain('NAO consta')
+      expect(b).toContain('confirme com o cliente qual')
+      expect(b).toContain('"Curso A", "Curso B"')
     })
   })
 })

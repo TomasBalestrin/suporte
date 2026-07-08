@@ -764,3 +764,27 @@ Método por ticket: Fluxon `/api/support/lead` (comprou?) → `consultar-acesso`
 ## Notas
 - **E-mail morto em prod (RESEND ausente)**: os resolvidos NÃO recebem push; a resposta fica no portal (via access_token). Decisão consciente do dono ("só portal"). Fechar o loop de verdade exigiria religar RESEND ou disparar WhatsApp (Fluxon) — pendente.
 - Scripts read-only/ops no scratchpad: `triagem-2`, `acesso-x-fluxon`, `piloto-consultar`, `resolver-acesso` (APPLY), `resolver-3-especiais`, `verif-e-resto`, `triagem-resto`, `acesso2-detalhe`, `contagem-final`.
+
+---
+
+# ⭐ Fix "produto divergente" (Josy/558288037365) — review Luz Estrela (2026-07-08)
+
+**Incidente**: cliente comprou "Formatos de Conteúdos", Sofia respondeu "50 Scripts" (link+senha errados) — o bloco `[PRODUTO DO CLIENTE]` (dropdown do form) vinha com autoridade imperativa e vencia a compra REAL do Fluxon.
+
+**Fix**: `src/lib/sofia/context.ts` (`buildProdutoContextBlock` + `produtoConstaNasCompras` + `normalizeProdName`, novos) + `src/app/api/ai/chat/route.ts` (troca o bloco inline pela função). Regra-mãe: compra real do Fluxon prevalece sobre o dropdown; 5 casos cobertos (sem compra / form vazio+compra / match / diverge 1 compra → entrega REAL mencionando / diverge N compras → lista e confirma).
+
+**Verificado agora (não self-report)**: `the-boys-verify.mjs` → kit-gates limpo, typecheck 0 erros. `npx vitest run` → **144/144 verdes** (47 no arquivo novo, incluindo teste de regressão nomeado "REGRESSÃO Josy").
+
+## ⭐ APROVADO COM RESSALVAS
+
+O bloco em si está correto, testado e é uma melhoria real sobre o bug relatado — sem isso, não bloqueio. Duas ressalvas de peso, ligadas ao MESMO padrão de falha por canal diferente:
+
+1. **RAG ainda enviesado pelo produto do dropdown** (`route.ts:312-317`, `enrichedQuestion = [Produto: ${p.name}] ${lastMessageContent}` alimenta o embedding da busca vetorial). Isso é **débito JÁ conhecido** (linha 690 deste arquivo, achado do Pacote D 06/07: "a injeção de produto às vezes ATRAPALHA... puxa o FAQ genérico") e também já tinha sido **decidido corrigir** em `sofia-prompt-v3` (linha 88: "separar `formProductName` do `enrichedQuestion`", commit `1d54232`/T15) — decisão que não está refletida no `route.ts` atual (provável baixa no refactor "Sofia v2" que o próprio código comenta ter restaurado só em parte). Efeito: se a compra REAL do cliente não tiver `link_acesso`/`login_instrucao` no Fluxon (comum em compra antiga), o `<knowledge_base>` pode devolver um artigo específico do produto ERRADO do form (há artigos por produto/produtor, não só genérico) — reabrindo o MESMO tipo de incidente por um canal que este diff não toca. **Não bloqueia este merge** (o bug relatado está corrigido), mas não deveria ficar indefinidamente adiado — a régua de "incidente fechado" não deveria baixar sem isso.
+2. **Possível sobreposição com seção pré-existente do system_prompt vivo** — o snapshot mais recente no repo (`.specs/features/sofia-kb-acesso/system_prompt-LIVE-2026-06-26.txt:76-82`, seção "PRODUTO DO FORMULÁRIO") já reconcilia "produto do form" vs. o que o cliente ESCREVE no chat (eixo diferente do novo bloco, que reconcilia form vs. compra real do Fluxon). Vocabulário parecido, eixos diferentes — risco real de o gpt-4o-mini misturar as duas lógicas. Tentei confirmar contra o prompt vivo de HOJE (script read-only já existente `_pull-ground-truth.mjs`) e o classifier de auto-mode bloqueou a leitura direta em prod (fora do escopo desta sessão) — **fica pendente**: alguém com autorização explícita rodar o pull e conferir se essa seção ainda existe e se não contradiz o novo bloco.
+
+**Não bloqueante (nota, sem ressalva de merge)**:
+- `produtoConstaNasCompras` (`context.ts:108-115`) só justifica o falso-NEGATIVO como seguro; falso-POSITIVO (nome curto/genérico contido por acidente num nome de produto não-relacionado) não tem essa garantia — sem colisão real no catálogo atual (`004_seed_knowledge_base.sql`), mas vale revisitar se o catálogo crescer com nomes curtos.
+- `lista` (`context.ts:138`) não deduplica produto comprado 2x (renovação) — só cosmético.
+- L034 (elefante rosa) checado: a negação mora no system_prompt (não no doc de RAG), consistente com o canon; produto certo aparece 3x vs. produto errado 2x no bloco de divergência — risco baixo.
+
+**Decided_by**: ⭐ Luz Estrela, 2026-07-08 (gate pré-deploy). Bruto pode anular a ressalva 1/2, mas registra o motivo aqui se anular.

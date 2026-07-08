@@ -22,12 +22,16 @@ export function buildFluxonContext(fl: any): {
   fluxonCanonicalEmail: string | null
   identificacao: string | null
   temLink: boolean
+  produtosComprados: string[]
 } {
   const fluxonCanonicalEmail = fl?.cliente?.email ?? null
   const identificacao = fl?.identificacao ?? null
 
   if (Array.isArray(fl.compras) && fl.compras.length > 0) {
     const temLink = fl.compras.some((c: any) => !!c.link_acesso)
+    const produtosComprados = fl.compras
+      .map((c: any) => (typeof c.produto === 'string' ? c.produto.trim() : ''))
+      .filter((p: string) => !!p)
     const parts: string[] = [fl.diagnostico_resumido || '']
     parts.push(`\nHistorico de compras (${fl.compras.length}):`)
     for (const c of fl.compras) {
@@ -36,10 +40,10 @@ export function buildFluxonContext(fl: any): {
       )
     }
     const fluxonContext = parts.filter(Boolean).join('\n')
-    return { fluxonContext, fluxonSemCompra: false, fluxonCanonicalEmail, identificacao, temLink }
+    return { fluxonContext, fluxonSemCompra: false, fluxonCanonicalEmail, identificacao, temLink, produtosComprados }
   }
 
-  return { fluxonContext: null, fluxonSemCompra: true, fluxonCanonicalEmail, identificacao, temLink: false }
+  return { fluxonContext: null, fluxonSemCompra: true, fluxonCanonicalEmail, identificacao, temLink: false, produtosComprados: [] }
 }
 
 /**
@@ -78,4 +82,78 @@ export function annotateWpDivergence(wpContext: string, matchedEmail: string, ty
     return `\n(Conta localizada sob o e-mail ${matchedEmail}, diferente do informado pelo cliente — informe isso a ele.)${wpContext}`
   }
   return wpContext
+}
+
+/**
+ * Normaliza nome de produto para comparação tolerante entre catálogos
+ * (Suporte `products.name` vs Fluxon `compras[].produto`): lowercase, sem
+ * acentos, só alfanumérico separado por espaço.
+ */
+function normalizeProdName(s: string): string {
+  return String(s ?? '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+}
+
+/**
+ * O produto informado no formulário consta nas compras reais do Fluxon?
+ * Match tolerante (igualdade normalizada OU inclusão de substring em qualquer
+ * direção) — nomes divergem levemente entre catálogos. Falso-divergente é
+ * seguro por design: a conduta de divergência (1 compra) entrega a compra REAL
+ * mencionando, então no pior caso a Sofia nomeia a compra pelo rótulo do Fluxon.
+ */
+export function produtoConstaNasCompras(productName: string, produtosComprados: string[]): boolean {
+  const a = normalizeProdName(productName)
+  if (!a) return false
+  return produtosComprados.some((p) => {
+    const b = normalizeProdName(p)
+    return !!b && (a === b || a.includes(b) || b.includes(a))
+  })
+}
+
+/**
+ * Constrói o bloco `[PRODUTO DO CLIENTE]` do system prompt reconciliando o
+ * produto do FORMULÁRIO (dropdown, um palpite do cliente) com a COMPRA REAL do
+ * Fluxon (a verdade). Raiz corrigida (2026-07-08, incidente Josy/558288037365):
+ * o dropdown vinha com autoridade imperativa maior que a compra real → a Sofia
+ * mandava o produto errado quando divergiam. Regra-mãe: **a compra real do
+ * Fluxon prevalece sobre o dropdown**. Sem compra no Fluxon, mantém o legado
+ * (confia no dropdown, única pista). Decisão do dono na divergência de 1 compra:
+ * entregar a compra real MENCIONANDO ("localizei sua compra como Y").
+ */
+export function buildProdutoContextBlock(productName: string | null, produtosComprados: string[]): string {
+  const header = '[PRODUTO DO CLIENTE — prevalece sobre a Regra 9]'
+  const temCompras = Array.isArray(produtosComprados) && produtosComprados.length > 0
+
+  // Sem compra real no Fluxon → comportamento legado: confia no dropdown do form.
+  if (!temCompras) {
+    return `${header}\n${productName
+      ? `O cliente informou o produto no formulario: "${productName}". Use este produto para dar o link e as instrucoes corretas. NAO pergunte "qual produto voce comprou" — voce ja sabe qual e.`
+      : `O cliente NAO informou o produto. Em duvidas de acesso, pergunte qual produto ele comprou antes de dar instrucoes.`}`
+  }
+
+  const lista = produtosComprados.map((p) => `"${p}"`).join(', ')
+
+  // Form vazio, mas há compra real → usa a compra real como fonte de verdade.
+  if (!productName) {
+    return `${header}\nA(s) compra(s) REAL(is) deste cliente no Fluxon: ${lista}. Use ESTA(S) compra(s) como fonte de verdade do produto — de o link e as instrucoes da compra real. ${produtosComprados.length > 1
+      ? 'Como ha mais de uma compra, confirme qual delas ele precisa acessar antes de mandar credenciais.'
+      : 'NAO pergunte "qual produto voce comprou" — voce ja sabe qual e.'}`
+  }
+
+  // Form bate com uma compra real → confirma e usa (caminho feliz).
+  if (produtoConstaNasCompras(productName, produtosComprados)) {
+    return `${header}\nO cliente informou "${productName}" no formulario e ISSO CONSTA nas compras reais dele. Use este produto para dar o link e as instrucoes corretas. NAO pergunte "qual produto voce comprou" — voce ja sabe qual e.`
+  }
+
+  // Form DIVERGE das compras reais.
+  if (produtosComprados.length === 1) {
+    // 1 compra → entrega a REAL, mencionando a divergência (decisão do dono 2026-07-08).
+    return `${header}\nATENCAO — DIVERGENCIA: o cliente selecionou "${productName}" no formulario, mas a compra REAL registrada e ${lista}. A COMPRA REAL PREVALECE. Atenda pelo produto ${lista}: de o link e as instrucoes da compra real e mencione ao cliente, de forma natural, que voce localizou a compra dele como ${lista}. NAO mande o link nem as instrucoes de "${productName}" — ele NAO comprou esse produto. NAO escale por causa desta divergencia: o cliente TEM compra real, resolva entregando o acesso dela.`
+  }
+  // N compras, nenhuma bate → lista e confirma.
+  return `${header}\nATENCAO — DIVERGENCIA: o cliente selecionou "${productName}" no formulario, mas isso NAO consta nas compras reais dele. As compras REAIS sao: ${lista}. NAO mande instrucoes de "${productName}". Liste as compras reais e confirme com o cliente qual delas ele precisa acessar antes de mandar credenciais.`
 }
