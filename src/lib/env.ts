@@ -13,6 +13,7 @@ const optionalServerVars = [
   'OPENAI_API_KEY',
   'OPENAI_MODEL',
   'OPENAI_EMBEDDING_MODEL',
+  'DEEPINFRA_API_KEY',
   'RESEND_API_KEY',
   'EMAIL_FROM',
   'CRON_SECRET',

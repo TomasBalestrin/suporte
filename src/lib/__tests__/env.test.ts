@@ -59,6 +59,7 @@ describe('validateEnv', () => {
     process.env.OPENAI_API_KEY = 'key'
     process.env.OPENAI_MODEL = 'gpt-4o-mini'
     process.env.OPENAI_EMBEDDING_MODEL = 'text-embedding-3-small'
+    process.env.DEEPINFRA_API_KEY = 'key'
     process.env.RESEND_API_KEY = 'key'
     process.env.EMAIL_FROM = 'test@example.com'
     process.env.CRON_SECRET = 'secret'

@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
+import { getDeepInfra, SOFIA_LLM_MODEL } from '@/lib/deepinfra'
+
+// DeepInfra (Llama 3.3 70B Turbo) as vezes tem cold start de dezenas de segundos no tier
+// compartilhado — sem isso a funcao roda no timeout padrao da Vercel e devolve 504 no meio
+// do loop de tool calling (ate 3 chamadas encadeadas).
+export const maxDuration = 300
 
 export async function POST(request: NextRequest) {
   try {
@@ -30,7 +36,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (!process.env.OPENAI_API_KEY) {
+    if (!process.env.OPENAI_API_KEY || !process.env.DEEPINFRA_API_KEY) {
       return NextResponse.json({
         success: true,
         data: { answer: null, requires_ticket: true },
@@ -64,7 +70,8 @@ export async function POST(request: NextRequest) {
       'Nao encontrei uma resposta para sua duvida. Vou encaminhar para um atendente.'
 
     const OpenAI = (await import('openai')).default
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) // embeddings — continua na OpenAI (ver deepinfra.ts)
+    const deepinfra = await getDeepInfra() // chat completions
 
     // ─── Memória de conversa ───
     let conversationId: string | null = clientConvId || null
@@ -376,8 +383,8 @@ Use tools apenas quando fizer sentido. Perguntas genericas cobertas pela KB = re
     const toolCallsExecuted: Array<{ name: string; args: any; result: any }> = []
 
     for (let iter = 0; iter < 3; iter++) {
-      const res = await openai.chat.completions.create({
-        model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+      const res = await deepinfra.chat.completions.create({
+        model: SOFIA_LLM_MODEL,
         temperature,
         max_tokens: maxTokens,
         messages,
