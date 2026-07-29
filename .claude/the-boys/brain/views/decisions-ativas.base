@@ -1,0 +1,13 @@
+filters:
+  and:
+    - file.inFolder("brain/decisions")
+    - note.status == "accepted"
+views:
+  - type: table
+    name: Decisões aceitas
+    order:
+      - id
+      - title
+      - date
+      - status
+      - owner

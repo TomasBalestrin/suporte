@@ -161,7 +161,7 @@ export async function POST(
           html: emailData.html,
           ticketId: id,
           template: 'new_message',
-        }).catch(() => {})
+        }).catch(() => { })
       }
     }
 

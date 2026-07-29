@@ -1,0 +1,1614 @@
+{
+  "nodes": [
+    {
+      "id": "eduardo",
+      "x": 0,
+      "y": 0,
+      "width": 280,
+      "height": 64,
+      "color": "#B19365",
+      "type": "file",
+      "file": "brain/how-we-work.md"
+    },
+    {
+      "id": "mv4",
+      "x": 460,
+      "y": 0,
+      "width": 280,
+      "height": 64,
+      "color": "#e0863a",
+      "type": "text",
+      "text": "**MV4 Digital**\n_company_"
+    },
+    {
+      "id": "bethel",
+      "x": 460,
+      "y": 95,
+      "width": 280,
+      "height": 64,
+      "color": "#e0863a",
+      "type": "text",
+      "text": "**Bethel Educação**\n_company_"
+    },
+    {
+      "id": "movi",
+      "x": 460,
+      "y": 190,
+      "width": 280,
+      "height": 64,
+      "color": "#e0863a",
+      "type": "text",
+      "text": "**Movi**\n_company_"
+    },
+    {
+      "id": "next-co",
+      "x": 460,
+      "y": 285,
+      "width": 280,
+      "height": 64,
+      "color": "#e0863a",
+      "type": "text",
+      "text": "**Next (empresa)**\n_company_"
+    },
+    {
+      "id": "fluxonapp",
+      "x": 920,
+      "y": 0,
+      "width": 280,
+      "height": 64,
+      "color": "#3aa6e0",
+      "type": "file",
+      "file": "brain/projects/fluxonapp.md"
+    },
+    {
+      "id": "fluxon",
+      "x": 920,
+      "y": 95,
+      "width": 280,
+      "height": 64,
+      "color": "#3aa6e0",
+      "type": "file",
+      "file": "brain/projects/fluxon.md"
+    },
+    {
+      "id": "bethel-anuncios",
+      "x": 920,
+      "y": 190,
+      "width": 280,
+      "height": 64,
+      "color": "#3aa6e0",
+      "type": "file",
+      "file": "brain/projects/bethel-anuncios.md"
+    },
+    {
+      "id": "bethel-contratos",
+      "x": 920,
+      "y": 285,
+      "width": 280,
+      "height": 64,
+      "color": "#3aa6e0",
+      "type": "file",
+      "file": "brain/projects/bethel-contratos.md"
+    },
+    {
+      "id": "bethel-rh",
+      "x": 920,
+      "y": 380,
+      "width": 280,
+      "height": 64,
+      "color": "#3aa6e0",
+      "type": "file",
+      "file": "brain/projects/bethel-rh.md"
+    },
+    {
+      "id": "bethel-infra",
+      "x": 920,
+      "y": 475,
+      "width": 280,
+      "height": 64,
+      "color": "#3aa6e0",
+      "type": "file",
+      "file": "brain/projects/bethel-infra.md"
+    },
+    {
+      "id": "monetizacaov2",
+      "x": 920,
+      "y": 570,
+      "width": 280,
+      "height": 64,
+      "color": "#3aa6e0",
+      "type": "file",
+      "file": "brain/projects/monetizacaov2.md"
+    },
+    {
+      "id": "tkf-eq",
+      "x": 920,
+      "y": 665,
+      "width": 280,
+      "height": 64,
+      "color": "#3aa6e0",
+      "type": "file",
+      "file": "brain/projects/tkf-eq.md"
+    },
+    {
+      "id": "sofia",
+      "x": 920,
+      "y": 760,
+      "width": 280,
+      "height": 64,
+      "color": "#3aa6e0",
+      "type": "file",
+      "file": "brain/projects/sofia.md"
+    },
+    {
+      "id": "suporte",
+      "x": 920,
+      "y": 855,
+      "width": 280,
+      "height": 64,
+      "color": "#3aa6e0",
+      "type": "file",
+      "file": "brain/projects/suporte.md"
+    },
+    {
+      "id": "edublock",
+      "x": 920,
+      "y": 950,
+      "width": 280,
+      "height": 64,
+      "color": "#3aa6e0",
+      "type": "file",
+      "file": "brain/projects/edublock.md"
+    },
+    {
+      "id": "hub-lead",
+      "x": 920,
+      "y": 1045,
+      "width": 280,
+      "height": 64,
+      "color": "#3aa6e0",
+      "type": "file",
+      "file": "brain/projects/hub-lead.md"
+    },
+    {
+      "id": "the-boys",
+      "x": 920,
+      "y": 1140,
+      "width": 280,
+      "height": 64,
+      "color": "#3aa6e0",
+      "type": "file",
+      "file": "brain/projects/the-boys.md"
+    },
+    {
+      "id": "bethel-motores",
+      "x": 920,
+      "y": 1235,
+      "width": 280,
+      "height": 64,
+      "color": "#3aa6e0",
+      "type": "text",
+      "text": "**Bethel-Motores**\n_project_"
+    },
+    {
+      "id": "nextjs",
+      "x": 1380,
+      "y": 0,
+      "width": 280,
+      "height": 64,
+      "color": "#41b86a",
+      "type": "file",
+      "file": "brain/stacks/nextjs.md"
+    },
+    {
+      "id": "supabase",
+      "x": 1380,
+      "y": 95,
+      "width": 280,
+      "height": 64,
+      "color": "#41b86a",
+      "type": "file",
+      "file": "brain/stacks/supabase.md"
+    },
+    {
+      "id": "python",
+      "x": 1380,
+      "y": 190,
+      "width": 280,
+      "height": 64,
+      "color": "#41b86a",
+      "type": "file",
+      "file": "brain/stacks/python.md"
+    },
+    {
+      "id": "rust",
+      "x": 1380,
+      "y": 285,
+      "width": 280,
+      "height": 64,
+      "color": "#41b86a",
+      "type": "file",
+      "file": "brain/stacks/rust.md"
+    },
+    {
+      "id": "react",
+      "x": 1380,
+      "y": 380,
+      "width": 280,
+      "height": 64,
+      "color": "#41b86a",
+      "type": "text",
+      "text": "**React**\n_stack_"
+    },
+    {
+      "id": "vite",
+      "x": 1380,
+      "y": 475,
+      "width": 280,
+      "height": 64,
+      "color": "#41b86a",
+      "type": "text",
+      "text": "**Vite**\n_stack_"
+    },
+    {
+      "id": "typescript",
+      "x": 1380,
+      "y": 570,
+      "width": 280,
+      "height": 64,
+      "color": "#41b86a",
+      "type": "text",
+      "text": "**TypeScript**\n_stack_"
+    },
+    {
+      "id": "tailwind",
+      "x": 1380,
+      "y": 665,
+      "width": 280,
+      "height": 64,
+      "color": "#41b86a",
+      "type": "text",
+      "text": "**Tailwind**\n_stack_"
+    },
+    {
+      "id": "shadcn",
+      "x": 1380,
+      "y": 760,
+      "width": 280,
+      "height": 64,
+      "color": "#41b86a",
+      "type": "text",
+      "text": "**shadcn/Radix**\n_stack_"
+    },
+    {
+      "id": "capacitor",
+      "x": 1380,
+      "y": 855,
+      "width": 280,
+      "height": 64,
+      "color": "#41b86a",
+      "type": "text",
+      "text": "**Capacitor**\n_stack_"
+    },
+    {
+      "id": "vercel",
+      "x": 1840,
+      "y": 0,
+      "width": 280,
+      "height": 64,
+      "color": "#8a6fe0",
+      "type": "text",
+      "text": "**Vercel**\n_infra_"
+    },
+    {
+      "id": "hetzner",
+      "x": 1840,
+      "y": 95,
+      "width": 280,
+      "height": 64,
+      "color": "#8a6fe0",
+      "type": "text",
+      "text": "**VPS Hetzner**\n_infra_"
+    },
+    {
+      "id": "lovable",
+      "x": 1840,
+      "y": 190,
+      "width": 280,
+      "height": 64,
+      "color": "#8a6fe0",
+      "type": "text",
+      "text": "**Lovable**\n_infra_"
+    },
+    {
+      "id": "firebase",
+      "x": 1840,
+      "y": 285,
+      "width": 280,
+      "height": 64,
+      "color": "#8a6fe0",
+      "type": "text",
+      "text": "**Firebase / FCM**\n_infra_"
+    },
+    {
+      "id": "baileys",
+      "x": 2300,
+      "y": 0,
+      "width": 280,
+      "height": 64,
+      "color": "#e0a93a",
+      "type": "text",
+      "text": "**Baileys (WhatsApp não-oficial)**\n_integration_"
+    },
+    {
+      "id": "meta-cloud",
+      "x": 2300,
+      "y": 95,
+      "width": 280,
+      "height": 64,
+      "color": "#e0a93a",
+      "type": "text",
+      "text": "**Meta Cloud API**\n_integration_"
+    },
+    {
+      "id": "openai",
+      "x": 2300,
+      "y": 190,
+      "width": 280,
+      "height": 64,
+      "color": "#e0a93a",
+      "type": "text",
+      "text": "**OpenAI (GPT-4o)**\n_integration_"
+    },
+    {
+      "id": "gemini",
+      "x": 2300,
+      "y": 285,
+      "width": 280,
+      "height": 64,
+      "color": "#e0a93a",
+      "type": "text",
+      "text": "**Google Gemini 2.5**\n_integration_"
+    },
+    {
+      "id": "resend",
+      "x": 2300,
+      "y": 380,
+      "width": 280,
+      "height": 64,
+      "color": "#e0a93a",
+      "type": "text",
+      "text": "**Resend (e-mail)**\n_integration_"
+    },
+    {
+      "id": "hotmart",
+      "x": 2300,
+      "y": 475,
+      "width": 280,
+      "height": 64,
+      "color": "#e0a93a",
+      "type": "text",
+      "text": "**Hotmart**\n_integration_"
+    },
+    {
+      "id": "pagtrust",
+      "x": 2300,
+      "y": 570,
+      "width": 280,
+      "height": 64,
+      "color": "#e0a93a",
+      "type": "text",
+      "text": "**PagTrust**\n_integration_"
+    },
+    {
+      "id": "pexels",
+      "x": 2300,
+      "y": 665,
+      "width": 280,
+      "height": 64,
+      "color": "#e0a93a",
+      "type": "text",
+      "text": "**Pexels**\n_integration_"
+    },
+    {
+      "id": "sentry",
+      "x": 2300,
+      "y": 760,
+      "width": 280,
+      "height": 64,
+      "color": "#e0a93a",
+      "type": "text",
+      "text": "**Sentry**\n_integration_"
+    },
+    {
+      "id": "apps-script",
+      "x": 2300,
+      "y": 855,
+      "width": 280,
+      "height": 64,
+      "color": "#e0a93a",
+      "type": "text",
+      "text": "**Google Apps Script**\n_integration_"
+    },
+    {
+      "id": "pgvector",
+      "x": 2300,
+      "y": 950,
+      "width": 280,
+      "height": 64,
+      "color": "#e0a93a",
+      "type": "text",
+      "text": "**pgvector (RAG)**\n_integration_"
+    },
+    {
+      "id": "bruto",
+      "x": 2760,
+      "y": 0,
+      "width": 280,
+      "height": 64,
+      "color": "#d94f8a",
+      "type": "text",
+      "text": "**🔪 Bruto**\n_persona_"
+    },
+    {
+      "id": "a-lenda",
+      "x": 2760,
+      "y": 95,
+      "width": 280,
+      "height": 64,
+      "color": "#d94f8a",
+      "type": "text",
+      "text": "**🎖️ A Lenda**\n_persona_"
+    },
+    {
+      "id": "hughie",
+      "x": 2760,
+      "y": 190,
+      "width": 280,
+      "height": 64,
+      "color": "#d94f8a",
+      "type": "text",
+      "text": "**🎯 Hughie**\n_persona_"
+    },
+    {
+      "id": "frances",
+      "x": 2760,
+      "y": 285,
+      "width": 280,
+      "height": 64,
+      "color": "#d94f8a",
+      "type": "text",
+      "text": "**🧪 Francês**\n_persona_"
+    },
+    {
+      "id": "kimiko",
+      "x": 2760,
+      "y": 380,
+      "width": 280,
+      "height": 64,
+      "color": "#d94f8a",
+      "type": "text",
+      "text": "**⚔️ Kimiko**\n_persona_"
+    },
+    {
+      "id": "soldierboy",
+      "x": 2760,
+      "y": 475,
+      "width": 280,
+      "height": 64,
+      "color": "#d94f8a",
+      "type": "text",
+      "text": "**🛡️ Soldier Boy**\n_persona_"
+    },
+    {
+      "id": "trem-bala",
+      "x": 2760,
+      "y": 570,
+      "width": 280,
+      "height": 64,
+      "color": "#d94f8a",
+      "type": "text",
+      "text": "**🚄 Trem-Bala**\n_persona_"
+    },
+    {
+      "id": "luz-estrela",
+      "x": 2760,
+      "y": 665,
+      "width": 280,
+      "height": 64,
+      "color": "#d94f8a",
+      "type": "text",
+      "text": "**⭐ Luz Estrela**\n_persona_"
+    },
+    {
+      "id": "mm",
+      "x": 2760,
+      "y": 760,
+      "width": 280,
+      "height": 64,
+      "color": "#d94f8a",
+      "type": "text",
+      "text": "**🍼 MM**\n_persona_"
+    },
+    {
+      "id": "edgar",
+      "x": 2760,
+      "y": 855,
+      "width": 280,
+      "height": 64,
+      "color": "#d94f8a",
+      "type": "text",
+      "text": "**💼 Stan Edgar**\n_persona_"
+    },
+    {
+      "id": "d003",
+      "x": 3220,
+      "y": 0,
+      "width": 280,
+      "height": 64,
+      "color": "#d94f4f",
+      "type": "file",
+      "file": "brain/decisions/D003-stack-padrao-mv4-nextjsvite-supabase-vercel.md"
+    },
+    {
+      "id": "d004",
+      "x": 3220,
+      "y": 95,
+      "width": 280,
+      "height": 64,
+      "color": "#d94f4f",
+      "type": "file",
+      "file": "brain/decisions/D004-supabase-ddlmigrations-via-management-api-token-nao-conexao-.md"
+    },
+    {
+      "id": "d005",
+      "x": 3220,
+      "y": 190,
+      "width": 280,
+      "height": 64,
+      "color": "#d94f4f",
+      "type": "file",
+      "file": "brain/decisions/D005-tres-projetos-whatsapp-nao-confundir.md"
+    },
+    {
+      "id": "d008",
+      "x": 3220,
+      "y": 285,
+      "width": 280,
+      "height": 64,
+      "color": "#d94f4f",
+      "type": "file",
+      "file": "brain/decisions/D008-afrouxa-vercel-prod-e-supabase-db-push.md"
+    },
+    {
+      "id": "l010",
+      "x": 3680,
+      "y": 0,
+      "width": 280,
+      "height": 64,
+      "color": "#c98a2e",
+      "type": "file",
+      "file": "brain/lessons/L010-whatsapp-lid-pn-dichotomy.md"
+    },
+    {
+      "id": "l012",
+      "x": 3680,
+      "y": 95,
+      "width": 280,
+      "height": 64,
+      "color": "#c98a2e",
+      "type": "text",
+      "text": "**L012 Vercel não auto-deploya**\n_lesson_"
+    },
+    {
+      "id": "l016",
+      "x": 3680,
+      "y": 190,
+      "width": 280,
+      "height": 64,
+      "color": "#c98a2e",
+      "type": "file",
+      "file": "brain/lessons/L016-aidl-windows-javac-unicode-escape.md"
+    },
+    {
+      "id": "p004",
+      "x": 4140,
+      "y": 0,
+      "width": 280,
+      "height": 64,
+      "color": "#5fb84f",
+      "type": "file",
+      "file": "brain/playbooks/P004-empacotar-em-apk-android.md"
+    },
+    {
+      "id": "p005",
+      "x": 4140,
+      "y": 95,
+      "width": 280,
+      "height": 64,
+      "color": "#5fb84f",
+      "type": "file",
+      "file": "brain/playbooks/P005-desbloquear-chip-baileys-pos-ban-24h.md"
+    },
+    {
+      "id": "design-canon",
+      "x": 4600,
+      "y": 0,
+      "width": 280,
+      "height": 64,
+      "color": "#7a8aa0",
+      "type": "text",
+      "text": "**Design canon (navy/gold)**\n_concept_"
+    },
+    {
+      "id": "sdd",
+      "x": 4600,
+      "y": 95,
+      "width": 280,
+      "height": 64,
+      "color": "#7a8aa0",
+      "type": "text",
+      "text": "**Spec-Driven Development**\n_concept_"
+    },
+    {
+      "id": "rls",
+      "x": 4600,
+      "y": 190,
+      "width": 280,
+      "height": 64,
+      "color": "#7a8aa0",
+      "type": "text",
+      "text": "**RLS em todas as tabelas**\n_concept_"
+    },
+    {
+      "id": "lid-pn",
+      "x": 4600,
+      "y": 285,
+      "width": 280,
+      "height": 64,
+      "color": "#7a8aa0",
+      "type": "text",
+      "text": "**WhatsApp LID↔PN**\n_concept_"
+    },
+    {
+      "id": "baileys-ban",
+      "x": 4600,
+      "y": 380,
+      "width": 280,
+      "height": 64,
+      "color": "#7a8aa0",
+      "type": "text",
+      "text": "**Ban 24h Baileys**\n_concept_"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e0",
+      "fromNode": "eduardo",
+      "toNode": "mv4",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "dono / trabalha-na"
+    },
+    {
+      "id": "e1",
+      "fromNode": "mv4",
+      "toNode": "bethel",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "ecossistema"
+    },
+    {
+      "id": "e2",
+      "fromNode": "bethel",
+      "toNode": "movi",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "cliente-irmão (modelos)"
+    },
+    {
+      "id": "e3",
+      "fromNode": "bethel",
+      "toNode": "next-co",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "cliente-irmão (modelos)"
+    },
+    {
+      "id": "e4",
+      "fromNode": "fluxonapp",
+      "toNode": "baileys",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "usa (multi-chip)"
+    },
+    {
+      "id": "e5",
+      "fromNode": "fluxonapp",
+      "toNode": "hetzner",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "service Baileys roda em"
+    },
+    {
+      "id": "e6",
+      "fromNode": "fluxonapp",
+      "toNode": "nextjs",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "usa"
+    },
+    {
+      "id": "e7",
+      "fromNode": "fluxonapp",
+      "toNode": "supabase",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "usa"
+    },
+    {
+      "id": "e8",
+      "fromNode": "fluxonapp",
+      "toNode": "vercel",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "front em"
+    },
+    {
+      "id": "e9",
+      "fromNode": "fluxonapp",
+      "toNode": "capacitor",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "APK via"
+    },
+    {
+      "id": "e10",
+      "fromNode": "fluxonapp",
+      "toNode": "lid-pn",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "sofreu (fix arquitetural)"
+    },
+    {
+      "id": "e11",
+      "fromNode": "fluxonapp",
+      "toNode": "baileys-ban",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "risco operacional"
+    },
+    {
+      "id": "e12",
+      "fromNode": "fluxonapp",
+      "toNode": "l010",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "lição"
+    },
+    {
+      "id": "e13",
+      "fromNode": "fluxonapp",
+      "toNode": "bethel",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "produto interno"
+    },
+    {
+      "id": "e14",
+      "fromNode": "fluxon",
+      "toNode": "meta-cloud",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "WhatsApp via"
+    },
+    {
+      "id": "e15",
+      "fromNode": "fluxon",
+      "toNode": "nextjs",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "usa"
+    },
+    {
+      "id": "e16",
+      "fromNode": "fluxon",
+      "toNode": "supabase",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "usa"
+    },
+    {
+      "id": "e17",
+      "fromNode": "fluxon",
+      "toNode": "vercel",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "deploy em"
+    },
+    {
+      "id": "e18",
+      "fromNode": "fluxon",
+      "toNode": "openai",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "Sofia usa"
+    },
+    {
+      "id": "e19",
+      "fromNode": "fluxon",
+      "toNode": "resend",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "e-mail via"
+    },
+    {
+      "id": "e20",
+      "fromNode": "fluxon",
+      "toNode": "hotmart",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "webhook compra"
+    },
+    {
+      "id": "e21",
+      "fromNode": "fluxon",
+      "toNode": "pagtrust",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "webhook compra"
+    },
+    {
+      "id": "e22",
+      "fromNode": "fluxon",
+      "toNode": "apps-script",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "leads via Sheets"
+    },
+    {
+      "id": "e23",
+      "fromNode": "fluxon",
+      "toNode": "baileys",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "side-service de grupos (read-only)"
+    },
+    {
+      "id": "e24",
+      "fromNode": "fluxon",
+      "toNode": "fluxonapp",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "NÃO confundir (D005)"
+    },
+    {
+      "id": "e25",
+      "fromNode": "fluxon",
+      "toNode": "l012",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "lição"
+    },
+    {
+      "id": "e26",
+      "fromNode": "fluxon",
+      "toNode": "bethel-motores",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "métricas via webhook"
+    },
+    {
+      "id": "e27",
+      "fromNode": "fluxon",
+      "toNode": "bethel",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "produto interno"
+    },
+    {
+      "id": "e28",
+      "fromNode": "sofia",
+      "toNode": "fluxon",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "roda dentro de"
+    },
+    {
+      "id": "e29",
+      "fromNode": "sofia",
+      "toNode": "suporte",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "roda dentro de"
+    },
+    {
+      "id": "e30",
+      "fromNode": "sofia",
+      "toNode": "openai",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "motor (gpt-4o-mini)"
+    },
+    {
+      "id": "e31",
+      "fromNode": "suporte",
+      "toNode": "fluxon",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "depende (API bridge)"
+    },
+    {
+      "id": "e32",
+      "fromNode": "suporte",
+      "toNode": "nextjs",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "usa"
+    },
+    {
+      "id": "e33",
+      "fromNode": "suporte",
+      "toNode": "supabase",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "usa"
+    },
+    {
+      "id": "e34",
+      "fromNode": "suporte",
+      "toNode": "pgvector",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "RAG via"
+    },
+    {
+      "id": "e35",
+      "fromNode": "suporte",
+      "toNode": "openai",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "usa"
+    },
+    {
+      "id": "e36",
+      "fromNode": "suporte",
+      "toNode": "resend",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "e-mail via"
+    },
+    {
+      "id": "e37",
+      "fromNode": "suporte",
+      "toNode": "sentry",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "erros via"
+    },
+    {
+      "id": "e38",
+      "fromNode": "suporte",
+      "toNode": "vercel",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "deploy em"
+    },
+    {
+      "id": "e39",
+      "fromNode": "suporte",
+      "toNode": "bethel",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "suporte ao cliente"
+    },
+    {
+      "id": "e40",
+      "fromNode": "suporte",
+      "toNode": "hotmart",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "reembolso"
+    },
+    {
+      "id": "e41",
+      "fromNode": "suporte",
+      "toNode": "pagtrust",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "reembolso"
+    },
+    {
+      "id": "e42",
+      "fromNode": "bethel-anuncios",
+      "toNode": "react",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "usa"
+    },
+    {
+      "id": "e43",
+      "fromNode": "bethel-anuncios",
+      "toNode": "vite",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "usa"
+    },
+    {
+      "id": "e44",
+      "fromNode": "bethel-anuncios",
+      "toNode": "supabase",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "usa"
+    },
+    {
+      "id": "e45",
+      "fromNode": "bethel-anuncios",
+      "toNode": "vercel",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "Serverless Functions em"
+    },
+    {
+      "id": "e46",
+      "fromNode": "bethel-anuncios",
+      "toNode": "capacitor",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "APK via"
+    },
+    {
+      "id": "e47",
+      "fromNode": "bethel-anuncios",
+      "toNode": "openai",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "roteiros GPT-4o"
+    },
+    {
+      "id": "e48",
+      "fromNode": "bethel-anuncios",
+      "toNode": "gemini",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "análise de vídeo"
+    },
+    {
+      "id": "e49",
+      "fromNode": "bethel-anuncios",
+      "toNode": "firebase",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "push (FCM)"
+    },
+    {
+      "id": "e50",
+      "fromNode": "bethel-anuncios",
+      "toNode": "pexels",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "stock footage"
+    },
+    {
+      "id": "e51",
+      "fromNode": "bethel-anuncios",
+      "toNode": "bethel",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "ecossistema"
+    },
+    {
+      "id": "e52",
+      "fromNode": "bethel-contratos",
+      "toNode": "nextjs",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "usa"
+    },
+    {
+      "id": "e53",
+      "fromNode": "bethel-contratos",
+      "toNode": "supabase",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "usa"
+    },
+    {
+      "id": "e54",
+      "fromNode": "bethel-contratos",
+      "toNode": "resend",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "e-mail via"
+    },
+    {
+      "id": "e55",
+      "fromNode": "bethel-contratos",
+      "toNode": "vercel",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "deploy em"
+    },
+    {
+      "id": "e56",
+      "fromNode": "bethel-contratos",
+      "toNode": "fluxonapp",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "envia link por WhatsApp via"
+    },
+    {
+      "id": "e57",
+      "fromNode": "bethel-contratos",
+      "toNode": "design-canon",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "importou (navy/gold)"
+    },
+    {
+      "id": "e58",
+      "fromNode": "bethel-contratos",
+      "toNode": "bethel",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "ecossistema"
+    },
+    {
+      "id": "e59",
+      "fromNode": "bethel-rh",
+      "toNode": "react",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "usa"
+    },
+    {
+      "id": "e60",
+      "fromNode": "bethel-rh",
+      "toNode": "vite",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "usa"
+    },
+    {
+      "id": "e61",
+      "fromNode": "bethel-rh",
+      "toNode": "supabase",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "usa (Edge Functions)"
+    },
+    {
+      "id": "e62",
+      "fromNode": "bethel-rh",
+      "toNode": "gemini",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "análise de áudio"
+    },
+    {
+      "id": "e63",
+      "fromNode": "bethel-rh",
+      "toNode": "lovable",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "deploy em"
+    },
+    {
+      "id": "e64",
+      "fromNode": "bethel-rh",
+      "toNode": "bethel",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "ecossistema"
+    },
+    {
+      "id": "e65",
+      "fromNode": "bethel-infra",
+      "toNode": "fluxonapp",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "resolveria multi-chip de"
+    },
+    {
+      "id": "e66",
+      "fromNode": "bethel-infra",
+      "toNode": "l016",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "lição (preservada)"
+    },
+    {
+      "id": "e67",
+      "fromNode": "bethel-infra",
+      "toNode": "p004",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "compartilha pré-reqs APK"
+    },
+    {
+      "id": "e68",
+      "fromNode": "bethel-infra",
+      "toNode": "bethel",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "ecossistema"
+    },
+    {
+      "id": "e69",
+      "fromNode": "monetizacaov2",
+      "toNode": "react",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "usa"
+    },
+    {
+      "id": "e70",
+      "fromNode": "monetizacaov2",
+      "toNode": "vite",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "usa"
+    },
+    {
+      "id": "e71",
+      "fromNode": "monetizacaov2",
+      "toNode": "supabase",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "usa (RLS total)"
+    },
+    {
+      "id": "e72",
+      "fromNode": "monetizacaov2",
+      "toNode": "vercel",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "auto-deploy push"
+    },
+    {
+      "id": "e73",
+      "fromNode": "monetizacaov2",
+      "toNode": "rls",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "exemplo de"
+    },
+    {
+      "id": "e74",
+      "fromNode": "monetizacaov2",
+      "toNode": "mv4",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "interno (squads)"
+    },
+    {
+      "id": "e75",
+      "fromNode": "hub-lead",
+      "toNode": "python",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "motor de import"
+    },
+    {
+      "id": "e76",
+      "fromNode": "hub-lead",
+      "toNode": "nextjs",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "dashboard"
+    },
+    {
+      "id": "e77",
+      "fromNode": "hub-lead",
+      "toNode": "supabase",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "usa (RLS total)"
+    },
+    {
+      "id": "e78",
+      "fromNode": "hub-lead",
+      "toNode": "apps-script",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "sheets bidirecional"
+    },
+    {
+      "id": "e79",
+      "fromNode": "hub-lead",
+      "toNode": "vercel",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "deploy em"
+    },
+    {
+      "id": "e80",
+      "fromNode": "hub-lead",
+      "toNode": "fluxon",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "sync de leads (a cada 10min)"
+    },
+    {
+      "id": "e81",
+      "fromNode": "hub-lead",
+      "toNode": "rls",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "LGPD desde dia 1"
+    },
+    {
+      "id": "e82",
+      "fromNode": "hub-lead",
+      "toNode": "mv4",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "fonte única de leads"
+    },
+    {
+      "id": "e83",
+      "fromNode": "tkf-eq",
+      "toNode": "vite",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "usa"
+    },
+    {
+      "id": "e84",
+      "fromNode": "tkf-eq",
+      "toNode": "react",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "usa"
+    },
+    {
+      "id": "e85",
+      "fromNode": "tkf-eq",
+      "toNode": "the-boys",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "scaffolded por (forge)"
+    },
+    {
+      "id": "e86",
+      "fromNode": "edublock",
+      "toNode": "typescript",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "usa (WXT)"
+    },
+    {
+      "id": "e87",
+      "fromNode": "edublock",
+      "toNode": "the-boys",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "usa SDD"
+    },
+    {
+      "id": "e88",
+      "fromNode": "the-boys",
+      "toNode": "bruto",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "persona"
+    },
+    {
+      "id": "e89",
+      "fromNode": "the-boys",
+      "toNode": "a-lenda",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "persona"
+    },
+    {
+      "id": "e90",
+      "fromNode": "the-boys",
+      "toNode": "hughie",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "persona"
+    },
+    {
+      "id": "e91",
+      "fromNode": "the-boys",
+      "toNode": "frances",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "persona"
+    },
+    {
+      "id": "e92",
+      "fromNode": "the-boys",
+      "toNode": "kimiko",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "persona"
+    },
+    {
+      "id": "e93",
+      "fromNode": "the-boys",
+      "toNode": "soldierboy",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "persona"
+    },
+    {
+      "id": "e94",
+      "fromNode": "the-boys",
+      "toNode": "trem-bala",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "persona"
+    },
+    {
+      "id": "e95",
+      "fromNode": "the-boys",
+      "toNode": "luz-estrela",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "persona"
+    },
+    {
+      "id": "e96",
+      "fromNode": "the-boys",
+      "toNode": "mm",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "persona"
+    },
+    {
+      "id": "e97",
+      "fromNode": "the-boys",
+      "toNode": "edgar",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "persona"
+    },
+    {
+      "id": "e98",
+      "fromNode": "the-boys",
+      "toNode": "sdd",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "estende"
+    },
+    {
+      "id": "e99",
+      "fromNode": "the-boys",
+      "toNode": "design-canon",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "enforça via Soldier Boy"
+    },
+    {
+      "id": "e100",
+      "fromNode": "soldierboy",
+      "toNode": "design-canon",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "dono / enforça"
+    },
+    {
+      "id": "e101",
+      "fromNode": "l010",
+      "toNode": "lid-pn",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "documenta"
+    },
+    {
+      "id": "e102",
+      "fromNode": "p005",
+      "toNode": "baileys-ban",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "resolve"
+    },
+    {
+      "id": "e103",
+      "fromNode": "p005",
+      "toNode": "fluxonapp",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "aplica-se a"
+    },
+    {
+      "id": "e104",
+      "fromNode": "d003",
+      "toNode": "nextjs",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "define stack"
+    },
+    {
+      "id": "e105",
+      "fromNode": "d003",
+      "toNode": "supabase",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "define stack"
+    },
+    {
+      "id": "e106",
+      "fromNode": "d003",
+      "toNode": "vercel",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "define stack"
+    },
+    {
+      "id": "e107",
+      "fromNode": "d004",
+      "toNode": "supabase",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "DDL via Mgmt API"
+    },
+    {
+      "id": "e108",
+      "fromNode": "d005",
+      "toNode": "fluxonapp",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "distingue"
+    },
+    {
+      "id": "e109",
+      "fromNode": "d005",
+      "toNode": "fluxon",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "distingue"
+    },
+    {
+      "id": "e110",
+      "fromNode": "d008",
+      "toNode": "vercel",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "libera --prod"
+    },
+    {
+      "id": "e111",
+      "fromNode": "d008",
+      "toNode": "supabase",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "libera db push"
+    },
+    {
+      "id": "e112",
+      "fromNode": "nextjs",
+      "toNode": "react",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "sobre"
+    },
+    {
+      "id": "e113",
+      "fromNode": "nextjs",
+      "toNode": "typescript",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "usa"
+    },
+    {
+      "id": "e114",
+      "fromNode": "react",
+      "toNode": "tailwind",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "estilo"
+    },
+    {
+      "id": "e115",
+      "fromNode": "react",
+      "toNode": "shadcn",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "componentes"
+    }
+  ]
+}

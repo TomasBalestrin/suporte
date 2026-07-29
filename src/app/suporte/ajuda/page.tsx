@@ -44,6 +44,7 @@ export default function HelpPage() {
   const [isAiLoading, setIsAiLoading] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
   const [feedbackGiven, setFeedbackGiven] = useState(false)
+  const [conversationId, setConversationId] = useState<string | null>(null)
   const [ticketResult, setTicketResult] = useState<{
     ticket_code: string
     access_token: string
@@ -70,7 +71,9 @@ export default function HelpPage() {
         ])
         const prodJson = await prodRes.json()
         const catJson = await catRes.json()
-        if (prodJson.success) {
+        const prodOk = prodJson.success && Array.isArray(prodJson.data) && prodJson.data.length > 0
+        const catOk = catJson.success && Array.isArray(catJson.data) && catJson.data.length > 0
+        if (prodOk) {
           const mainProducts = ['50 Scripts', 'Teste dos Arquétipos']
           const sorted = [...(prodJson.data as Product[])].sort((a, b) => {
             const aIdx = mainProducts.findIndex((name) => a.name.toLowerCase().includes(name.toLowerCase()))
@@ -82,7 +85,10 @@ export default function HelpPage() {
           })
           setProducts(sorted)
         }
-        if (catJson.success) setCategories(catJson.data)
+        if (catOk) setCategories(catJson.data)
+        // Dead-end silencioso: se produtos/categorias nao populam (success:false ou lista
+        // vazia), os Selects obrigatorios ficam sem opcao. Sinaliza erro em vez de form mudo.
+        if (!prodOk || !catOk) setLoadDataError(true)
       } catch {
         setLoadDataError(true)
       } finally {
@@ -121,6 +127,10 @@ export default function HelpPage() {
         setAiName(json.data.ai_name)
       }
 
+      if (json.success && json.data?.conversation_id) {
+        setConversationId(json.data.conversation_id)
+      }
+
       if (json.success && json.data?.answer) {
         setAiMessages((prev) => [
           ...prev,
@@ -152,17 +162,82 @@ export default function HelpPage() {
     }
   }
 
+  async function handleFollowUp(message: string) {
+    if (isAiLoading) return
+    setIsAiLoading(true)
+
+    const newMessages: AiMessage[] = [
+      ...aiMessages,
+      { role: 'user', content: message }
+    ]
+    setAiMessages(newMessages)
+    setFeedbackGiven(false) // reset feedback for the new answer
+
+    const formData = watch()
+
+    try {
+      const res = await fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question: message, // fallback
+          messages: newMessages, // historico
+          product_id: formData.product_id,
+          category_id: formData.category_id,
+          customer: {
+            email: formData.email,
+            cpf: formData.cpf,
+            telefone: formData.phone,
+          },
+        }),
+      })
+
+      const json = await res.json()
+
+      if (json.success && json.data?.conversation_id) {
+        setConversationId(json.data.conversation_id)
+      }
+
+      if (json.success && json.data?.answer) {
+        setAiMessages((prev) => [
+          ...prev,
+          {
+            role: 'ai',
+            content: json.data.answer,
+            confidence: json.data.confidence,
+          },
+        ])
+      } else {
+        setAiMessages((prev) => [
+          ...prev,
+          {
+            role: 'ai',
+            content: 'Não consegui processar a resposta. Se preferir, pode abrir um ticket.',
+          },
+        ])
+      }
+    } catch {
+      setAiMessages((prev) => [
+        ...prev,
+        {
+          role: 'ai',
+          content: 'Desculpe, tive um problema de conexão. Tente novamente ou abra um ticket.',
+        },
+      ])
+    } finally {
+      setIsAiLoading(false)
+    }
+  }
+
   async function sendFeedback(helpful: boolean) {
     setFeedbackGiven(true)
+    if (!conversationId) return
     try {
-      const userMsg = aiMessages.find((m) => m.role === 'user')
-      if (userMsg) {
-        await fetch('/api/ai/feedback', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query: userMsg.content, helpful }),
-        })
-      }
+      await fetch('/api/ai/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conversation_id: conversationId, helpful }),
+      })
     } catch {
       // non-blocking
     }
@@ -591,25 +666,41 @@ export default function HelpPage() {
 
               {!isAiLoading && aiMessages.length > 1 && (
                 <Card className="border-border bg-card">
-                  <CardContent className="p-4">
-                    <p className="mb-3 text-center text-sm text-muted-foreground">
-                      Isso resolveu seu problema?
-                    </p>
+                  <CardContent className="p-4 space-y-4">
+                    <form onSubmit={(e) => {
+                      e.preventDefault()
+                      const form = e.currentTarget
+                      const input = new FormData(form).get('message') as string
+                      if (!input || !input.trim()) return
+                      form.reset()
+                      handleFollowUp(input)
+                    }} className="flex gap-2">
+                      <Input name="message" placeholder="Continuar conversa..." autoComplete="off" disabled={isAiLoading} className="bg-muted" />
+                      <Button type="submit" disabled={isAiLoading}><Send className="h-4 w-4" /></Button>
+                    </form>
+                    
+                    <div className="relative">
+                      <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border/50" /></div>
+                      <div className="relative flex justify-center text-xs uppercase"><span className="bg-card px-2 text-muted-foreground">Ou encerre o chat</span></div>
+                    </div>
+
                     <div className="flex gap-3">
                       <Button
+                        type="button"
                         onClick={handleResolved}
-                        className="flex-1 bg-green-600 hover:bg-green-700"
+                        className="flex-1 bg-green-600 hover:bg-green-700 text-white"
                       >
                         <CheckCircle className="mr-2 h-4 w-4" />
-                        Sim, resolveu!
+                        Dúvida resolvida
                       </Button>
                       <Button
+                        type="button"
                         onClick={handleNotResolved}
                         variant="outline"
                         className="flex-1 border-destructive text-destructive hover:bg-destructive/10"
                       >
                         <XCircle className="mr-2 h-4 w-4" />
-                        Não, preciso de ajuda
+                        Falar com humano
                       </Button>
                     </div>
                   </CardContent>

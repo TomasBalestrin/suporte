@@ -505,6 +505,30 @@ export type Database = {
           was_helpful?: boolean | null
         }
       }
+      ai_conversation_messages: {
+        Row: {
+          id: string
+          conversation_id: string
+          role: string
+          content: string
+          created_at: string
+          confidence: number | null
+          was_helpful: boolean | null
+        }
+        Insert: {
+          id?: string
+          conversation_id: string
+          role: string
+          content: string
+          created_at?: string
+          confidence?: number | null
+          was_helpful?: boolean | null
+        }
+        Update: {
+          confidence?: number | null
+          was_helpful?: boolean | null
+        }
+      }
       activity_log: {
         Row: {
           id: string

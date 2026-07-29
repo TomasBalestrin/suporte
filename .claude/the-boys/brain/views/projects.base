@@ -1,0 +1,21 @@
+filters:
+  and:
+    - file.inFolder("brain/projects")
+views:
+  - type: table
+    name: Todos os projetos
+    order:
+      - file.name
+      - status
+      - deploy
+      - mapped_at
+      - mapped_by
+  - type: table
+    name: Ativos
+    filters:
+      and:
+        - note.status == "active"
+    order:
+      - file.name
+      - deploy
+      - mapped_at

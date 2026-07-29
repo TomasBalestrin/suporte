@@ -609,13 +609,12 @@ export default function TicketDetailPage() {
                       </div>
                     )}
                     <div
-                      className={`max-w-[70%] rounded-2xl px-4 py-3 ${
-                        isInternal
+                      className={`max-w-[70%] rounded-2xl px-4 py-3 ${isInternal
                           ? 'border-2 border-yellow-500/30 bg-yellow-500/5'
                           : isAgent
                             ? 'bg-primary text-primary-foreground'
                             : 'bg-card border border-border'
-                      }`}
+                        }`}
                     >
                       <div className="mb-1 flex items-center gap-2">
                         <p className={`text-xs font-medium ${isAgent && !isInternal ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
@@ -740,8 +739,8 @@ export default function TicketDetailPage() {
                       {quickReplies.filter((qr) =>
                         !qrFilter || qr.shortcut.includes(qrFilter) || qr.title.toLowerCase().includes(qrFilter.toLowerCase())
                       ).length === 0 && (
-                        <p className="px-3 py-2 text-xs text-muted-foreground">Nenhuma resposta encontrada</p>
-                      )}
+                          <p className="px-3 py-2 text-xs text-muted-foreground">Nenhuma resposta encontrada</p>
+                        )}
                     </div>
                   )}
                   <Textarea

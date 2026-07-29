@@ -1,0 +1,1 @@
+{"query":"SELECT config_value FROM ai_config WHERE config_key='system_prompt';"}

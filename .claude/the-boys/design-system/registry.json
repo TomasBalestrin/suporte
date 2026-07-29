@@ -1,0 +1,119 @@
+{
+  "components": {
+    "button": {
+      "base": "btn",
+      "variants": [
+        "danger",
+        "ghost",
+        "ghost-gold",
+        "gold",
+        "outline",
+        "outline-gold",
+        "primary",
+        "success",
+        "table-cell",
+        "table-row"
+      ],
+      "sizes": [
+        "lg",
+        "md",
+        "sm"
+      ],
+      "modifiers": [
+        "btn-icon",
+        "btn-table"
+      ]
+    },
+    "card": {
+      "base": "card",
+      "variants": [
+        "dark",
+        "default",
+        "gold"
+      ],
+      "subparts": [
+        "card-badge",
+        "card-body",
+        "card-footer",
+        "card-footer-meta",
+        "card-img",
+        "card-showcase",
+        "card-tag",
+        "card-text",
+        "card-title"
+      ]
+    },
+    "stat": {
+      "base": "stat-card",
+      "parts": [
+        "stat-card",
+        "stat-change",
+        "stat-icon",
+        "stat-label",
+        "stat-value"
+      ]
+    },
+    "profile": {
+      "base": "profile-card",
+      "parts": [
+        "profile-avatar",
+        "profile-card",
+        "profile-name",
+        "profile-role",
+        "profile-stat-lbl",
+        "profile-stat-val",
+        "profile-stats"
+      ]
+    },
+    "progress": {
+      "base": "progress-track",
+      "variants": [],
+      "subparts": [
+        "progress-demo",
+        "progress-fill",
+        "progress-header",
+        "progress-item",
+        "progress-label",
+        "progress-track",
+        "progress-value"
+      ]
+    },
+    "icon": {
+      "parts": [
+        "icon-grid",
+        "icon-item"
+      ]
+    },
+    "layout": {
+      "items": [
+        "sidebar",
+        "sidebar-divider",
+        "sidebar-label",
+        "sidebar-logo",
+        "section",
+        "section-header",
+        "header",
+        "header-badge",
+        "main",
+        "content"
+      ]
+    },
+    "typography": {
+      "parts": [
+        "font-card",
+        "font-card-name",
+        "font-card-sample",
+        "font-display",
+        "type-specimen",
+        "type-specimen-header",
+        "type-specimen-label",
+        "type-specimen-meta",
+        "type-specimen-preview"
+      ]
+    }
+  },
+  "totals": {
+    "components": 8,
+    "classes_indexed": 163
+  }
+}

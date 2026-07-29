@@ -1,0 +1,37 @@
+{
+  "nodes": [
+    {"id": "title", "type": "text", "text": "# Arquitetura do Harness\n_Pipeline: source → build → dist → install → cliente_", "x": -1400, "y": -500, "width": 600, "height": 100, "color": "6"},
+
+    {"id": "src-personas", "type": "text", "text": "## personas/\n10 personas (manifest + persona.md + voice-samples.md)", "x": -1400, "y": -350, "width": 320, "height": 100, "color": "4"},
+    {"id": "src-brain", "type": "file", "file": "brain/README.md", "x": -1400, "y": -220, "width": 320, "height": 100},
+    {"id": "src-ds", "type": "text", "text": "## design-system/ _(opt)_\ntokens.json + registry.json\n(do projeto cliente — Soldier Boy lê)", "x": -1400, "y": -90, "width": 320, "height": 120, "color": "1"},
+    {"id": "src-docs", "type": "text", "text": "## docs/, install/, build/\nscripts canônicos", "x": -1400, "y": 60, "width": 320, "height": 80, "color": "4"},
+
+    {"id": "build", "type": "text", "text": "## build/\n`npm run build`\n→ gera dist/", "x": -900, "y": -160, "width": 280, "height": 120, "color": "3"},
+
+    {"id": "dist-cc", "type": "text", "text": "**dist/claude-code/**\n• skills/\n• agents/\n• commands/", "x": -500, "y": -350, "width": 280, "height": 120, "color": "5"},
+    {"id": "dist-cursor", "type": "text", "text": "**dist/cursor/**\nrules/\n• the-boys-core.mdc\n• the-boys-personas.mdc\n• the-boys-lessons.mdc", "x": -500, "y": -190, "width": 280, "height": 140, "color": "5"},
+    {"id": "dist-gemini", "type": "text", "text": "**dist/gemini-cli/**\nthe-boys/skills/", "x": -500, "y": -10, "width": 280, "height": 100, "color": "5"},
+
+    {"id": "sync", "type": "text", "text": "## install/sync.mjs\n`--target <projeto>` (project-resident)\nou `--global` (~/.claude/)", "x": -100, "y": -160, "width": 280, "height": 140, "color": "6"},
+
+    {"id": "client-cc", "type": "text", "text": "**Cliente — Claude CLI**\n.claude/skills/\n.claude/agents/\n.claude/commands/\n.claude/the-boys/brain/", "x": 300, "y": -350, "width": 280, "height": 160, "color": "2"},
+    {"id": "client-cursor", "type": "text", "text": "**Cliente — Cursor**\n.cursor/rules/*.mdc", "x": 300, "y": -150, "width": 280, "height": 80, "color": "2"},
+    {"id": "client-gemini", "type": "text", "text": "**Cliente — Gemini CLI**\nthe-boys/skills/", "x": 300, "y": -30, "width": 280, "height": 80, "color": "2"}
+  ],
+  "edges": [
+    {"id": "e-pers-build", "fromNode": "src-personas", "fromSide": "right", "toNode": "build", "toSide": "left"},
+    {"id": "e-brain-build", "fromNode": "src-brain", "fromSide": "right", "toNode": "build", "toSide": "left"},
+    {"id": "e-ds-build", "fromNode": "src-ds", "fromSide": "right", "toNode": "build", "toSide": "left"},
+    {"id": "e-docs-build", "fromNode": "src-docs", "fromSide": "right", "toNode": "build", "toSide": "left"},
+    {"id": "e-build-cc", "fromNode": "build", "fromSide": "right", "toNode": "dist-cc", "toSide": "left"},
+    {"id": "e-build-cursor", "fromNode": "build", "fromSide": "right", "toNode": "dist-cursor", "toSide": "left"},
+    {"id": "e-build-gemini", "fromNode": "build", "fromSide": "right", "toNode": "dist-gemini", "toSide": "left"},
+    {"id": "e-cc-sync", "fromNode": "dist-cc", "fromSide": "right", "toNode": "sync", "toSide": "left"},
+    {"id": "e-cursor-sync", "fromNode": "dist-cursor", "fromSide": "right", "toNode": "sync", "toSide": "left"},
+    {"id": "e-gemini-sync", "fromNode": "dist-gemini", "fromSide": "right", "toNode": "sync", "toSide": "left"},
+    {"id": "e-sync-clientcc", "fromNode": "sync", "fromSide": "right", "toNode": "client-cc", "toSide": "left"},
+    {"id": "e-sync-clientcursor", "fromNode": "sync", "fromSide": "right", "toNode": "client-cursor", "toSide": "left"},
+    {"id": "e-sync-clientgemini", "fromNode": "sync", "fromSide": "right", "toNode": "client-gemini", "toSide": "left"}
+  ]
+}

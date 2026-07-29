@@ -43,3 +43,7 @@ yarn-error.log*
 next-env.d.ts
 .env.vercel
 supabase/.temp/
+
+# Obsidian / markdown-vault MCP — indice gerado (cache de embeddings + modelo, ~245MB). Nunca commitar.
+.claude/the-boys/brain/.mcp-index/
+.claude/the-boys/brain/.markdown_vault_mcp/

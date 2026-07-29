@@ -1,0 +1,11 @@
+filters:
+  and:
+    - file.inFolder("personas")
+    - file.basename == "persona"
+views:
+  - type: table
+    name: Time completo
+    order:
+      - display_name
+      - role
+      - language
