@@ -13,6 +13,12 @@ import {
   buildWpCandidates,
   annotateWpDivergence,
 } from '@/lib/sofia/context'
+import { getDeepInfra, SOFIA_LLM_MODEL } from '@/lib/deepinfra'
+
+// DeepInfra (Llama 3.3 70B Turbo) as vezes tem cold start de dezenas de segundos no tier
+// compartilhado — sem isso a funcao roda no timeout padrao da Vercel e devolve 504 no meio
+// do loop de tool calling (ate 4 iteracoes).
+export const maxDuration = 300
 
 // ─── TOOL HELPERS ───
 async function consultar_fluxon(cpf?: string, email?: string, telefone?: string) {
@@ -218,7 +224,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (!process.env.OPENAI_API_KEY) {
+    if (!process.env.OPENAI_API_KEY || !process.env.DEEPINFRA_API_KEY) {
       return NextResponse.json({
         success: true,
         data: { answer: null, requires_ticket: true },
@@ -336,9 +342,11 @@ export async function POST(request: NextRequest) {
     const aiName = configMap.ai_name || 'Sofia'
     const fallbackMessage = configMap.fallback_message || 'Nao encontrei uma resposta para sua duvida. Vou encaminhar para um atendente.'
 
-    // D-P3 — singleton OpenAI client (reusa instância entre warm starts).
+    // D-P3 — singleton OpenAI client (reusa instância entre warm starts). Embeddings continuam
+    // aqui na OpenAI — DeepInfra so entra pro chat completion abaixo (ver deepinfra.ts).
     const { getOpenAIClient } = await import('@/lib/openai-client')
     const openai = await getOpenAIClient()
+    const deepinfra = await getDeepInfra()
 
     // RAG Search
     let enrichedQuestion = lastMessageContent
@@ -467,8 +475,8 @@ NUNCA diga que nao encontrou nada sem usar as ferramentas primeiro.`
     let escalationResumo: string | null = null
 
     while (iterations < 4) {
-      const chatRes = await openai.chat.completions.create({
-        model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+      const chatRes = await deepinfra.chat.completions.create({
+        model: SOFIA_LLM_MODEL,
         temperature,
         max_tokens: maxTokens,
         messages: openaiMessages,

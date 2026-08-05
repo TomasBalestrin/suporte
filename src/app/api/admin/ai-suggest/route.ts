@@ -4,6 +4,9 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { isAgentOrAdmin } from '@/lib/supabase/guards'
 import { aiSuggestSchema } from '@/lib/utils/validation'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
+import { getDeepInfra, SOFIA_LLM_MODEL } from '@/lib/deepinfra'
+
+export const maxDuration = 300
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,10 +29,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Acesso negado' }, { status: 403 })
     }
 
-    if (!process.env.OPENAI_API_KEY) {
+    if (!process.env.OPENAI_API_KEY || !process.env.DEEPINFRA_API_KEY) {
       return NextResponse.json({
         success: true,
-        data: { suggestion: null, message: 'OpenAI nao configurada' },
+        data: { suggestion: null, message: 'IA nao configurada' },
       })
     }
 
@@ -45,9 +48,10 @@ export async function POST(request: NextRequest) {
     const { ticket_description, messages, customer_question } = parsed.data
 
     const admin = createAdminClient()
-    // D-P3 — singleton OpenAI.
+    // D-P3 — singleton OpenAI (embeddings continuam aqui, ver deepinfra.ts pro porque).
     const { getOpenAIClient } = await import('@/lib/openai-client')
     const openai = await getOpenAIClient()
+    const deepinfra = await getDeepInfra() // chat completions
 
     // Get AI config
     const { data: configs } = await admin
@@ -89,8 +93,8 @@ export async function POST(request: NextRequest) {
           .join('\n')
       : ''
 
-    const chatRes = await openai.chat.completions.create({
-      model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+    const chatRes = await deepinfra.chat.completions.create({
+      model: SOFIA_LLM_MODEL,
       temperature: 0.4,
       max_tokens: 400,
       messages: [
